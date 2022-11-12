@@ -434,9 +434,12 @@ struct sched_statistics {
 
 struct sched_entity {
 	/* For load-balancing: */
+	// load 表示当前调度实体的权重，这个权重决定了一个调度实体的运行优先级，对进程实体而言，它是由静态优先级计算得到，对应调度组而言，是组内各实体的 load 之和。
+	// load 和 cpu_load 两个名字取得是有歧义的，虽然都是 load，但是 cpu_load 却是表示负载
 	struct load_weight load;
 	/* cached value of my_q->h_nr_running */
 	unsigned long runnable_weight;
+	// 红黑树的数据节点，使用该 rb_node 将当前节点挂到红黑树上面，还是内核中的老套路，将 rb_node 嵌入 sched_entity 结构，在操作节点时，可以通过 rb_node 反向获取到其父结构。
 	struct rb_node run_node;
 	struct list_head group_node;
 	unsigned int on_rq;
@@ -660,6 +663,7 @@ struct task_struct {
 
 	const struct sched_class *sched_class;
 	struct sched_entity se; // 普通进程的调度实体
+
 	struct sched_rt_entity rt;
 #ifdef CONFIG_CGROUP_SCHED
 	struct task_group *sched_task_group;
