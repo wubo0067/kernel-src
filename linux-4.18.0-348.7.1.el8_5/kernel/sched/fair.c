@@ -5546,7 +5546,7 @@ static int sched_idle_cpu(int cpu)
 static void enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 {
 	struct cfs_rq *cfs_rq;
-	struct sched_entity *se = &p->se;
+	struct sched_entity *se = &p->se; // 获得进程的调度实体
 	int idle_h_nr_running = task_has_idle_policy(p);
 	int task_new = !(flags & ENQUEUE_WAKEUP);
 
@@ -5568,8 +5568,12 @@ static void enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 
 	for_each_sched_entity(se)
 	{
+		// 判断是否在rq中
 		if (se->on_rq)
 			break;
+		// se通过container_of获取的task_struct, 通过task_struct.cpu知道cpuid，
+		// 通过cpuid获得per-cpu变量runqueues，也就是每个cpu上的runqueue，struct rq对象
+		// 通过runqueue获得其成员cfs, 也就是cfs_rq对象，公平调度器的队列
 		cfs_rq = cfs_rq_of(se);
 		enqueue_entity(cfs_rq, se, flags);
 
@@ -6007,7 +6011,7 @@ static int find_idlest_group_cpu(struct sched_group *group,
 	}
 
 	return shallowest_idle_cpu != -1 ? shallowest_idle_cpu :
-						 least_loaded_cpu;
+					   least_loaded_cpu;
 }
 
 static inline int find_idlest_cpu(struct sched_domain *sd,
@@ -6477,7 +6481,7 @@ static int wake_cap(struct task_struct *p, int cpu, int prev_cpu)
 	max_cap = cpu_rq(cpu)->rd->max_cpu_capacity;
 
 	/* Minimum capacity is close to max, no need to abort wake_affine */
-	if (max_cap - min_cap < max_cap >> 3)
+	if (max_cap - min_cap<max_cap>> 3)
 		return 0;
 
 	/* Bring task utilization in sync with prev_cpu */
@@ -11439,7 +11443,7 @@ int sched_trace_rq_cpu_capacity(struct rq *rq)
 		       SCHED_CAPACITY_SCALE
 #endif
 		       :
-			     -1;
+		       -1;
 }
 EXPORT_SYMBOL_GPL(sched_trace_rq_cpu_capacity);
 
