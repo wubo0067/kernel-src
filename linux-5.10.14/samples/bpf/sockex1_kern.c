@@ -15,10 +15,12 @@ struct {
 SEC("socket1")
 int bpf_prog1(struct __sk_buff *skb)
 {
+	// 找到协议类型字段
 	int index = load_byte(skb, ETH_HLEN + offsetof(struct iphdr, protocol));
 	long *value;
 
 	if (skb->pkt_type != PACKET_OUTGOING)
+		// 只统计出口流量
 		return 0;
 
 	value = bpf_map_lookup_elem(&my_map, &index);

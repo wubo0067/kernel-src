@@ -604,7 +604,7 @@ static int bpf_object__init_prog(struct bpf_object *obj,
 	prog->sec_insn_cnt = insn_data_sz / BPF_INSN_SZ;
 	/* insns_cnt can later be increased by appending used subprograms */
 	prog->insns_cnt = prog->sec_insn_cnt;
-
+	// 刚从bpf obj加载的prog都设置为UNSPEC
 	prog->type = BPF_PROG_TYPE_UNSPEC;
 	prog->load = true;
 
@@ -7302,6 +7302,7 @@ static struct bpf_object *
 	char tmp_name[64];
 	int err;
 
+	// elf文件版本
 	if (elf_version(EV_CURRENT) == EV_NONE) {
 		pr_warn("failed to init libelf for %s\n", path ?: "(mem buf)");
 		return ERR_PTR(-LIBBPF_ERRNO__LIBELF);
@@ -7335,6 +7336,7 @@ static struct bpf_object *
 
 	err = bpf_object__elf_init(obj);
 	err = err ?: bpf_object__check_endianness(obj);
+	// 在这里从.text段读取了所有的program，这里prog type都是unspec
 	err = err ?: bpf_object__elf_collect(obj);
 	err = err ?: bpf_object__collect_externs(obj);
 	err = err ?: bpf_object__finalize_btf(obj);
@@ -7343,9 +7345,10 @@ static struct bpf_object *
 	if (err)
 		goto out;
 	bpf_object__elf_finish(obj);
-
+	// 循环读取的所有prog
 	bpf_object__for_each_program(prog, obj)
 	{
+		// 得到prog的section，section的name和prog type是有关联关系的
 		prog->sec_def = find_sec_def(prog->sec_name);
 		if (!prog->sec_def) {
 			/* couldn't guess, but user might manually specify */
@@ -7357,6 +7360,7 @@ static struct bpf_object *
 
 		if (prog->sec_def->is_sleepable)
 			prog->prog_flags |= BPF_F_SLEEPABLE;
+		// 根据sec定义得到prog type
 		bpf_program__set_type(prog, prog->sec_def->prog_type);
 		bpf_program__set_expected_attach_type(
 			prog, prog->sec_def->expected_attach_type);
@@ -9468,7 +9472,9 @@ int bpf_prog_load(const char *file, enum bpf_prog_type type,
 	struct bpf_prog_load_attr attr;
 
 	memset(&attr, 0, sizeof(struct bpf_prog_load_attr));
+	// clang 编译的bpf object文件
 	attr.file = file;
+	// 指定prog的类型
 	attr.prog_type = type;
 	attr.expected_attach_type = 0;
 
@@ -9492,10 +9498,12 @@ int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 	open_attr.file = attr->file;
 	open_attr.prog_type = attr->prog_type;
 
+	// 打开obj文件
 	obj = bpf_object__open_xattr(&open_attr);
 	if (IS_ERR_OR_NULL(obj))
 		return -ENOENT;
 
+	// 循环所有的prog
 	bpf_object__for_each_program(prog, obj)
 	{
 		enum bpf_attach_type attach_type = attr->expected_attach_type;
@@ -9504,7 +9512,9 @@ int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 		 * attr->prog_type, if specified, as an override to whatever
 		 * bpf_object__open guessed
 		 */
+		// load出来的prog已经根据sec name设置prog type，这里在设置一次
 		if (attr->prog_type != BPF_PROG_TYPE_UNSPEC) {
+			// 设置所有的prog都为指定类型
 			bpf_program__set_type(prog, attr->prog_type);
 			bpf_program__set_expected_attach_type(prog,
 							      attach_type);
@@ -9536,7 +9546,7 @@ int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 		bpf_object__close(obj);
 		return -ENOENT;
 	}
-
+	// 加载obj文件的资源对象
 	err = bpf_object__load(obj);
 	if (err) {
 		bpf_object__close(obj);
