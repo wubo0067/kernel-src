@@ -1450,6 +1450,7 @@ unsigned long do_mmap(struct file *file, unsigned long addr, unsigned long len,
 	/* Obtain the address to map to. we verify (or select) it and ensure
 	 * that it represents a valid section of the address space.
 	 */
+	// 获取可映射的地址
 	addr = get_unmapped_area(file, addr, len, pgoff, flags);
 	if (offset_in_page(addr))
 		return addr;
