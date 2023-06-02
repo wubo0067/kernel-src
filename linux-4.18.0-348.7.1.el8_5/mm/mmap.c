@@ -1188,7 +1188,7 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
 	/*
 	 * Can it merge with the predecessor?
 	 */
-	// 如果是heap的vam，prev->vm_end是等于addr的
+	// 如果分配的地址等于prev->vm_end, 就是和prev进行合并
 	if (prev && prev->vm_end == addr &&
 	    mpol_equal(vma_policy(prev), policy) &&
 	    can_vma_merge_after(prev, vm_flags, anon_vma, file, pgoff,
@@ -1217,6 +1217,7 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
 	/*
 	 * Can this new request be merged in front of next?
 	 */
+	// 如果分配的地址等于next->vm_start, 就是和next进行合并
 	if (next && end == next->vm_start &&
 	    mpol_equal(policy, vma_policy(next)) &&
 	    can_vma_merge_before(next, vm_flags, anon_vma, file, pgoff + pglen,
@@ -1428,6 +1429,12 @@ unsigned long do_mmap(struct file *file, unsigned long addr, unsigned long len,
 			prot |= PROT_EXEC;
 
 	/* force arch specific MAP_FIXED handling in get_unmapped_area */
+	// 在Linux内核中，MAP_FIXED是一个标志宏，用于在内存映射时指定映射的固定地址。当使用MAP_FIXED标志进行内存映射时，系统会尝试将映射的区域与指定的地址关联起来，
+	// 而不是由系统自动选择一个地址进行映射。
+	// 这意味着，如果指定的地址已经被其他映射或数据使用，那么新的映射将会覆盖原有的映射或数据，可能会导致冲突或数据丢失。
+	// 因此，使用MAP_FIXED需要谨慎，确保所指定的地址没有被使用或者已经解除了原有的映射关系。
+	// 需要注意的是，MAP_FIXED不会解除底层映射。这意味着，如果使用MAP_FIXED重新映射到一个地址，而原映射仍然存在，则新的映射和原映射将会共存。
+	// 这可能会导致内存泄漏或其他问题，因此在使用MAP_FIXED时，应该先确保原映射已经被正确解除。
 	if (flags & MAP_FIXED_NOREPLACE)
 		flags |= MAP_FIXED;
 
@@ -1752,6 +1759,11 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
 	}
 
 	/* Clear old maps */
+	/*
+	使用 find_vma_links 函数查找指定地址范围（addr 到 addr + len）内的虚拟内存区域（VMA）。
+	如果找到了与指定范围重叠的 VMA，则使用 do_munmap 函数取消映射这些重叠的 VMA。
+	如果在取消映射过程中发生错误（如内存不足），则返回 -ENOMEM 错误代码。
+	*/
 	while (find_vma_links(mm, addr, addr + len, &prev, &rb_link,
 			      &rb_parent)) {
 		if (do_munmap(mm, addr, len, uf))
@@ -2872,7 +2884,7 @@ int __do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
 
 	/* Fix up all other VM information */
 	remove_vma_list(mm, vma);
-
+	// 下降返回1，也就是真正的缩小了空间
 	return downgrade ? 1 : 0;
 }
 
@@ -3055,6 +3067,7 @@ static int do_brk_flags(unsigned long addr, unsigned long len,
 			return -ENOMEM;
 	}
 
+	// 在清除旧的映射之后，检查地址空间限制...
 	/* Check against address space limits *after* clearing old maps... */
 	if (!may_expand_vm(mm, flags, len >> PAGE_SHIFT))
 		return -ENOMEM;
@@ -3327,6 +3340,7 @@ out:
  */
 bool may_expand_vm(struct mm_struct *mm, vm_flags_t flags, unsigned long npages)
 {
+	// 当前page数量+要分配的pages数量如果大于rlimit就返回false
 	if (mm->total_vm + npages > rlimit(RLIMIT_AS) >> PAGE_SHIFT)
 		return false;
 
