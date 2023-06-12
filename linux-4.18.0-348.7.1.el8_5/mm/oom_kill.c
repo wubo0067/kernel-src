@@ -222,6 +222,7 @@ long oom_badness(struct task_struct *p, unsigned long totalpages)
 	task_unlock(p);
 
 	/* Normalize to oom_score_adj units */
+	// adj如果是个负值，那么points会变小
 	adj *= totalpages / 1000;
 	points += adj;
 
@@ -363,6 +364,7 @@ static void select_bad_process(struct oom_control *oc)
 
 		rcu_read_lock();
 		for_each_process (p)
+			// oom_evaluate_task返回0，这是oc->chosen就是badness task
 			if (oom_evaluate_task(p, oc))
 				break;
 		rcu_read_unlock();

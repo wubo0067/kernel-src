@@ -3084,6 +3084,7 @@ static struct rq *finish_task_switch(struct task_struct *prev)
 		membarrier_mm_sync_core_before_usermode(mm);
 		mmdrop(mm);
 	}
+	// 如果被调度出去的task状态是TASK_DEAD
 	if (unlikely(prev_state == TASK_DEAD)) {
 		if (prev->sched_class->task_dead)
 			prev->sched_class->task_dead(prev);
@@ -3933,6 +3934,7 @@ static void __sched notrace __schedule(bool preempt)
 		trace_sched_switch(preempt, prev, next);
 
 		/* Also unlocks the rq: */
+		// 在这里上下文切换
 		rq = context_switch(rq, prev, next, &rf);
 	} else {
 		rq->clock_update_flags &= ~(RQCF_ACT_SKIP | RQCF_REQ_SKIP);
@@ -5165,7 +5167,7 @@ SYSCALL_DEFINE1(sched_getscheduler, pid_t, pid)
 		if (!retval)
 			retval = p->policy |
 				 (p->sched_reset_on_fork ? SCHED_RESET_ON_FORK :
-								 0);
+							   0);
 	}
 	rcu_read_unlock();
 	return retval;
