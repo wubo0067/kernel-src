@@ -39,7 +39,7 @@
  * This holds because page_is_mergeable() checks the above property.
  */
 struct bio_vec {
-	struct page	*bv_page;
+	struct page	*bv_page; // 缓冲区的物理页，可以包含多个
 	unsigned int	bv_len;
 	unsigned int	bv_offset;
 };
