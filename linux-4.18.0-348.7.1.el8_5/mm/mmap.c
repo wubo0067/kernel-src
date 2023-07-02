@@ -198,7 +198,7 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
 
 	if (mmap_write_lock_killable(mm))
 		return -EINTR;
-
+	// 当前进程堆的顶地址
 	origbrk = mm->brk;
 
 #ifdef CONFIG_COMPAT_BRK
@@ -212,6 +212,7 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
 	else
 		min_brk = mm->end_data;
 #else
+	// 当前进程堆的起始地址
 	min_brk = mm->start_brk;
 #endif
 	if (brk < min_brk)
@@ -227,6 +228,7 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
 			      mm->end_data, mm->start_data))
 		goto out;
 
+	// 按页单位取整，第一次brk=0，那么newbrk = 0
 	newbrk = PAGE_ALIGN(brk);
 	oldbrk = PAGE_ALIGN(mm->brk);
 	if (oldbrk == newbrk) {
@@ -239,6 +241,7 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
 	 * __do_munmap() may downgrade mmap_lock to read.
 	 */
 	if (brk <= mm->brk) {
+		// 如果传入的brk是小于当前进程堆的顶地址，那么就需要释放一部分内存
 		int ret;
 
 		/*
@@ -247,6 +250,7 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
 		 * mm->brk will be restored from origbrk.
 		 */
 		mm->brk = brk;
+		// oldbrk - newbrk缩小的空间长度
 		ret = __do_munmap(mm, newbrk, oldbrk - newbrk, &uf, true);
 		if (ret < 0) {
 			mm->brk = origbrk;
@@ -258,11 +262,17 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
 	}
 
 	/* Check against existing mmap mappings. */
+	// 函数根据一个属于某个进程的虚拟地址，找到其所属的进程虚拟区间，并返回相应的vma_area_struct结构体指针。
+	// 要看vma的vm_end如何设置的，
+	// 如果是第二次，brk是4901，那么oldbrk是4096，newbrk是8192，4096是在当前vma找不到，应该不满足<vm_end
 	next = find_vma(mm, oldbrk);
+	// next->vm_start
+	// !!如果newbrk + PAGE_SIZE 超过了下一个vma的起始地址，这应该是跨过了两个vma的gap
 	if (next && newbrk + PAGE_SIZE > vm_start_gap(next))
 		goto out;
 
 	/* Ok, looks good - let it rip. */
+	// 如果是第一次，如果传入参数是100，那么会创建一个[0, 4096)范围的vma
 	if (do_brk_flags(oldbrk, newbrk - oldbrk, 0, &uf) < 0)
 		goto out;
 	mm->brk = brk;
@@ -539,23 +549,26 @@ static int find_vma_links(struct mm_struct *mm, unsigned long addr,
 
 	__rb_link = &mm->mm_rb.rb_node;
 	rb_prev = __rb_parent = NULL;
-
+	// 从root节点开始
 	while (*__rb_link) {
 		struct vm_area_struct *vma_tmp;
-
+		// 保存父节点
 		__rb_parent = *__rb_link;
+		// 拿到vma对象
 		vma_tmp = rb_entry(__rb_parent, struct vm_area_struct, vm_rb);
-
+		// 如果vma的结束地址大于addr
 		if (vma_tmp->vm_end > addr) {
 			/* Fail if an existing vma overlaps the area */
 			if (vma_tmp->vm_start < end)
 				return -ENOMEM;
+			// 找左子树
 			__rb_link = &__rb_parent->rb_left;
 		} else {
 			rb_prev = __rb_parent;
 			__rb_link = &__rb_parent->rb_right;
 		}
 	}
+	// 直到找到一个vma的end小于addr的vma
 
 	*pprev = NULL;
 	if (rb_prev)
@@ -1158,6 +1171,7 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
 	if (vm_flags & VM_SPECIAL)
 		return NULL;
 
+	// 获得prev的下一个vma
 	if (prev)
 		next = prev->vm_next;
 	else
@@ -1174,6 +1188,7 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
 	/*
 	 * Can it merge with the predecessor?
 	 */
+	// 如果分配的地址等于prev->vm_end, 就是和prev进行合并
 	if (prev && prev->vm_end == addr &&
 	    mpol_equal(vma_policy(prev), policy) &&
 	    can_vma_merge_after(prev, vm_flags, anon_vma, file, pgoff,
@@ -1202,6 +1217,7 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
 	/*
 	 * Can this new request be merged in front of next?
 	 */
+	// 如果分配的地址等于next->vm_start, 就是和next进行合并
 	if (next && end == next->vm_start &&
 	    mpol_equal(policy, vma_policy(next)) &&
 	    can_vma_merge_before(next, vm_flags, anon_vma, file, pgoff + pglen,
@@ -1413,6 +1429,12 @@ unsigned long do_mmap(struct file *file, unsigned long addr, unsigned long len,
 			prot |= PROT_EXEC;
 
 	/* force arch specific MAP_FIXED handling in get_unmapped_area */
+	// 在Linux内核中，MAP_FIXED是一个标志宏，用于在内存映射时指定映射的固定地址。当使用MAP_FIXED标志进行内存映射时，系统会尝试将映射的区域与指定的地址关联起来，
+	// 而不是由系统自动选择一个地址进行映射。
+	// 这意味着，如果指定的地址已经被其他映射或数据使用，那么新的映射将会覆盖原有的映射或数据，可能会导致冲突或数据丢失。
+	// 因此，使用MAP_FIXED需要谨慎，确保所指定的地址没有被使用或者已经解除了原有的映射关系。
+	// 需要注意的是，MAP_FIXED不会解除底层映射。这意味着，如果使用MAP_FIXED重新映射到一个地址，而原映射仍然存在，则新的映射和原映射将会共存。
+	// 这可能会导致内存泄漏或其他问题，因此在使用MAP_FIXED时，应该先确保原映射已经被正确解除。
 	if (flags & MAP_FIXED_NOREPLACE)
 		flags |= MAP_FIXED;
 
@@ -1435,6 +1457,7 @@ unsigned long do_mmap(struct file *file, unsigned long addr, unsigned long len,
 	/* Obtain the address to map to. we verify (or select) it and ensure
 	 * that it represents a valid section of the address space.
 	 */
+	// 获取可映射的地址
 	addr = get_unmapped_area(file, addr, len, pgoff, flags);
 	if (offset_in_page(addr))
 		return addr;
@@ -1736,6 +1759,11 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
 	}
 
 	/* Clear old maps */
+	/*
+	使用 find_vma_links 函数查找指定地址范围（addr 到 addr + len）内的虚拟内存区域（VMA）。
+	如果找到了与指定范围重叠的 VMA，则使用 do_munmap 函数取消映射这些重叠的 VMA。
+	如果在取消映射过程中发生错误（如内存不足），则返回 -ENOMEM 错误代码。
+	*/
 	while (find_vma_links(mm, addr, addr + len, &prev, &rb_link,
 			      &rb_parent)) {
 		if (do_munmap(mm, addr, len, uf))
@@ -1770,7 +1798,7 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
 		error = -ENOMEM;
 		goto unacct_error;
 	}
-
+	// 设置起始地址
 	vma->vm_start = addr;
 	vma->vm_end = addr + len;
 	vma->vm_flags = vm_flags;
@@ -2249,13 +2277,14 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
 
 	while (rb_node) {
 		struct vm_area_struct *tmp;
-
+		// 通过vm_rb对象的container_of获得vma对象指针
 		tmp = rb_entry(rb_node, struct vm_area_struct, vm_rb);
 		// vm_end是半包，不会在这个区域中，[0-1024)
 		if (tmp->vm_end > addr) {
 			// **如果是堆的vma，这里是不可能满足的
 			vma = tmp;
 			if (tmp->vm_start <= addr)
+				// 当这个vma的地址覆盖addr时，跳出循环，找到了vma
 				break;
 			rb_node = rb_node->rb_left;
 		} else
@@ -2856,7 +2885,7 @@ int __do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
 
 	/* Fix up all other VM information */
 	remove_vma_list(mm, vma);
-
+	// 下降返回1，也就是真正的缩小了空间
 	return downgrade ? 1 : 0;
 }
 
@@ -3005,6 +3034,7 @@ out:
  *  this is really a simplified "do_mmap".  it only handles
  *  anonymous maps.  eventually we may be able to do some
  *  brk-specific accounting here.
+ *  addr和len都是page_size整数倍
  */
 static int do_brk_flags(unsigned long addr, unsigned long len,
 			unsigned long flags, struct list_head *uf)
@@ -3020,6 +3050,7 @@ static int do_brk_flags(unsigned long addr, unsigned long len,
 		return -EINVAL;
 	flags |= VM_DATA_DEFAULT_FLAGS | VM_ACCOUNT | mm->def_flags;
 
+	// 找到一个为映射的区域
 	error = get_unmapped_area(NULL, addr, len, 0, MAP_FIXED);
 	if (offset_in_page(error))
 		return error;
@@ -3037,6 +3068,7 @@ static int do_brk_flags(unsigned long addr, unsigned long len,
 			return -ENOMEM;
 	}
 
+	// 在清除旧的映射之后，检查地址空间限制...
 	/* Check against address space limits *after* clearing old maps... */
 	if (!may_expand_vm(mm, flags, len >> PAGE_SHIFT))
 		return -ENOMEM;
@@ -3048,6 +3080,7 @@ static int do_brk_flags(unsigned long addr, unsigned long len,
 		return -ENOMEM;
 
 	/* Can we just expand an old private anonymous mapping? */
+	// 其实在这里扩展heap的vma空间
 	vma = vma_merge(mm, prev, addr, addr + len, flags, NULL, NULL, pgoff,
 			NULL, NULL_VM_UFFD_CTX);
 	if (vma)
@@ -3061,9 +3094,11 @@ static int do_brk_flags(unsigned long addr, unsigned long len,
 		vm_unacct_memory(len >> PAGE_SHIFT);
 		return -ENOMEM;
 	}
-
+	// 设置vma为匿名
 	vma_set_anonymous(vma);
+	// 设置vma的起始地址，page整数倍
 	vma->vm_start = addr;
+	// vma的上限，这个地址不被包含，范围是半包[vm_start, vm_end)
 	vma->vm_end = addr + len;
 	vma->vm_pgoff = pgoff;
 	vma->vm_flags = flags;
@@ -3071,6 +3106,7 @@ static int do_brk_flags(unsigned long addr, unsigned long len,
 	vma_link(mm, vma, prev, rb_link, rb_parent);
 out:
 	perf_event_mmap(vma);
+	// total_vm是page个数
 	mm->total_vm += len >> PAGE_SHIFT;
 	mm->data_vm += len >> PAGE_SHIFT;
 	if (flags & VM_LOCKED)
@@ -3305,6 +3341,7 @@ out:
  */
 bool may_expand_vm(struct mm_struct *mm, vm_flags_t flags, unsigned long npages)
 {
+	// 当前page数量+要分配的pages数量如果大于rlimit就返回false
 	if (mm->total_vm + npages > rlimit(RLIMIT_AS) >> PAGE_SHIFT)
 		return false;
 

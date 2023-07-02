@@ -222,7 +222,7 @@ struct bio {
 #endif
 	};
 
-	unsigned short		bi_vcnt;	/* how many bio_vec's */
+	unsigned short		bi_vcnt;	/* how many bio_vec's 向量数组长度 */
 
 	/*
 	 * Everything starting with bi_max_vecs will be preserved by bio_reset()

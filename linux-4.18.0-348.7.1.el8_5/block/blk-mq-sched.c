@@ -91,7 +91,7 @@ static bool blk_mq_dispatch_hctx_list(struct list_head *rq_list)
 	unsigned int count = 0;
 	bool ret;
 
-	list_for_each_entry(rq, rq_list, queuelist) {
+	list_for_each_entry (rq, rq_list, queuelist) {
 		if (rq->mq_hctx != hctx) {
 			list_cut_before(&hctx_list, rq_list, &rq->queuelist);
 			goto dispatch;
@@ -105,7 +105,7 @@ dispatch:
 	return ret;
 }
 
-#define BLK_MQ_BUDGET_DELAY	3		/* ms units */
+#define BLK_MQ_BUDGET_DELAY 3 /* ms units */
 
 /*
  * Only SCSI implements .get_budget and .put_budget, and SCSI restarts
@@ -145,7 +145,7 @@ static int __blk_mq_do_dispatch_sched(struct blk_mq_hw_ctx *hctx)
 		budget_token = blk_mq_get_dispatch_budget(q);
 		if (budget_token < 0)
 			break;
-
+		// 在这里从io调度中获取一个rq，dispatch_request = dd_dispatch_request
 		rq = e->type->ops.dispatch_request(hctx);
 		if (!rq) {
 			blk_mq_put_dispatch_budget(q, budget_token);
@@ -198,6 +198,7 @@ static int __blk_mq_do_dispatch_sched(struct blk_mq_hw_ctx *hctx)
 			dispatched |= blk_mq_dispatch_hctx_list(&rq_list);
 		} while (!list_empty(&rq_list));
 	} else {
+		// 在这里获取
 		dispatched = blk_mq_dispatch_rq_list(hctx, &rq_list, count);
 	}
 
@@ -294,6 +295,7 @@ static int blk_mq_do_dispatch_ctx(struct blk_mq_hw_ctx *hctx)
 static int __blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 {
 	struct request_queue *q = hctx->queue;
+	// 电梯队列
 	struct elevator_queue *e = q->elevator;
 	const bool has_sched_dispatch = e && e->type->ops.dispatch_request;
 	int ret = 0;
@@ -419,6 +421,7 @@ static bool blk_mq_attempt_merge(struct request_queue *q,
 
 bool __blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio)
 {
+	// 得到io调度算法
 	struct elevator_queue *e = q->elevator;
 	struct blk_mq_ctx *ctx = blk_mq_get_ctx(q);
 	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, bio->bi_opf, ctx);
@@ -426,11 +429,12 @@ bool __blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio)
 	enum hctx_type type;
 
 	if (e && e->type->ops.bio_merge)
+		// 使用io调度算法来进行io和并
 		return e->type->ops.bio_merge(hctx, bio);
 
 	type = hctx->type;
 	if ((hctx->flags & BLK_MQ_F_SHOULD_MERGE) &&
-			!list_empty_careful(&ctx->rq_lists[type])) {
+	    !list_empty_careful(&ctx->rq_lists[type])) {
 		/* default per sw-queue merge */
 		spin_lock(&ctx->lock);
 		ret = blk_mq_attempt_merge(q, hctx, ctx, bio);
@@ -453,8 +457,7 @@ void blk_mq_sched_request_inserted(struct request *rq)
 EXPORT_SYMBOL_GPL(blk_mq_sched_request_inserted);
 
 static bool blk_mq_sched_bypass_insert(struct blk_mq_hw_ctx *hctx,
-				       bool has_sched,
-				       struct request *rq)
+				       bool has_sched, struct request *rq)
 {
 	/*
 	 * dispatch flush and passthrough rq directly
@@ -481,7 +484,9 @@ void blk_mq_sched_insert_request(struct request *rq, bool at_head,
 {
 	struct request_queue *q = rq->q;
 	struct elevator_queue *e = q->elevator;
+	// 软件队列
 	struct blk_mq_ctx *ctx = rq->mq_ctx;
+	// 硬件队列
 	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
 
 	WARN_ON(e && (rq->tag != BLK_MQ_NO_TAG));
@@ -513,9 +518,10 @@ void blk_mq_sched_insert_request(struct request *rq, bool at_head,
 		goto run;
 	}
 
+	// .insert_requests	= dd_insert_requests, 使用调度器的插入方法
 	if (e && e->type->ops.insert_requests) {
 		LIST_HEAD(list);
-
+		// 将request加入到一个list中
 		list_add(&rq->queuelist, &list);
 		e->type->ops.insert_requests(hctx, &list, at_head);
 	} else {
@@ -561,7 +567,7 @@ void blk_mq_sched_insert_requests(struct blk_mq_hw_ctx *hctx,
 	}
 
 	blk_mq_run_hw_queue(hctx, run_queue_async);
- out:
+out:
 	percpu_ref_put(&q->q_usage_counter);
 }
 
@@ -601,7 +607,7 @@ static void blk_mq_sched_tags_teardown(struct request_queue *q)
 	struct blk_mq_hw_ctx *hctx;
 	int i;
 
-	queue_for_each_hw_ctx(q, hctx, i) {
+	queue_for_each_hw_ctx (q, hctx, i) {
 		if (hctx->sched_tags) {
 			blk_mq_free_rq_map(hctx->sched_tags, hctx->flags);
 			hctx->sched_tags = NULL;
@@ -621,17 +627,15 @@ static int blk_mq_init_sched_shared_sbitmap(struct request_queue *queue)
 	 * updating nr_requests.
 	 */
 	ret = blk_mq_init_bitmaps(&queue->sched_bitmap_tags,
-				  &queue->sched_breserved_tags,
-				  MAX_SCHED_RQ, set->reserved_tags,
-				  set->numa_node, alloc_policy);
+				  &queue->sched_breserved_tags, MAX_SCHED_RQ,
+				  set->reserved_tags, set->numa_node,
+				  alloc_policy);
 	if (ret)
 		return ret;
 
-	queue_for_each_hw_ctx(queue, hctx, i) {
-		hctx->sched_tags->bitmap_tags =
-					&queue->sched_bitmap_tags;
-		hctx->sched_tags->breserved_tags =
-					&queue->sched_breserved_tags;
+	queue_for_each_hw_ctx (queue, hctx, i) {
+		hctx->sched_tags->bitmap_tags = &queue->sched_bitmap_tags;
+		hctx->sched_tags->breserved_tags = &queue->sched_breserved_tags;
 	}
 
 	sbitmap_queue_resize(&queue->sched_bitmap_tags,
@@ -664,10 +668,10 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 	 * since we don't split into sync/async like the old code did.
 	 * Additionally, this is a per-hw queue depth.
 	 */
-	q->nr_requests = 2 * min_t(unsigned int, q->tag_set->queue_depth,
-				   BLKDEV_MAX_RQ);
+	q->nr_requests =
+		2 * min_t(unsigned int, q->tag_set->queue_depth, BLKDEV_MAX_RQ);
 
-	queue_for_each_hw_ctx(q, hctx, i) {
+	queue_for_each_hw_ctx (q, hctx, i) {
 		ret = blk_mq_sched_alloc_tags(q, hctx, i);
 		if (ret)
 			goto err_free_tags;
@@ -678,14 +682,14 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 		if (ret)
 			goto err_free_tags;
 	}
-
+	// 给request初始化一个bio调度算法
 	ret = e->ops.init_sched(q, e);
 	if (ret)
 		goto err_free_sbitmap;
 
 	blk_mq_debugfs_register_sched(q);
 
-	queue_for_each_hw_ctx(q, hctx, i) {
+	queue_for_each_hw_ctx (q, hctx, i) {
 		if (e->ops.init_hctx) {
 			ret = e->ops.init_hctx(hctx, i);
 			if (ret) {
@@ -720,7 +724,7 @@ void blk_mq_sched_free_requests(struct request_queue *q)
 	struct blk_mq_hw_ctx *hctx;
 	int i;
 
-	queue_for_each_hw_ctx(q, hctx, i) {
+	queue_for_each_hw_ctx (q, hctx, i) {
 		if (hctx->sched_tags)
 			blk_mq_free_rqs(q->tag_set, hctx->sched_tags, i);
 	}
@@ -732,7 +736,7 @@ void blk_mq_exit_sched(struct request_queue *q, struct elevator_queue *e)
 	unsigned int i;
 	unsigned int flags = 0;
 
-	queue_for_each_hw_ctx(q, hctx, i) {
+	queue_for_each_hw_ctx (q, hctx, i) {
 		blk_mq_debugfs_unregister_sched_hctx(hctx);
 		if (e->type->ops.exit_hctx && hctx->sched_data) {
 			e->type->ops.exit_hctx(hctx, i);
