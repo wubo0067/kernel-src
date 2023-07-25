@@ -2085,7 +2085,7 @@ unsigned long unmapped_area_topdown(struct vm_unmapped_area_info *info)
 			if (prev == vma->vm_rb.rb_right) {
 				gap_start = vma->vm_prev ?
 						    vm_end_gap(vma->vm_prev) :
-						    0;
+							  0;
 				goto check_current;
 			}
 		}
@@ -2279,8 +2279,9 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
 		struct vm_area_struct *tmp;
 		// 通过vm_rb对象的container_of获得vma对象指针
 		tmp = rb_entry(rb_node, struct vm_area_struct, vm_rb);
-
+		// vm_end是半包，不会在这个区域中，[0-1024)
 		if (tmp->vm_end > addr) {
+			// **如果是堆的vma，这里是不可能满足的
 			vma = tmp;
 			if (tmp->vm_start <= addr)
 				// 当这个vma的地址覆盖addr时，跳出循环，找到了vma
@@ -2352,7 +2353,7 @@ static int acct_stack_growth(struct vm_area_struct *vma, unsigned long size,
 
 	/* Check to ensure the stack will not grow into a hugetlb-only region */
 	new_start = (vma->vm_flags & VM_GROWSUP) ? vma->vm_start :
-						   vma->vm_end - size;
+							 vma->vm_end - size;
 	if (is_hugepage_only_range(vma->vm_mm, new_start, size))
 		return -EFAULT;
 
@@ -3359,7 +3360,7 @@ bool may_expand_vm(struct mm_struct *mm, vm_flags_t flags, unsigned long npages)
 			rlimit(RLIMIT_DATA),
 			ignore_rlimit_data ?
 				"" :
-				" or use boot option ignore_rlimit_data");
+				      " or use boot option ignore_rlimit_data");
 
 		if (!ignore_rlimit_data)
 			return false;
