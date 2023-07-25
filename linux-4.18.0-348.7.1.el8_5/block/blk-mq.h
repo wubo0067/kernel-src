@@ -302,6 +302,7 @@ static inline struct blk_plug *blk_mq_plug(struct request_queue *q,
 	 * For regular block devices or read operations, use the context plug
 	 * which may be NULL if blk_start_plug() was not executed.
 	 * 在普通块设备或者读操作才使用plug list。
+	 * 函数是用于判断块设备请求队列是否支持分区（Zoned）功能。分区是一种块设备的特性，它将设备的存储空间划分为多个连续的区域（称为区域），每个区域具有特定的属性和限制。
 	 */
 	if (!blk_queue_is_zoned(q) || !op_is_write(bio_op(bio)))
 		return current->plug;

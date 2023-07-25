@@ -998,7 +998,7 @@ bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 	// 获得task_struct的plug list
 	plug_list = &plug->mq_list;
 
-	// queuelist成员是list，通过这个获得request对象
+	// queuelist成员是list，通过这个获得request对象，反向循环plug队列，先从最后的request开始
 	list_for_each_entry_reverse (rq, plug_list, queuelist) {
 		bool merged = false;
 
@@ -1013,7 +1013,7 @@ bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 
 		if (rq->q != q || !blk_rq_merge_ok(rq, bio))
 			continue;
-		// merge的方向
+		// merge的方向，将bio合并到request中
 		switch (blk_try_merge(rq, bio)) {
 		case ELEVATOR_BACK_MERGE:
 			merged = bio_attempt_back_merge(q, rq, bio);

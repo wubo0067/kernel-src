@@ -492,7 +492,7 @@ static bool dd_bio_merge(struct blk_mq_hw_ctx *hctx, struct bio *bio)
 static void dd_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 			      bool at_head)
 {
-	// 获取硬件队列
+	// 从硬件队列上下文
 	struct request_queue *q = hctx->queue;
 	// struct elevator_queue	*elevator;
 	struct deadline_data *dd = q->elevator->elevator_data;
@@ -544,7 +544,7 @@ static void dd_insert_requests(struct blk_mq_hw_ctx *hctx,
 
 		rq = list_first_entry(list, struct request, queuelist);
 		list_del_init(&rq->queuelist);
-		// 插入硬件队列
+		// 插入io调度策略的队列
 		dd_insert_request(hctx, rq, at_head);
 	}
 	spin_unlock(&dd->lock);

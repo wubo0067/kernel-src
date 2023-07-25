@@ -306,6 +306,8 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
 		goto next;
 
 	/* p may not have freeable memory in nodemask */
+	// cpuset 子系统是 Linux 内核中的一部分，用于将进程组织成逻辑组，并将其限制在特定的 CPU 和内存节点上。
+	// 每个 cpuset 都可以定义一组可用的 CPU 和内存资源，并允许管理员将进程限制在这些资源范围内。
 	if (!is_memcg_oom(oc) && !oom_cpuset_eligible(task, oc))
 		goto next;
 
@@ -329,8 +331,9 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
 		points = LONG_MAX;
 		goto select;
 	}
-
+	// 计算badness得分
 	points = oom_badness(task, oc->totalpages);
+	// points越大选中的可能性越大
 	if (points == LONG_MIN || points < oc->chosen_points)
 		goto next;
 
@@ -1046,6 +1049,7 @@ bool out_of_memory(struct oom_control *oc)
 	}
 
 	/*
+	current内核全局变量，指向当前进程的task_struct
 	 * If current has a pending SIGKILL or is exiting, then automatically
 	 * select it.  The goal is to allow it to allocate so that it may
 	 * quickly exit and free its memory.
@@ -1070,11 +1074,15 @@ bool out_of_memory(struct oom_control *oc)
 	 * Check if there were limitations on the allocation (only relevant for
 	 * NUMA and memcg) that may require different handling.
 	 */
+	// 获得约束条件，例如获得memcg的limit或整个系统的物理内存
 	oc->constraint = constrained_alloc(oc);
 	if (oc->constraint != CONSTRAINT_MEMORY_POLICY)
 		oc->nodemask = NULL;
 	check_panic_on_oom(oc);
 
+	// sysctl_oom_kill_allocating_task的含义是控制OOM killer的行为。
+	// 当该变量的值为0时，OOM killer将选择终止占用大量内存的进程。
+	// 但当该变量的值为1时，OOM killer将选择终止分配内存的进程，即导致内存不足的进程，而不仅仅是占用大量内存的进程。
 	if (!is_memcg_oom(oc) && sysctl_oom_kill_allocating_task &&
 	    current->mm && !oom_unkillable_task(current) &&
 	    oom_cpuset_eligible(current, oc) &&

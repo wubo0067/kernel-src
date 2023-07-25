@@ -551,6 +551,7 @@ void blk_mq_sched_insert_requests(struct blk_mq_hw_ctx *hctx,
 
 	e = hctx->queue->elevator;
 	if (e && e->type->ops.insert_requests)
+		// 先插入调度器队列中，mq-deadline.c .insert_requests	= dd_insert_requests,
 		e->type->ops.insert_requests(hctx, list, false);
 	else {
 		/*
@@ -565,7 +566,7 @@ void blk_mq_sched_insert_requests(struct blk_mq_hw_ctx *hctx,
 		}
 		blk_mq_insert_requests(hctx, ctx, list);
 	}
-
+	// 插入队列后开始执行
 	blk_mq_run_hw_queue(hctx, run_queue_async);
 out:
 	percpu_ref_put(&q->q_usage_counter);

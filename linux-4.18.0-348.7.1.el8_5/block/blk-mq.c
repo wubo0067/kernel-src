@@ -370,7 +370,7 @@ static struct request *__blk_mq_alloc_request(struct blk_mq_alloc_data *data)
 	}
 
 retry:
-	// 从percpu中选择软件队列
+	// 设置软件、硬件队列的上下文
 	data->ctx = blk_mq_get_ctx(q);
 	data->hctx = blk_mq_map_queue(q, data->cmd_flags, data->ctx);
 	if (!e)
@@ -1416,6 +1416,7 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list,
 		 */
 		if (nr_budgets)
 			nr_budgets--;
+		// 这里调用硬件驱动的操作，.queue_rq	= scsi_queue_rq,
 		ret = q->mq_ops->queue_rq(hctx, &bd);
 		switch (ret) {
 		case BLK_STS_OK:
@@ -1969,6 +1970,7 @@ void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 
 	if (list_empty(&plug->mq_list))
 		return;
+	// 将blk_plug中的request都迁移到list中
 	list_splice_init(&plug->mq_list, &list);
 
 	if (plug->rq_count > 2 && plug->multiple_queues)
@@ -1988,11 +1990,13 @@ void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 		{
 			rq = list_entry_rq(pos);
 			BUG_ON(!rq->q);
+			// 找到相同的软硬队列
 			if (rq->mq_hctx != this_hctx || rq->mq_ctx != this_ctx)
 				break;
 			depth++;
 		}
-
+		// 将pos节点之前切割为两个链表，rq_list是个新链表，用于存放切割后的前半部分链表，head是原始链表头，用于存放切割后链表的后半部分
+		// pos是指定的切割的位置，该节点和其之前的节点都会移动到新的链表中
 		list_cut_before(&rq_list, &list, pos);
 		trace_block_unplug(head_rq->q, depth, !from_schedule);
 		blk_mq_sched_insert_requests(this_hctx, this_ctx, &rq_list,
@@ -2260,7 +2264,7 @@ blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	cookie = request_to_qc_t(data.hctx, rq);
 
 	blk_mq_bio_to_request(rq, bio);
-
+	// 判断是否是个普通的块设备，或者是读操作，如果是是就返回current->blk_plug
 	plug = blk_mq_plug(q, bio);
 	if (unlikely(is_flush_fua)) {
 		/* Bypass scheduler for flush requests */

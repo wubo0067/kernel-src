@@ -1700,6 +1700,7 @@ static void flush_plug_callbacks(struct blk_plug *plug, bool from_schedule)
 	LIST_HEAD(callbacks);
 
 	while (!list_empty(&plug->cb_list)) {
+		// 将plug->cb_list中的回调函数放入callbacks中，并将plug->cb_list初始化为空链表
 		list_splice_init(&plug->cb_list, &callbacks);
 
 		while (!list_empty(&callbacks)) {

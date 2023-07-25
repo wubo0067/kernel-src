@@ -36,19 +36,16 @@ static const struct vm_operations_struct xfs_file_vm_ops;
  * Decide if the given file range is aligned to the size of the fundamental
  * allocation unit for the file.
  */
-static bool
-xfs_is_falloc_aligned(
-	struct xfs_inode	*ip,
-	loff_t			pos,
-	long long int		len)
+static bool xfs_is_falloc_aligned(struct xfs_inode *ip, loff_t pos,
+				  long long int len)
 {
-	struct xfs_mount	*mp = ip->i_mount;
-	uint64_t		mask;
+	struct xfs_mount *mp = ip->i_mount;
+	uint64_t mask;
 
 	if (XFS_IS_REALTIME_INODE(ip)) {
 		if (!is_power_of_2(mp->m_sb.sb_rextsize)) {
-			u64	rextbytes;
-			u32	mod;
+			u64 rextbytes;
+			u32 mod;
 
 			rextbytes = XFS_FSB_TO_B(mp, mp->m_sb.sb_rextsize);
 			div_u64_rem(pos, rextbytes, &mod);
@@ -65,16 +62,14 @@ xfs_is_falloc_aligned(
 	return !((pos | len) & mask);
 }
 
-int
-xfs_update_prealloc_flags(
-	struct xfs_inode	*ip,
-	enum xfs_prealloc_flags	flags)
+int xfs_update_prealloc_flags(struct xfs_inode *ip,
+			      enum xfs_prealloc_flags flags)
 {
-	struct xfs_trans	*tp;
-	int			error;
+	struct xfs_trans *tp;
+	int error;
 
-	error = xfs_trans_alloc(ip->i_mount, &M_RES(ip->i_mount)->tr_writeid,
-			0, 0, 0, &tp);
+	error = xfs_trans_alloc(ip->i_mount, &M_RES(ip->i_mount)->tr_writeid, 0,
+				0, 0, &tp);
 	if (error)
 		return error;
 
@@ -105,33 +100,25 @@ xfs_update_prealloc_flags(
  * cache flush operations, and there are no non-transaction metadata updates
  * on directories either.
  */
-STATIC int
-xfs_dir_fsync(
-	struct file		*file,
-	loff_t			start,
-	loff_t			end,
-	int			datasync)
+STATIC int xfs_dir_fsync(struct file *file, loff_t start, loff_t end,
+			 int datasync)
 {
-	struct xfs_inode	*ip = XFS_I(file->f_mapping->host);
+	struct xfs_inode *ip = XFS_I(file->f_mapping->host);
 
 	trace_xfs_dir_fsync(ip);
 	return xfs_log_force_inode(ip);
 }
 
-STATIC int
-xfs_file_fsync(
-	struct file		*file,
-	loff_t			start,
-	loff_t			end,
-	int			datasync)
+STATIC int xfs_file_fsync(struct file *file, loff_t start, loff_t end,
+			  int datasync)
 {
-	struct inode		*inode = file->f_mapping->host;
-	struct xfs_inode	*ip = XFS_I(inode);
+	struct inode *inode = file->f_mapping->host;
+	struct xfs_inode *ip = XFS_I(inode);
 	struct xfs_inode_log_item *iip = ip->i_itemp;
-	struct xfs_mount	*mp = ip->i_mount;
-	int			error = 0;
-	int			log_flushed = 0;
-	xfs_lsn_t		lsn = 0;
+	struct xfs_mount *mp = ip->i_mount;
+	int error = 0;
+	int log_flushed = 0;
+	xfs_lsn_t lsn = 0;
 
 	trace_xfs_file_fsync(ip);
 
@@ -170,8 +157,7 @@ xfs_file_fsync(
 	 */
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
 	if (xfs_ipincount(ip)) {
-		if (!datasync ||
-		    (iip->ili_fsync_fields & ~XFS_ILOG_TIMESTAMP))
+		if (!datasync || (iip->ili_fsync_fields & ~XFS_ILOG_TIMESTAMP))
 			lsn = iip->ili_last_lsn;
 	}
 
@@ -197,14 +183,11 @@ xfs_file_fsync(
 	return error;
 }
 
-STATIC ssize_t
-xfs_file_dio_aio_read(
-	struct kiocb		*iocb,
-	struct iov_iter		*to)
+STATIC ssize_t xfs_file_dio_aio_read(struct kiocb *iocb, struct iov_iter *to)
 {
-	struct xfs_inode	*ip = XFS_I(file_inode(iocb->ki_filp));
-	size_t			count = iov_iter_count(to);
-	ssize_t			ret;
+	struct xfs_inode *ip = XFS_I(file_inode(iocb->ki_filp));
+	size_t count = iov_iter_count(to);
+	ssize_t ret;
 
 	trace_xfs_file_direct_read(ip, count, iocb->ki_pos);
 
@@ -220,20 +203,18 @@ xfs_file_dio_aio_read(
 		xfs_ilock(ip, XFS_IOLOCK_SHARED);
 	}
 	ret = iomap_dio_rw(iocb, to, &xfs_read_iomap_ops, NULL,
-			is_sync_kiocb(iocb));
+			   is_sync_kiocb(iocb));
 	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 
 	return ret;
 }
 
-static noinline ssize_t
-xfs_file_dax_read(
-	struct kiocb		*iocb,
-	struct iov_iter		*to)
+static noinline ssize_t xfs_file_dax_read(struct kiocb *iocb,
+					  struct iov_iter *to)
 {
-	struct xfs_inode	*ip = XFS_I(iocb->ki_filp->f_mapping->host);
-	size_t			count = iov_iter_count(to);
-	ssize_t			ret = 0;
+	struct xfs_inode *ip = XFS_I(iocb->ki_filp->f_mapping->host);
+	size_t count = iov_iter_count(to);
+	ssize_t ret = 0;
 
 	trace_xfs_file_dax_read(ip, count, iocb->ki_pos);
 
@@ -254,14 +235,12 @@ xfs_file_dax_read(
 	return ret;
 }
 
-STATIC ssize_t
-xfs_file_buffered_aio_read(
-	struct kiocb		*iocb,
-	struct iov_iter		*to)
+STATIC ssize_t xfs_file_buffered_aio_read(struct kiocb *iocb,
+					  struct iov_iter *to)
 {
-	struct xfs_inode	*ip = XFS_I(file_inode(iocb->ki_filp));
-	ssize_t			ret;
-
+	struct xfs_inode *ip = XFS_I(file_inode(iocb->ki_filp));
+	ssize_t ret;
+	// 触发一个tracepoint
 	trace_xfs_file_buffered_read(ip, iov_iter_count(to), iocb->ki_pos);
 
 	if (iocb->ki_flags & IOCB_NOWAIT) {
@@ -276,20 +255,17 @@ xfs_file_buffered_aio_read(
 	return ret;
 }
 
-STATIC ssize_t
-xfs_file_read_iter(
-	struct kiocb		*iocb,
-	struct iov_iter		*to)
+STATIC ssize_t xfs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
-	struct inode		*inode = file_inode(iocb->ki_filp);
-	struct xfs_mount	*mp = XFS_I(inode)->i_mount;
-	ssize_t			ret = 0;
+	struct inode *inode = file_inode(iocb->ki_filp);
+	struct xfs_mount *mp = XFS_I(inode)->i_mount;
+	ssize_t ret = 0;
 
 	XFS_STATS_INC(mp, xs_read_calls);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
-
+	// 判断inode是否是DAX模式
 	if (IS_DAX(inode))
 		ret = xfs_file_dax_read(iocb, to);
 	else if (iocb->ki_flags & IOCB_DIRECT)
@@ -309,19 +285,16 @@ xfs_file_read_iter(
  * @iolock, and returns with it held.  Might upgrade the iolock to exclusive
  * if called for a direct write beyond i_size.
  */
-STATIC ssize_t
-xfs_file_aio_write_checks(
-	struct kiocb		*iocb,
-	struct iov_iter		*from,
-	int			*iolock)
+STATIC ssize_t xfs_file_aio_write_checks(struct kiocb *iocb,
+					 struct iov_iter *from, int *iolock)
 {
-	struct file		*file = iocb->ki_filp;
-	struct inode		*inode = file->f_mapping->host;
-	struct xfs_inode	*ip = XFS_I(inode);
-	ssize_t			error = 0;
-	size_t			count = iov_iter_count(from);
-	bool			drained_dio = false;
-	loff_t			isize;
+	struct file *file = iocb->ki_filp;
+	struct inode *inode = file->f_mapping->host;
+	struct xfs_inode *ip = XFS_I(inode);
+	ssize_t error = 0;
+	size_t count = iov_iter_count(from);
+	bool drained_dio = false;
+	loff_t isize;
 
 restart:
 	error = generic_write_checks(iocb, from);
@@ -380,10 +353,10 @@ restart:
 			drained_dio = true;
 			goto restart;
 		}
-	
+
 		trace_xfs_zero_eof(ip, isize, iocb->ki_pos - isize);
 		error = iomap_zero_range(inode, isize, iocb->ki_pos - isize,
-				NULL, &xfs_buffered_write_iomap_ops);
+					 NULL, &xfs_buffered_write_iomap_ops);
 		if (error)
 			return error;
 	} else
@@ -398,17 +371,13 @@ restart:
 	return file_modified(file);
 }
 
-static int
-xfs_dio_write_end_io(
-	struct kiocb		*iocb,
-	ssize_t			size,
-	int			error,
-	unsigned		flags)
+static int xfs_dio_write_end_io(struct kiocb *iocb, ssize_t size, int error,
+				unsigned flags)
 {
-	struct inode		*inode = file_inode(iocb->ki_filp);
-	struct xfs_inode	*ip = XFS_I(inode);
-	loff_t			offset = iocb->ki_pos;
-	unsigned int		nofs_flag;
+	struct inode *inode = file_inode(iocb->ki_filp);
+	struct xfs_inode *ip = XFS_I(inode);
+	loff_t offset = iocb->ki_pos;
+	unsigned int nofs_flag;
 
 	trace_xfs_end_io_direct_write(ip, offset, size);
 
@@ -476,7 +445,7 @@ out:
 }
 
 static const struct iomap_dio_ops xfs_dio_write_ops = {
-	.end_io		= xfs_dio_write_end_io,
+	.end_io = xfs_dio_write_end_io,
 };
 
 /*
@@ -504,21 +473,18 @@ static const struct iomap_dio_ops xfs_dio_write_ops = {
  * Returns with locks held indicated by @iolock and errors indicated by
  * negative return values.
  */
-STATIC ssize_t
-xfs_file_dio_aio_write(
-	struct kiocb		*iocb,
-	struct iov_iter		*from)
+STATIC ssize_t xfs_file_dio_aio_write(struct kiocb *iocb, struct iov_iter *from)
 {
-	struct file		*file = iocb->ki_filp;
-	struct address_space	*mapping = file->f_mapping;
-	struct inode		*inode = mapping->host;
-	struct xfs_inode	*ip = XFS_I(inode);
-	struct xfs_mount	*mp = ip->i_mount;
-	ssize_t			ret = 0;
-	int			unaligned_io = 0;
-	int			iolock;
-	size_t			count = iov_iter_count(from);
-	struct xfs_buftarg      *target = xfs_inode_buftarg(ip);
+	struct file *file = iocb->ki_filp;
+	struct address_space *mapping = file->f_mapping;
+	struct inode *inode = mapping->host;
+	struct xfs_inode *ip = XFS_I(inode);
+	struct xfs_mount *mp = ip->i_mount;
+	ssize_t ret = 0;
+	int unaligned_io = 0;
+	int iolock;
+	size_t count = iov_iter_count(from);
+	struct xfs_buftarg *target = xfs_inode_buftarg(ip);
 
 	/* DIO must be aligned to device logical sector size */
 	if ((iocb->ki_pos | count) & target->bt_logical_sectormask)
@@ -540,7 +506,8 @@ xfs_file_dio_aio_write(
 		 * files yet, as we can't unshare a partial block.
 		 */
 		if (xfs_is_cow_inode(ip)) {
-			trace_xfs_reflink_bounce_dio_write(ip, iocb->ki_pos, count);
+			trace_xfs_reflink_bounce_dio_write(ip, iocb->ki_pos,
+							   count);
 			return -ENOTBLK;
 		}
 		iolock = XFS_IOLOCK_EXCL;
@@ -596,17 +563,15 @@ out:
 	return ret;
 }
 
-static noinline ssize_t
-xfs_file_dax_write(
-	struct kiocb		*iocb,
-	struct iov_iter		*from)
+static noinline ssize_t xfs_file_dax_write(struct kiocb *iocb,
+					   struct iov_iter *from)
 {
-	struct inode		*inode = iocb->ki_filp->f_mapping->host;
-	struct xfs_inode	*ip = XFS_I(inode);
-	int			iolock = XFS_IOLOCK_EXCL;
-	ssize_t			ret, error = 0;
-	size_t			count;
-	loff_t			pos;
+	struct inode *inode = iocb->ki_filp->f_mapping->host;
+	struct xfs_inode *ip = XFS_I(inode);
+	int iolock = XFS_IOLOCK_EXCL;
+	ssize_t ret, error = 0;
+	size_t count;
+	loff_t pos;
 
 	if (iocb->ki_flags & IOCB_NOWAIT) {
 		if (!xfs_ilock_nowait(ip, iolock))
@@ -642,18 +607,16 @@ out:
 	return ret;
 }
 
-STATIC ssize_t
-xfs_file_buffered_aio_write(
-	struct kiocb		*iocb,
-	struct iov_iter		*from)
+STATIC ssize_t xfs_file_buffered_aio_write(struct kiocb *iocb,
+					   struct iov_iter *from)
 {
-	struct file		*file = iocb->ki_filp;
-	struct address_space	*mapping = file->f_mapping;
-	struct inode		*inode = mapping->host;
-	struct xfs_inode	*ip = XFS_I(inode);
-	ssize_t			ret;
-	int			enospc = 0;
-	int			iolock;
+	struct file *file = iocb->ki_filp;
+	struct address_space *mapping = file->f_mapping;
+	struct inode *inode = mapping->host;
+	struct xfs_inode *ip = XFS_I(inode);
+	ssize_t ret;
+	int enospc = 0;
+	int iolock;
 
 	if (iocb->ki_flags & IOCB_NOWAIT)
 		return -EOPNOTSUPP;
@@ -671,7 +634,7 @@ write_retry:
 
 	trace_xfs_file_buffered_write(ip, iov_iter_count(from), iocb->ki_pos);
 	ret = iomap_file_buffered_write(iocb, from,
-			&xfs_buffered_write_iomap_ops);
+					&xfs_buffered_write_iomap_ops);
 	if (likely(ret >= 0))
 		iocb->ki_pos += ret;
 
@@ -694,7 +657,7 @@ write_retry:
 			goto write_retry;
 		iolock = 0;
 	} else if (ret == -ENOSPC && !enospc) {
-		struct xfs_eofblocks eofb = {0};
+		struct xfs_eofblocks eofb = { 0 };
 
 		enospc = 1;
 		xfs_flush_inodes(ip->i_mount);
@@ -719,17 +682,14 @@ out:
 	return ret;
 }
 
-STATIC ssize_t
-xfs_file_write_iter(
-	struct kiocb		*iocb,
-	struct iov_iter		*from)
+STATIC ssize_t xfs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
-	struct file		*file = iocb->ki_filp;
-	struct address_space	*mapping = file->f_mapping;
-	struct inode		*inode = mapping->host;
-	struct xfs_inode	*ip = XFS_I(inode);
-	ssize_t			ret;
-	size_t			ocount = iov_iter_count(from);
+	struct file *file = iocb->ki_filp;
+	struct address_space *mapping = file->f_mapping;
+	struct inode *inode = mapping->host;
+	struct xfs_inode *ip = XFS_I(inode);
+	ssize_t ret;
+	size_t ocount = iov_iter_count(from);
 
 	XFS_STATS_INC(ip->i_mount, xs_write_calls);
 
@@ -757,23 +717,18 @@ xfs_file_write_iter(
 	return xfs_file_buffered_aio_write(iocb, from);
 }
 
-static void
-xfs_wait_dax_page(
-	struct inode		*inode)
+static void xfs_wait_dax_page(struct inode *inode)
 {
-	struct xfs_inode        *ip = XFS_I(inode);
+	struct xfs_inode *ip = XFS_I(inode);
 
 	xfs_iunlock(ip, XFS_MMAPLOCK_EXCL);
 	schedule();
 	xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
 }
 
-static int
-xfs_break_dax_layouts(
-	struct inode		*inode,
-	bool			*retry)
+static int xfs_break_dax_layouts(struct inode *inode, bool *retry)
 {
-	struct page		*page;
+	struct page *page;
 
 	ASSERT(xfs_isilocked(XFS_I(inode), XFS_MMAPLOCK_EXCL));
 
@@ -783,20 +738,19 @@ xfs_break_dax_layouts(
 
 	*retry = true;
 	return ___wait_var_event(&page->_refcount,
-			atomic_read(&page->_refcount) == 1, TASK_INTERRUPTIBLE,
-			0, 0, xfs_wait_dax_page(inode));
+				 atomic_read(&page->_refcount) == 1,
+				 TASK_INTERRUPTIBLE, 0, 0,
+				 xfs_wait_dax_page(inode));
 }
 
-int
-xfs_break_layouts(
-	struct inode		*inode,
-	uint			*iolock,
-	enum layout_break_reason reason)
+int xfs_break_layouts(struct inode *inode, uint *iolock,
+		      enum layout_break_reason reason)
 {
-	bool			retry;
-	int			error;
+	bool retry;
+	int error;
 
-	ASSERT(xfs_isilocked(XFS_I(inode), XFS_IOLOCK_SHARED|XFS_IOLOCK_EXCL));
+	ASSERT(xfs_isilocked(XFS_I(inode),
+			     XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL));
 
 	do {
 		retry = false;
@@ -818,25 +772,21 @@ xfs_break_layouts(
 	return error;
 }
 
-#define	XFS_FALLOC_FL_SUPPORTED						\
-		(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE |		\
-		 FALLOC_FL_COLLAPSE_RANGE | FALLOC_FL_ZERO_RANGE |	\
-		 FALLOC_FL_INSERT_RANGE | FALLOC_FL_UNSHARE_RANGE)
+#define XFS_FALLOC_FL_SUPPORTED                                                \
+	(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE |                          \
+	 FALLOC_FL_COLLAPSE_RANGE | FALLOC_FL_ZERO_RANGE |                     \
+	 FALLOC_FL_INSERT_RANGE | FALLOC_FL_UNSHARE_RANGE)
 
-STATIC long
-xfs_file_fallocate(
-	struct file		*file,
-	int			mode,
-	loff_t			offset,
-	loff_t			len)
+STATIC long xfs_file_fallocate(struct file *file, int mode, loff_t offset,
+			       loff_t len)
 {
-	struct inode		*inode = file_inode(file);
-	struct xfs_inode	*ip = XFS_I(inode);
-	long			error;
-	enum xfs_prealloc_flags	flags = 0;
-	uint			iolock = XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL;
-	loff_t			new_size = 0;
-	bool			do_file_insert = false;
+	struct inode *inode = file_inode(file);
+	struct xfs_inode *ip = XFS_I(inode);
+	long error;
+	enum xfs_prealloc_flags flags = 0;
+	uint iolock = XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL;
+	loff_t new_size = 0;
+	bool do_file_insert = false;
 
 	if (!S_ISREG(inode->i_mode))
 		return -EINVAL;
@@ -896,7 +846,7 @@ xfs_file_fallocate(
 		if (error)
 			goto out_unlock;
 	} else if (mode & FALLOC_FL_INSERT_RANGE) {
-		loff_t		isize = i_size_read(inode);
+		loff_t isize = i_size_read(inode);
 
 		if (!xfs_is_falloc_aligned(ip, offset, len)) {
 			error = -EINVAL;
@@ -1006,12 +956,8 @@ out_unlock:
 	return error;
 }
 
-STATIC int
-xfs_file_fadvise(
-	struct file	*file,
-	loff_t		start,
-	loff_t		end,
-	int		advice)
+STATIC int xfs_file_fadvise(struct file *file, loff_t start, loff_t end,
+			    int advice)
 {
 	struct xfs_inode *ip = XFS_I(file_inode(file));
 	int ret;
@@ -1034,7 +980,7 @@ xfs_file_fadvise(
 /* Does this file, inode, or mount want synchronous writes? */
 static inline bool xfs_file_sync_writes(struct file *filp)
 {
-	struct xfs_inode	*ip = XFS_I(file_inode(filp));
+	struct xfs_inode *ip = XFS_I(file_inode(filp));
 
 	if (ip->i_mount->m_flags & XFS_MOUNT_WSYNC)
 		return true;
@@ -1046,23 +992,18 @@ static inline bool xfs_file_sync_writes(struct file *filp)
 	return false;
 }
 
-STATIC loff_t
-xfs_file_remap_range(
-	struct file		*file_in,
-	loff_t			pos_in,
-	struct file		*file_out,
-	loff_t			pos_out,
-	loff_t			len,
-	unsigned int		remap_flags)
+STATIC loff_t xfs_file_remap_range(struct file *file_in, loff_t pos_in,
+				   struct file *file_out, loff_t pos_out,
+				   loff_t len, unsigned int remap_flags)
 {
-	struct inode		*inode_in = file_inode(file_in);
-	struct xfs_inode	*src = XFS_I(inode_in);
-	struct inode		*inode_out = file_inode(file_out);
-	struct xfs_inode	*dest = XFS_I(inode_out);
-	struct xfs_mount	*mp = src->i_mount;
-	loff_t			remapped = 0;
-	xfs_extlen_t		cowextsize;
-	int			ret;
+	struct inode *inode_in = file_inode(file_in);
+	struct xfs_inode *src = XFS_I(inode_in);
+	struct inode *inode_out = file_inode(file_out);
+	struct xfs_inode *dest = XFS_I(inode_out);
+	struct xfs_mount *mp = src->i_mount;
+	loff_t remapped = 0;
+	xfs_extlen_t cowextsize;
+	int ret;
 
 	if (remap_flags & ~(REMAP_FILE_DEDUP | REMAP_FILE_ADVISORY))
 		return -EINVAL;
@@ -1074,15 +1015,15 @@ xfs_file_remap_range(
 		return -EIO;
 
 	/* Prepare and then clone file data. */
-	ret = xfs_reflink_remap_prep(file_in, pos_in, file_out, pos_out,
-			&len, remap_flags);
+	ret = xfs_reflink_remap_prep(file_in, pos_in, file_out, pos_out, &len,
+				     remap_flags);
 	if (ret || len == 0)
 		return ret;
 
 	trace_xfs_reflink_remap_range(src, pos_in, len, dest, pos_out);
 
 	ret = xfs_reflink_remap_blocks(src, pos_in, dest, pos_out, len,
-			&remapped);
+				       &remapped);
 	if (ret)
 		goto out_unlock;
 
@@ -1093,13 +1034,13 @@ xfs_file_remap_range(
 	 */
 	cowextsize = 0;
 	if (pos_in == 0 && len == i_size_read(inode_in) &&
-	    (src->i_d.di_flags2 & XFS_DIFLAG2_COWEXTSIZE) &&
-	    pos_out == 0 && len >= i_size_read(inode_out) &&
+	    (src->i_d.di_flags2 & XFS_DIFLAG2_COWEXTSIZE) && pos_out == 0 &&
+	    len >= i_size_read(inode_out) &&
 	    !(dest->i_d.di_flags2 & XFS_DIFLAG2_COWEXTSIZE))
 		cowextsize = src->i_d.di_cowextsize;
 
 	ret = xfs_reflink_update_dest(dest, pos_out + len, cowextsize,
-			remap_flags);
+				      remap_flags);
 	if (ret)
 		goto out_unlock;
 
@@ -1112,10 +1053,7 @@ out_unlock:
 	return remapped > 0 ? remapped : ret;
 }
 
-STATIC int
-xfs_file_open(
-	struct inode	*inode,
-	struct file	*file)
+STATIC int xfs_file_open(struct inode *inode, struct file *file)
 {
 	if (!(file->f_flags & O_LARGEFILE) && i_size_read(inode) > MAX_NON_LFS)
 		return -EFBIG;
@@ -1125,14 +1063,11 @@ xfs_file_open(
 	return 0;
 }
 
-STATIC int
-xfs_dir_open(
-	struct inode	*inode,
-	struct file	*file)
+STATIC int xfs_dir_open(struct inode *inode, struct file *file)
 {
 	struct xfs_inode *ip = XFS_I(inode);
-	int		mode;
-	int		error;
+	int mode;
+	int error;
 
 	error = xfs_file_open(inode, file);
 	if (error)
@@ -1149,22 +1084,16 @@ xfs_dir_open(
 	return error;
 }
 
-STATIC int
-xfs_file_release(
-	struct inode	*inode,
-	struct file	*filp)
+STATIC int xfs_file_release(struct inode *inode, struct file *filp)
 {
 	return xfs_release(XFS_I(inode));
 }
 
-STATIC int
-xfs_file_readdir(
-	struct file	*file,
-	struct dir_context *ctx)
+STATIC int xfs_file_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct inode	*inode = file_inode(file);
-	xfs_inode_t	*ip = XFS_I(inode);
-	size_t		bufsize;
+	struct inode *inode = file_inode(file);
+	xfs_inode_t *ip = XFS_I(inode);
+	size_t bufsize;
 
 	/*
 	 * The Linux API doesn't pass down the total size of the buffer
@@ -1183,13 +1112,9 @@ xfs_file_readdir(
 	return xfs_readdir(NULL, ip, ctx, bufsize);
 }
 
-STATIC loff_t
-xfs_file_llseek(
-	struct file	*file,
-	loff_t		offset,
-	int		whence)
+STATIC loff_t xfs_file_llseek(struct file *file, loff_t offset, int whence)
 {
-	struct inode		*inode = file->f_mapping->host;
+	struct inode *inode = file->f_mapping->host;
 
 	if (XFS_FORCED_SHUTDOWN(XFS_I(inode)->i_mount))
 		return -EIO;
@@ -1220,15 +1145,13 @@ xfs_file_llseek(
  *       page_lock (MM)
  *         i_lock (XFS - extent map serialisation)
  */
-static vm_fault_t
-__xfs_filemap_fault(
-	struct vm_fault		*vmf,
-	enum page_entry_size	pe_size,
-	bool			write_fault)
+static vm_fault_t __xfs_filemap_fault(struct vm_fault *vmf,
+				      enum page_entry_size pe_size,
+				      bool write_fault)
 {
-	struct inode		*inode = file_inode(vmf->vma->vm_file);
-	struct xfs_inode	*ip = XFS_I(inode);
-	vm_fault_t		ret;
+	struct inode *inode = file_inode(vmf->vma->vm_file);
+	struct xfs_inode *ip = XFS_I(inode);
+	vm_fault_t ret;
 
 	trace_xfs_filemap_fault(ip, pe_size, write_fault);
 
@@ -1242,15 +1165,15 @@ __xfs_filemap_fault(
 		pfn_t pfn;
 
 		ret = dax_iomap_fault(vmf, pe_size, &pfn, NULL,
-				(write_fault && !vmf->cow_page) ?
-				 &xfs_direct_write_iomap_ops :
-				 &xfs_read_iomap_ops);
+				      (write_fault && !vmf->cow_page) ?
+					      &xfs_direct_write_iomap_ops :
+					      &xfs_read_iomap_ops);
 		if (ret & VM_FAULT_NEEDDSYNC)
 			ret = dax_finish_sync_fault(vmf, pe_size, pfn);
 	} else {
 		if (write_fault)
 			ret = iomap_page_mkwrite(vmf,
-					&xfs_buffered_write_iomap_ops);
+						 &xfs_buffered_write_iomap_ops);
 		else
 			ret = filemap_fault(vmf);
 	}
@@ -1261,40 +1184,31 @@ __xfs_filemap_fault(
 	return ret;
 }
 
-static inline bool
-xfs_is_write_fault(
-	struct vm_fault		*vmf)
+static inline bool xfs_is_write_fault(struct vm_fault *vmf)
 {
 	return (vmf->flags & FAULT_FLAG_WRITE) &&
 	       (vmf->vma->vm_flags & VM_SHARED);
 }
 
-static vm_fault_t
-xfs_filemap_fault(
-	struct vm_fault		*vmf)
+static vm_fault_t xfs_filemap_fault(struct vm_fault *vmf)
 {
 	/* DAX can shortcut the normal fault path on write faults! */
 	return __xfs_filemap_fault(vmf, PE_SIZE_PTE,
-			IS_DAX(file_inode(vmf->vma->vm_file)) &&
-			xfs_is_write_fault(vmf));
+				   IS_DAX(file_inode(vmf->vma->vm_file)) &&
+					   xfs_is_write_fault(vmf));
 }
 
-static vm_fault_t
-xfs_filemap_huge_fault(
-	struct vm_fault		*vmf,
-	enum page_entry_size	pe_size)
+static vm_fault_t xfs_filemap_huge_fault(struct vm_fault *vmf,
+					 enum page_entry_size pe_size)
 {
 	if (!IS_DAX(file_inode(vmf->vma->vm_file)))
 		return VM_FAULT_FALLBACK;
 
 	/* DAX can shortcut the normal fault path on write faults! */
-	return __xfs_filemap_fault(vmf, pe_size,
-			xfs_is_write_fault(vmf));
+	return __xfs_filemap_fault(vmf, pe_size, xfs_is_write_fault(vmf));
 }
 
-static vm_fault_t
-xfs_filemap_page_mkwrite(
-	struct vm_fault		*vmf)
+static vm_fault_t xfs_filemap_page_mkwrite(struct vm_fault *vmf)
 {
 	return __xfs_filemap_fault(vmf, PE_SIZE_PTE, true);
 }
@@ -1304,21 +1218,15 @@ xfs_filemap_page_mkwrite(
  * on write faults. In reality, it needs to serialise against truncate and
  * prepare memory for writing so handle is as standard write fault.
  */
-static vm_fault_t
-xfs_filemap_pfn_mkwrite(
-	struct vm_fault		*vmf)
+static vm_fault_t xfs_filemap_pfn_mkwrite(struct vm_fault *vmf)
 {
-
 	return __xfs_filemap_fault(vmf, PE_SIZE_PTE, true);
 }
 
-static void
-xfs_filemap_map_pages(
-	struct vm_fault		*vmf,
-	pgoff_t			start_pgoff,
-	pgoff_t			end_pgoff)
+static void xfs_filemap_map_pages(struct vm_fault *vmf, pgoff_t start_pgoff,
+				  pgoff_t end_pgoff)
 {
-	struct inode		*inode = file_inode(vmf->vma->vm_file);
+	struct inode *inode = file_inode(vmf->vma->vm_file);
 
 	xfs_ilock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
 	filemap_map_pages(vmf, start_pgoff, end_pgoff);
@@ -1326,20 +1234,17 @@ xfs_filemap_map_pages(
 }
 
 static const struct vm_operations_struct xfs_file_vm_ops = {
-	.fault		= xfs_filemap_fault,
-	.huge_fault	= xfs_filemap_huge_fault,
-	.map_pages	= xfs_filemap_map_pages,
-	.page_mkwrite	= xfs_filemap_page_mkwrite,
-	.pfn_mkwrite	= xfs_filemap_pfn_mkwrite,
+	.fault = xfs_filemap_fault,
+	.huge_fault = xfs_filemap_huge_fault,
+	.map_pages = xfs_filemap_map_pages,
+	.page_mkwrite = xfs_filemap_page_mkwrite,
+	.pfn_mkwrite = xfs_filemap_pfn_mkwrite,
 };
 
-STATIC int
-xfs_file_mmap(
-	struct file		*file,
-	struct vm_area_struct	*vma)
+STATIC int xfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct inode		*inode = file_inode(file);
-	struct xfs_buftarg	*target = xfs_inode_buftarg(XFS_I(inode));
+	struct inode *inode = file_inode(file);
+	struct xfs_buftarg *target = xfs_inode_buftarg(XFS_I(inode));
 
 	/*
 	 * We don't support synchronous mappings for non-DAX files and
@@ -1356,35 +1261,35 @@ xfs_file_mmap(
 }
 
 const struct file_operations xfs_file_operations = {
-	.llseek		= xfs_file_llseek,
-	.read_iter	= xfs_file_read_iter,
-	.write_iter	= xfs_file_write_iter,
-	.splice_read	= generic_file_splice_read,
-	.splice_write	= iter_file_splice_write,
-	.iopoll		= iomap_dio_iopoll,
-	.unlocked_ioctl	= xfs_file_ioctl,
+	.llseek = xfs_file_llseek,
+	.read_iter = xfs_file_read_iter,
+	.write_iter = xfs_file_write_iter,
+	.splice_read = generic_file_splice_read,
+	.splice_write = iter_file_splice_write,
+	.iopoll = iomap_dio_iopoll,
+	.unlocked_ioctl = xfs_file_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl	= xfs_file_compat_ioctl,
+	.compat_ioctl = xfs_file_compat_ioctl,
 #endif
-	.mmap		= xfs_file_mmap,
+	.mmap = xfs_file_mmap,
 	.mmap_supported_flags = MAP_SYNC,
-	.open		= xfs_file_open,
-	.release	= xfs_file_release,
-	.fsync		= xfs_file_fsync,
+	.open = xfs_file_open,
+	.release = xfs_file_release,
+	.fsync = xfs_file_fsync,
 	.get_unmapped_area = thp_get_unmapped_area,
-	.fallocate	= xfs_file_fallocate,
-	.fadvise	= xfs_file_fadvise,
+	.fallocate = xfs_file_fallocate,
+	.fadvise = xfs_file_fadvise,
 	.remap_file_range = xfs_file_remap_range,
 };
 
 const struct file_operations xfs_dir_file_operations = {
-	.open		= xfs_dir_open,
-	.read		= generic_read_dir,
-	.iterate_shared	= xfs_file_readdir,
-	.llseek		= generic_file_llseek,
-	.unlocked_ioctl	= xfs_file_ioctl,
+	.open = xfs_dir_open,
+	.read = generic_read_dir,
+	.iterate_shared = xfs_file_readdir,
+	.llseek = generic_file_llseek,
+	.unlocked_ioctl = xfs_file_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl	= xfs_file_compat_ioctl,
+	.compat_ioctl = xfs_file_compat_ioctl,
 #endif
-	.fsync		= xfs_dir_fsync,
+	.fsync = xfs_dir_fsync,
 };
