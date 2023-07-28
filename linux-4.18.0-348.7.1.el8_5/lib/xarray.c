@@ -180,15 +180,18 @@ static void *set_bounds(struct xa_state *xas)
 static void *xas_start(struct xa_state *xas)
 {
 	void *entry;
-
+	// 如果插入一个新的page是，xas_valid返回false
 	if (xas_valid(xas))
 		return xas_reload(xas);
+	// 新插入page也不是错误，因为错误=2
 	if (xas_error(xas))
 		return NULL;
-	// .xa = &mapping->i_pages, 返回根节点，xa_head
+	// .xa = &mapping->i_pages, 返回根节点，xa_head类型是struct xa_node
+	// 如果xarray是空的，entry = NULL
 	entry = xa_head(xas->xa);
 	if (!xa_is_node(entry)) {
 		if (xas->xa_index)
+			// xas->xa_node =XAS_BOUNDS
 			return set_bounds(xas);
 	} else {
 		if ((xas->xa_index >> xa_to_node(entry)->shift) > XA_CHUNK_MASK)
@@ -231,6 +234,7 @@ static void *xas_descend(struct xa_state *xas, struct xa_node *node)
  */
 void *xas_load(struct xa_state *xas)
 {
+	//
 	void *entry = xas_start(xas);
 
 	while (xa_is_node(entry)) {
@@ -373,7 +377,7 @@ static void *xas_alloc(struct xa_state *xas, unsigned int shift)
 
 		if (xas->xa->xa_flags & XA_FLAGS_ACCOUNT)
 			gfp |= __GFP_ACCOUNT;
-
+		// 分配一个struct xa_node
 		node = kmem_cache_alloc(radix_tree_node_cachep, gfp);
 		if (!node) {
 			xas_set_err(xas, -ENOMEM);
@@ -389,11 +393,11 @@ static void *xas_alloc(struct xa_state *xas, unsigned int shift)
 	}
 	XA_NODE_BUG_ON(node, shift > BITS_PER_LONG);
 	XA_NODE_BUG_ON(node, !list_empty(&node->private_list));
-	node->shift = shift;
+	node->shift = shift; // 设置shift = 6
 	node->count = 0;
 	node->nr_values = 0;
 	RCU_INIT_POINTER(node->parent, xas->xa_node);
-	node->array = xas->xa;
+	node->array = xas->xa; // node->array = i_pages
 
 	return node;
 }
@@ -568,6 +572,14 @@ static int xas_expand(struct xa_state *xas, void *head)
 	if (!head) {
 		if (max == 0)
 			return 0;
+		// 如果是空xarray，判断扩展数量
+		/*
+		0~63，shift = 6
+		(0~63) * 64范围， shift = 12
+		(0~63) * 64 * 64范围，shift = 18
+		......
+		4T 的文件 64的7次方，树有7层
+		*/
 		while ((max >> shift) >= XA_CHUNK_SIZE)
 			shift += XA_CHUNK_SHIFT;
 		return shift + XA_CHUNK_SHIFT;
@@ -648,7 +660,9 @@ static void *xas_create(struct xa_state *xas, bool allow_root)
 	unsigned int order = xas->xa_shift;
 
 	if (xas_top(node)) {
+		// 现在xas->xa_node = BOUNDS
 		entry = xa_head_locked(xa);
+		// 现在设置为NULL
 		xas->xa_node = NULL;
 		if (!entry && xa_zero_busy(xa))
 			entry = XA_ZERO_ENTRY;
@@ -657,7 +671,9 @@ static void *xas_create(struct xa_state *xas, bool allow_root)
 			return NULL;
 		if (!shift && !allow_root)
 			shift = XA_CHUNK_SHIFT;
+		// 当xarray为空时，xa_head = NULL
 		entry = xa_head_locked(xa);
+		// 指向head的指针，后面给其赋值
 		slot = &xa->xa_head;
 	} else if (xas_error(xas)) {
 		return NULL;
@@ -673,6 +689,7 @@ static void *xas_create(struct xa_state *xas, bool allow_root)
 		slot = &xa->xa_head;
 	}
 
+	// 当xarray为NULL时，shift = 6， order = 0
 	while (shift > order) {
 		shift -= XA_CHUNK_SHIFT;
 		if (!entry) {
@@ -681,6 +698,7 @@ static void *xas_create(struct xa_state *xas, bool allow_root)
 				break;
 			if (xa_track_free(xa))
 				node_mark_all(node, XA_FREE_MARK);
+			// xa_mk_node会给node地址加上2
 			rcu_assign_pointer(*slot, xa_mk_node(node));
 		} else if (xa_is_node(entry)) {
 			node = xa_to_node(entry);
@@ -775,6 +793,7 @@ static void update_node(struct xa_state *xas, struct xa_node *node, int count,
 void *xas_store(struct xa_state *xas, void *entry)
 {
 	struct xa_node *node;
+	// 如果是empty xarray，xa_head是NULL
 	void __rcu **slot = &xas->xa->xa_head;
 	unsigned int offset, max;
 	int count = 0;
@@ -783,6 +802,7 @@ void *xas_store(struct xa_state *xas, void *entry)
 	bool value = xa_is_value(entry);
 
 	if (entry) {
+		// entry既不是node，也不是XA_ZERO_ENTRY，如果是empty xarray，需要分配root
 		bool allow_root = !xa_is_node(entry) && !xa_is_zero(entry);
 		first = xas_create(xas, allow_root);
 	} else {
@@ -1767,6 +1787,7 @@ EXPORT_SYMBOL(xa_store_range);
  */
 int xa_get_order(struct xarray *xa, unsigned long index)
 {
+	// 这里默认用.xa_node = ((struct xa_node *)3UL)来初始化
 	XA_STATE(xas, xa, index);
 	void *entry;
 	int order = 0;

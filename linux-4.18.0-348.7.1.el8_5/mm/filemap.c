@@ -842,6 +842,8 @@ void replace_page_cache_page(struct page *old, struct page *new)
 }
 EXPORT_SYMBOL_GPL(replace_page_cache_page);
 
+// 刚分配出来的page，
+// offset是page的偏移，字节数 >> PAGE_SHIFT
 noinline int __add_to_page_cache_locked(struct page *page,
 					struct address_space *mapping,
 					pgoff_t offset, gfp_t gfp,
@@ -857,7 +859,9 @@ noinline int __add_to_page_cache_locked(struct page *page,
 	mapping_set_update(&xas, mapping);
 
 	get_page(page);
+	// page的归属address_space
 	page->mapping = mapping;
+	// page的偏移
 	page->index = offset;
 
 	if (!huge) {
@@ -870,6 +874,9 @@ noinline int __add_to_page_cache_locked(struct page *page,
 	gfp &= GFP_RECLAIM_MASK;
 
 	do {
+		// xa = mapping->i_pages，这是xarray对象
+		// xa_index = offset
+		// 如果是空，order = 0, 这时xas.xa_node = XAS_BOUNDS
 		unsigned int order = xa_get_order(xas.xa, xas.xa_index);
 		void *entry, *old = NULL;
 
@@ -896,7 +903,7 @@ noinline int __add_to_page_cache_locked(struct page *page,
 				xas_reset(&xas);
 			}
 		}
-
+		// 在这里将page加入xas
 		xas_store(&xas, page);
 		if (xas_error(&xas))
 			goto unlock;
@@ -2137,8 +2144,20 @@ static ssize_t generic_file_buffered_read(struct kiocb *iocb,
 		loff_t isize;
 		unsigned long nr, ret;
 
+		/*
+			cond_resched()是Linux内核中的一个条件调度函数,它的作用是:
+			在需要时提供一个调度点,允许内核进行进程调度。
+			cond_resched()会检查是否有需要被调度的更高优先级的进程,以及当前进程是否超过了时间片。如果满足上述条件,就会调用schedule()来主动进行进程调度,将CPU时间片分给其他更需要的进程。
+			cond_resched()通常被插入在执行时间可能较长的循环或代码逻辑中,它提供了一个“如果需要就主动调度”的机会。这样可以避免当前进程独占CPU时间片太长而造成其他进程无法调度运行。
+			具体来说,cond_resched()主要有以下用途:
+			在轮询操作时插入cond_resched(),避免空轮询独占CPU
+			在可能执行时间长的循环中插入cond_resched(),如遍历某数据结构时
+			在持有spinlock等锁时频繁调用cond_resched(),使得被阻塞的进程有机会运行
+			所以cond_resched()对于内核来说是一种维护良好交互性和公平调度的重要机制。正确使用cond_resched()可以避免一些进程饥饿或者响应缓慢的问题。
+		*/
 		cond_resched();
 	find_page:
+		// 如果当前进程有致命信号要处理，直接返回
 		if (fatal_signal_pending(current)) {
 			error = -EINTR;
 			goto out;
@@ -2146,10 +2165,10 @@ static ssize_t generic_file_buffered_read(struct kiocb *iocb,
 		// 根据索引在pagecache中查找，当前内核是xarray
 		page = find_get_page(mapping, index);
 		if (!page) {
-			// 没有在pagecache中找到
+			// 没有在pagecache中找到，且是个非阻塞io或者不执行任何io
 			if (iocb->ki_flags & (IOCB_NOWAIT | IOCB_NOIO))
 				goto would_block;
-			// 如果pagecache miss了，会触发一个bio
+			// 如果pagecache miss了，会触发预读取，预读取的起始page是index，读取page数量是last_index-index
 			page_cache_sync_readahead(mapping, ra, filp, index,
 						  last_index - index);
 			page = find_get_page(mapping, index);
@@ -2366,6 +2385,7 @@ static ssize_t generic_file_buffered_read(struct kiocb *iocb,
 	}
 
 would_block:
+	// 重试
 	error = -EAGAIN;
 out:
 	ra->prev_pos = prev_index;
