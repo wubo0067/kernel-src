@@ -118,20 +118,19 @@ static noinline void nft_update_chain_stats(const struct nft_chain *chain,
 }
 
 struct nft_jumpstack {
-	const struct nft_chain *chain;
-	struct nft_rule *const *rules;
+	const struct nft_chain	*chain;
+	struct nft_rule	*const *rules;
 };
 
 static void expr_call_ops_eval(const struct nft_expr *expr,
-			       struct nft_regs *regs, struct nft_pktinfo *pkt)
+			       struct nft_regs *regs,
+			       struct nft_pktinfo *pkt)
 {
 #ifdef CONFIG_RETPOLINE
 	unsigned long e = (unsigned long)expr->ops->eval;
-#define X(e, fun)                                                              \
-	do {                                                                   \
-		if ((e) == (unsigned long)(fun))                               \
-			return fun(expr, regs, pkt);                           \
-	} while (0)
+#define X(e, fun) \
+	do { if ((e) == (unsigned long)(fun)) \
+		return fun(expr, regs, pkt); } while (0)
 
 	X(e, nft_payload_eval);
 	X(e, nft_cmp_eval);
@@ -143,12 +142,13 @@ static void expr_call_ops_eval(const struct nft_expr *expr,
 	X(e, nft_dynset_eval);
 	X(e, nft_rt_get_eval);
 	X(e, nft_bitwise_eval);
-#undef X
+#undef  X
 #endif /* CONFIG_RETPOLINE */
 	expr->ops->eval(expr, regs, pkt);
 }
 
-unsigned int nft_do_chain(struct nft_pktinfo *pkt, void *priv)
+unsigned int
+nft_do_chain(struct nft_pktinfo *pkt, void *priv)
 {
 	const struct nft_chain *chain = priv, *basechain = chain;
 	const struct net *net = nft_net(pkt);
@@ -172,22 +172,20 @@ do_chain:
 
 next_rule:
 	rule = *rules;
-	// 这是默认值，默认的规则就是continue，X里面只是负责去修改这个值
 	regs.verdict.code = NFT_CONTINUE;
-	for (; *rules; rules++) {
+	for (; *rules ; rules++) {
 		rule = *rules;
-		nft_rule_for_each_expr (expr, last, rule) {
+		nft_rule_for_each_expr(expr, last, rule) {
 			if (expr->ops == &nft_cmp_fast_ops)
 				nft_cmp_fast_eval(expr, &regs);
 			else if (expr->ops != &nft_payload_fast_ops ||
 				 !nft_payload_fast_eval(expr, &regs, pkt))
 				expr_call_ops_eval(expr, &regs, pkt);
-			// 判断rule的每个expr eval的结果
+
 			if (regs.verdict.code != NFT_CONTINUE)
 				break;
-			// 如果rule的verdict.code = NTF_CONTINUE，会继续下一个rule。
 		}
-		// 这里仅仅将break转换为continue。
+
 		switch (regs.verdict.code) {
 		case NFT_BREAK:
 			regs.verdict.code = NFT_CONTINUE;
@@ -205,7 +203,8 @@ next_rule:
 	case NF_DROP:
 	case NF_QUEUE:
 	case NF_STOLEN:
-		nft_trace_packet(&info, chain, rule, NFT_TRACETYPE_RULE);
+		nft_trace_packet(&info, chain, rule,
+				 NFT_TRACETYPE_RULE);
 		return regs.verdict.code;
 	}
 
@@ -214,19 +213,20 @@ next_rule:
 		if (WARN_ON_ONCE(stackptr >= NFT_JUMP_STACK_SIZE))
 			return NF_DROP;
 		jumpstack[stackptr].chain = chain;
-		// 保存后续的rule。到时会从该rule恢复
 		jumpstack[stackptr].rules = rules + 1;
 		stackptr++;
 		/* fall through */
 	case NFT_GOTO:
-		nft_trace_packet(&info, chain, rule, NFT_TRACETYPE_RULE);
+		nft_trace_packet(&info, chain, rule,
+				 NFT_TRACETYPE_RULE);
 
 		chain = regs.verdict.chain;
 		goto do_chain;
 	case NFT_CONTINUE:
 		/* fall through */
 	case NFT_RETURN:
-		nft_trace_packet(&info, chain, rule, NFT_TRACETYPE_RETURN);
+		nft_trace_packet(&info, chain, rule,
+				 NFT_TRACETYPE_RETURN);
 		break;
 	default:
 		WARN_ON(1);
@@ -243,16 +243,23 @@ next_rule:
 
 	if (static_branch_unlikely(&nft_counters_enabled))
 		nft_update_chain_stats(basechain, pkt);
-	// 返回链的策略 NF_ACCEPT
+
 	return nft_base_chain(basechain)->policy;
 }
 EXPORT_SYMBOL_GPL(nft_do_chain);
 
 static struct nft_expr_type *nft_basic_types[] = {
-	&nft_imm_type,	   &nft_cmp_type,	&nft_lookup_type,
-	&nft_bitwise_type, &nft_byteorder_type, &nft_payload_type,
-	&nft_dynset_type,  &nft_range_type,	&nft_meta_type,
-	&nft_rt_type,	   &nft_exthdr_type,
+	&nft_imm_type,
+	&nft_cmp_type,
+	&nft_lookup_type,
+	&nft_bitwise_type,
+	&nft_byteorder_type,
+	&nft_payload_type,
+	&nft_dynset_type,
+	&nft_range_type,
+	&nft_meta_type,
+	&nft_rt_type,
+	&nft_exthdr_type,
 };
 
 static struct nft_object_type *nft_basic_objects[] = {

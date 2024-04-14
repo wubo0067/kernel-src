@@ -160,8 +160,7 @@ bool ip_call_ra_chain(struct sk_buff *skb)
 	struct net_device *dev = skb->dev;
 	struct net *net = dev_net(dev);
 
-	for (ra = rcu_dereference(net->ipv4.ra_chain); ra;
-	     ra = rcu_dereference(ra->next)) {
+	for (ra = rcu_dereference(net->ipv4.ra_chain); ra; ra = rcu_dereference(ra->next)) {
 		struct sock *sk = ra->sk;
 
 		/* If socket is bound to an interface, only report
@@ -171,13 +170,11 @@ bool ip_call_ra_chain(struct sk_buff *skb)
 		    (!sk->sk_bound_dev_if ||
 		     sk->sk_bound_dev_if == dev->ifindex)) {
 			if (ip_is_fragment(ip_hdr(skb))) {
-				if (ip_defrag(net, skb,
-					      IP_DEFRAG_CALL_RA_CHAIN))
+				if (ip_defrag(net, skb, IP_DEFRAG_CALL_RA_CHAIN))
 					return true;
 			}
 			if (last) {
-				struct sk_buff *skb2 =
-					skb_clone(skb, GFP_ATOMIC);
+				struct sk_buff *skb2 = skb_clone(skb, GFP_ATOMIC);
 				if (skb2)
 					raw_rcv(last, skb2);
 			}
@@ -211,8 +208,8 @@ resubmit:
 			}
 			nf_reset(skb);
 		}
-		ret = INDIRECT_CALL_2(ipprot->handler, tcp_v4_rcv, udp_rcv,
-				      skb);
+		ret = INDIRECT_CALL_2(ipprot->handler, tcp_v4_rcv,
+				      udp_rcv, skb);
 		if (ret < 0) {
 			protocol = -ret;
 			goto resubmit;
@@ -221,8 +218,7 @@ resubmit:
 	} else {
 		if (!raw) {
 			if (xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {
-				__IP_INC_STATS(net,
-					       IPSTATS_MIB_INUNKNOWNPROTOS);
+				__IP_INC_STATS(net, IPSTATS_MIB_INUNKNOWNPROTOS);
 				icmp_send(skb, ICMP_DEST_UNREACH,
 					  ICMP_PROT_UNREACH, 0);
 			}
@@ -234,8 +230,7 @@ resubmit:
 	}
 }
 
-static int ip_local_deliver_finish(struct net *net, struct sock *sk,
-				   struct sk_buff *skb)
+static int ip_local_deliver_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	__skb_pull(skb, skb_network_header_len(skb));
 
@@ -261,8 +256,9 @@ int ip_local_deliver(struct sk_buff *skb)
 			return 0;
 	}
 
-	return NF_HOOK(NFPROTO_IPV4, NF_INET_LOCAL_IN, net, NULL, skb, skb->dev,
-		       NULL, ip_local_deliver_finish);
+	return NF_HOOK(NFPROTO_IPV4, NF_INET_LOCAL_IN,
+		       net, NULL, skb, skb->dev, NULL,
+		       ip_local_deliver_finish);
 }
 
 static inline bool ip_rcv_options(struct sk_buff *skb)
@@ -285,7 +281,7 @@ static inline bool ip_rcv_options(struct sk_buff *skb)
 
 	iph = ip_hdr(skb);
 	opt = &(IPCB(skb)->opt);
-	opt->optlen = iph->ihl * 4 - sizeof(struct iphdr);
+	opt->optlen = iph->ihl*4 - sizeof(struct iphdr);
 
 	if (ip_options_compile(dev_net(dev), opt, skb)) {
 		__IP_INC_STATS(dev_net(dev), IPSTATS_MIB_INHDRERRORS);
@@ -298,9 +294,9 @@ static inline bool ip_rcv_options(struct sk_buff *skb)
 		if (in_dev) {
 			if (!IN_DEV_SOURCE_ROUTE(in_dev)) {
 				if (IN_DEV_LOG_MARTIANS(in_dev))
-					net_info_ratelimited(
-						"source route option %pI4 -> %pI4\n",
-						&iph->saddr, &iph->daddr);
+					net_info_ratelimited("source route option %pI4 -> %pI4\n",
+							     &iph->saddr,
+							     &iph->daddr);
 				goto drop;
 			}
 		}
@@ -319,7 +315,7 @@ INDIRECT_CALLABLE_DECLARE(int tcp_v4_early_demux(struct sk_buff *));
 static int ip_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	const struct iphdr *iph = ip_hdr(skb);
-	int (*edemux)(struct sk_buff * skb);
+	int (*edemux)(struct sk_buff *skb);
 	struct net_device *dev = skb->dev;
 	struct rtable *rt;
 	int err;
@@ -331,7 +327,9 @@ static int ip_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 	if (!skb)
 		return NET_RX_SUCCESS;
 
-	if (net->ipv4.sysctl_ip_early_demux && !skb_dst(skb) && !skb->sk &&
+	if (net->ipv4.sysctl_ip_early_demux &&
+	    !skb_dst(skb) &&
+	    !skb->sk &&
 	    !ip_is_fragment(iph)) {
 		const struct net_protocol *ipprot;
 		int protocol = iph->protocol;
@@ -362,10 +360,10 @@ static int ip_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 	if (unlikely(skb_dst(skb)->tclassid)) {
 		struct ip_rt_acct *st = this_cpu_ptr(ip_rt_acct);
 		u32 idx = skb_dst(skb)->tclassid;
-		st[idx & 0xFF].o_packets++;
-		st[idx & 0xFF].o_bytes += skb->len;
-		st[(idx >> 16) & 0xFF].i_packets++;
-		st[(idx >> 16) & 0xFF].i_bytes += skb->len;
+		st[idx&0xFF].o_packets++;
+		st[idx&0xFF].o_bytes += skb->len;
+		st[(idx>>16)&0xFF].i_packets++;
+		st[(idx>>16)&0xFF].i_bytes += skb->len;
 	}
 #endif
 
@@ -416,8 +414,7 @@ drop_error:
 /*
  * 	Main IP Receive routine.
  */
-int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt,
-	   struct net_device *orig_dev)
+int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
 	const struct iphdr *iph;
 	struct net *net;
@@ -428,6 +425,7 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt,
 	 */
 	if (skb->pkt_type == PACKET_OTHERHOST)
 		goto drop;
+
 
 	net = dev_net(dev);
 	__IP_UPD_PO_STATS(net, IPSTATS_MIB_IN, skb->len);
@@ -457,15 +455,14 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt,
 	if (iph->ihl < 5 || iph->version != 4)
 		goto inhdr_error;
 
-	BUILD_BUG_ON(IPSTATS_MIB_ECT1PKTS !=
-		     IPSTATS_MIB_NOECTPKTS + INET_ECN_ECT_1);
-	BUILD_BUG_ON(IPSTATS_MIB_ECT0PKTS !=
-		     IPSTATS_MIB_NOECTPKTS + INET_ECN_ECT_0);
+	BUILD_BUG_ON(IPSTATS_MIB_ECT1PKTS != IPSTATS_MIB_NOECTPKTS + INET_ECN_ECT_1);
+	BUILD_BUG_ON(IPSTATS_MIB_ECT0PKTS != IPSTATS_MIB_NOECTPKTS + INET_ECN_ECT_0);
 	BUILD_BUG_ON(IPSTATS_MIB_CEPKTS != IPSTATS_MIB_NOECTPKTS + INET_ECN_CE);
-	__IP_ADD_STATS(net, IPSTATS_MIB_NOECTPKTS + (iph->tos & INET_ECN_MASK),
+	__IP_ADD_STATS(net,
+		       IPSTATS_MIB_NOECTPKTS + (iph->tos & INET_ECN_MASK),
 		       max_t(unsigned short, 1, skb_shinfo(skb)->gso_segs));
 
-	if (!pskb_may_pull(skb, iph->ihl * 4))
+	if (!pskb_may_pull(skb, iph->ihl*4))
 		goto inhdr_error;
 
 	iph = ip_hdr(skb);
@@ -477,7 +474,7 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt,
 	if (skb->len < len) {
 		__IP_INC_STATS(net, IPSTATS_MIB_INTRUNCATEDPKTS);
 		goto drop;
-	} else if (len < (iph->ihl * 4))
+	} else if (len < (iph->ihl*4))
 		goto inhdr_error;
 
 	/* Our transport medium may have padded the buffer out. Now we know it
@@ -490,7 +487,7 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt,
 	}
 
 	iph = ip_hdr(skb);
-	skb->transport_header = skb->network_header + iph->ihl * 4;
+	skb->transport_header = skb->network_header + iph->ihl*4;
 
 	/* Remove any debris in the socket control block */
 	memset(IPCB(skb), 0, sizeof(struct inet_skb_parm));
@@ -500,9 +497,9 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt,
 	if (!skb_sk_is_prefetched(skb))
 		skb_orphan(skb);
 
-	// 执行IPv4 prerouteting链规则
-	return NF_HOOK(NFPROTO_IPV4, NF_INET_PRE_ROUTING, net, NULL, skb, dev,
-		       NULL, ip_rcv_finish);
+	return NF_HOOK(NFPROTO_IPV4, NF_INET_PRE_ROUTING,
+		       net, NULL, skb, dev, NULL,
+		       ip_rcv_finish);
 
 csum_error:
 	__IP_INC_STATS(net, IPSTATS_MIB_CSUMERRORS);

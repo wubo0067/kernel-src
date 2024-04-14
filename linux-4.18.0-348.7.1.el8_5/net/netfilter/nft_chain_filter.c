@@ -23,7 +23,6 @@ static unsigned int nft_do_chain_ipv4(void *priv,
 	return nft_do_chain(&pkt, priv);
 }
 
-// ipv4写一个的hook注册
 static const struct nft_chain_type nft_chain_filter_ipv4 = {
 	.name		= "filter",
 	.type		= NFT_CHAIN_T_DEFAULT,

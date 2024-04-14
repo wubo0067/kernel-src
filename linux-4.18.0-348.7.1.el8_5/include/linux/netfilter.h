@@ -24,8 +24,10 @@ static inline int NF_DROP_GETERR(int verdict)
 static inline int nf_inet_addr_cmp(const union nf_inet_addr *a1,
 				   const union nf_inet_addr *a2)
 {
-	return a1->all[0] == a2->all[0] && a1->all[1] == a2->all[1] &&
-	       a1->all[2] == a2->all[2] && a1->all[3] == a2->all[3];
+	return a1->all[0] == a2->all[0] &&
+	       a1->all[1] == a2->all[1] &&
+	       a1->all[2] == a2->all[2] &&
+	       a1->all[3] == a2->all[3];
 }
 
 static inline void nf_inet_addr_mask(const union nf_inet_addr *a1,
@@ -56,33 +58,34 @@ struct nf_hook_state {
 	int (*okfn)(struct net *, struct sock *, struct sk_buff *);
 };
 
-typedef unsigned int nf_hookfn(void *priv, struct sk_buff *skb,
+typedef unsigned int nf_hookfn(void *priv,
+			       struct sk_buff *skb,
 			       const struct nf_hook_state *state);
 struct nf_hook_ops {
 	/* User fills in from here down. */
-	nf_hookfn *hook;
-	struct net_device *dev;
-	void *priv;
-	u_int8_t pf;
-	unsigned int hooknum;
+	nf_hookfn		*hook;
+	struct net_device	*dev;
+	void			*priv;
+	u_int8_t		pf;
+	unsigned int		hooknum;
 	/* Hooks are ordered in ascending priority. */
-	int priority;
+	int			priority;
 };
 
 struct nf_hook_entry {
-	nf_hookfn *hook;
-	void *priv;
+	nf_hookfn			*hook;
+	void				*priv;
 };
 
 struct nf_hook_entries_rcu_head {
 	struct rcu_head head;
-	void *allocation;
+	void	*allocation;
 };
 
 struct nf_hook_entries {
-	u16 num_hook_entries;
+	u16				num_hook_entries;
 	/* padding */
-	struct nf_hook_entry hooks[];
+	struct nf_hook_entry		hooks[];
 
 	/* trailer: pointers to original orig_ops of each hook,
 	 * followed by rcu_head and scratch space used for freeing
@@ -99,8 +102,7 @@ struct nf_hook_entries {
 	 */
 };
 
-static inline struct nf_hook_ops **
-	nf_hook_entries_get_hook_ops(const struct nf_hook_entries *e)
+static inline struct nf_hook_ops **nf_hook_entries_get_hook_ops(const struct nf_hook_entries *e)
 {
 	unsigned int n = e->num_hook_entries;
 	const void *hook_end;
@@ -110,18 +112,21 @@ static inline struct nf_hook_ops **
 	return (struct nf_hook_ops **)hook_end;
 }
 
-static inline int nf_hook_entry_hookfn(const struct nf_hook_entry *entry,
-				       struct sk_buff *skb,
-				       struct nf_hook_state *state)
+static inline int
+nf_hook_entry_hookfn(const struct nf_hook_entry *entry, struct sk_buff *skb,
+		     struct nf_hook_state *state)
 {
 	return entry->hook(entry->priv, skb, state);
 }
 
-static inline void nf_hook_state_init(
-	struct nf_hook_state *p, unsigned int hook, u_int8_t pf,
-	struct net_device *indev, struct net_device *outdev, struct sock *sk,
-	struct net *net,
-	int (*okfn)(struct net *, struct sock *, struct sk_buff *))
+static inline void nf_hook_state_init(struct nf_hook_state *p,
+				      unsigned int hook,
+				      u_int8_t pf,
+				      struct net_device *indev,
+				      struct net_device *outdev,
+				      struct sock *sk,
+				      struct net *net,
+				      int (*okfn)(struct net *, struct sock *, struct sk_buff *))
 {
 	p->hook = hook;
 	p->pf = pf;
@@ -132,6 +137,8 @@ static inline void nf_hook_state_init(
 	p->okfn = okfn;
 }
 
+
+
 struct nf_sockopt_ops {
 	struct list_head list;
 
@@ -140,18 +147,17 @@ struct nf_sockopt_ops {
 	/* Non-inclusive ranges: use 0/0/NULL to never get called. */
 	int set_optmin;
 	int set_optmax;
-	int (*set)(struct sock *sk, int optval, void __user *user,
-		   unsigned int len);
+	int (*set)(struct sock *sk, int optval, void __user *user, unsigned int len);
 #ifdef CONFIG_COMPAT
-	int (*compat_set)(struct sock *sk, int optval, void __user *user,
-			  unsigned int len);
+	int (*compat_set)(struct sock *sk, int optval,
+			void __user *user, unsigned int len);
 #endif
 	int get_optmin;
 	int get_optmax;
 	int (*get)(struct sock *sk, int optval, void __user *user, int *len);
 #ifdef CONFIG_COMPAT
-	int (*compat_get)(struct sock *sk, int optval, void __user *user,
-			  int *len);
+	int (*compat_get)(struct sock *sk, int optval,
+			void __user *user, int *len);
 #endif
 	/* Use the module struct to lock set/get code in place */
 	struct module *owner;
@@ -187,14 +193,14 @@ int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state,
 static inline int nf_hook(u_int8_t pf, unsigned int hook, struct net *net,
 			  struct sock *sk, struct sk_buff *skb,
 			  struct net_device *indev, struct net_device *outdev,
-			  int (*okfn)(struct net *, struct sock *,
-				      struct sk_buff *))
+			  int (*okfn)(struct net *, struct sock *, struct sk_buff *))
 {
 	struct nf_hook_entries *hook_head = NULL;
 	int ret = 1;
 
 #ifdef HAVE_JUMP_LABEL
-	if (__builtin_constant_p(pf) && __builtin_constant_p(hook) &&
+	if (__builtin_constant_p(pf) &&
+	    __builtin_constant_p(hook) &&
 	    !static_key_false(&nf_hooks_needed[pf][hook]))
 		return 1;
 #endif
@@ -202,7 +208,6 @@ static inline int nf_hook(u_int8_t pf, unsigned int hook, struct net *net,
 	rcu_read_lock();
 	switch (pf) {
 	case NFPROTO_IPV4:
-		// 取出ipv4 prerouting的规则链
 		hook_head = rcu_dereference(net->nf.hooks_ipv4[hook]);
 		break;
 	case NFPROTO_IPV6:
@@ -233,8 +238,8 @@ static inline int nf_hook(u_int8_t pf, unsigned int hook, struct net *net,
 	if (hook_head) {
 		struct nf_hook_state state;
 
-		nf_hook_state_init(&state, hook, pf, indev, outdev, sk, net,
-				   okfn);
+		nf_hook_state_init(&state, hook, pf, indev, outdev,
+				   sk, net, okfn);
 
 		ret = nf_hook_slow(skb, &state, hook_head, 0);
 	}
@@ -260,10 +265,11 @@ static inline int nf_hook(u_int8_t pf, unsigned int hook, struct net *net,
    coders :)
 */
 
-static inline int NF_HOOK_COND(
-	uint8_t pf, unsigned int hook, struct net *net, struct sock *sk,
-	struct sk_buff *skb, struct net_device *in, struct net_device *out,
-	int (*okfn)(struct net *, struct sock *, struct sk_buff *), bool cond)
+static inline int
+NF_HOOK_COND(uint8_t pf, unsigned int hook, struct net *net, struct sock *sk,
+	     struct sk_buff *skb, struct net_device *in, struct net_device *out,
+	     int (*okfn)(struct net *, struct sock *, struct sk_buff *),
+	     bool cond)
 {
 	int ret;
 
@@ -273,11 +279,10 @@ static inline int NF_HOOK_COND(
 	return ret;
 }
 
-static inline int NF_HOOK(uint8_t pf, unsigned int hook, struct net *net,
-			  struct sock *sk, struct sk_buff *skb,
-			  struct net_device *in, struct net_device *out,
-			  int (*okfn)(struct net *, struct sock *,
-				      struct sk_buff *))
+static inline int
+NF_HOOK(uint8_t pf, unsigned int hook, struct net *net, struct sock *sk, struct sk_buff *skb,
+	struct net_device *in, struct net_device *out,
+	int (*okfn)(struct net *, struct sock *, struct sk_buff *))
 {
 	int ret = nf_hook(pf, hook, net, sk, skb, in, out, okfn);
 	if (ret == 1)
@@ -292,9 +297,9 @@ int nf_getsockopt(struct sock *sk, u_int8_t pf, int optval, char __user *opt,
 		  int *len);
 #ifdef CONFIG_COMPAT
 int compat_nf_setsockopt(struct sock *sk, u_int8_t pf, int optval,
-			 char __user *opt, unsigned int len);
+		char __user *opt, unsigned int len);
 int compat_nf_getsockopt(struct sock *sk, u_int8_t pf, int optval,
-			 char __user *opt, int *len);
+		char __user *opt, int *len);
 #endif
 
 /* Call this before modifying an existing packet: ensures it is
@@ -334,8 +339,8 @@ struct nf_nat_hook {
 
 extern struct nf_nat_hook __rcu *nf_nat_hook;
 
-static inline void nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl,
-					 u_int8_t family)
+static inline void
+nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl, u_int8_t family)
 {
 #ifdef CONFIG_NF_NAT_NEEDED
 	struct nf_nat_hook *nat_hook;
@@ -349,19 +354,19 @@ static inline void nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl,
 }
 
 #else /* !CONFIG_NETFILTER */
-static inline int NF_HOOK_COND(
-	uint8_t pf, unsigned int hook, struct net *net, struct sock *sk,
-	struct sk_buff *skb, struct net_device *in, struct net_device *out,
-	int (*okfn)(struct net *, struct sock *, struct sk_buff *), bool cond)
+static inline int
+NF_HOOK_COND(uint8_t pf, unsigned int hook, struct net *net, struct sock *sk,
+	     struct sk_buff *skb, struct net_device *in, struct net_device *out,
+	     int (*okfn)(struct net *, struct sock *, struct sk_buff *),
+	     bool cond)
 {
 	return okfn(net, sk, skb);
 }
 
-static inline int NF_HOOK(uint8_t pf, unsigned int hook, struct net *net,
-			  struct sock *sk, struct sk_buff *skb,
-			  struct net_device *in, struct net_device *out,
-			  int (*okfn)(struct net *, struct sock *,
-				      struct sk_buff *))
+static inline int
+NF_HOOK(uint8_t pf, unsigned int hook, struct net *net, struct sock *sk,
+	struct sk_buff *skb, struct net_device *in, struct net_device *out,
+	int (*okfn)(struct net *, struct sock *, struct sk_buff *))
 {
 	return okfn(net, sk, skb);
 }
@@ -369,14 +374,13 @@ static inline int NF_HOOK(uint8_t pf, unsigned int hook, struct net *net,
 static inline int nf_hook(u_int8_t pf, unsigned int hook, struct net *net,
 			  struct sock *sk, struct sk_buff *skb,
 			  struct net_device *indev, struct net_device *outdev,
-			  int (*okfn)(struct net *, struct sock *,
-				      struct sk_buff *))
+			  int (*okfn)(struct net *, struct sock *, struct sk_buff *))
 {
 	return 1;
 }
 struct flowi;
-static inline void nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl,
-					 u_int8_t family)
+static inline void
+nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl, u_int8_t family)
 {
 }
 #endif /*CONFIG_NETFILTER*/
@@ -390,9 +394,7 @@ struct nf_conntrack_tuple;
 bool nf_ct_get_tuple_skb(struct nf_conntrack_tuple *dst_tuple,
 			 const struct sk_buff *skb);
 #else
-static inline void nf_ct_attach(struct sk_buff *new, struct sk_buff *skb)
-{
-}
+static inline void nf_ct_attach(struct sk_buff *new, struct sk_buff *skb) {}
 struct nf_conntrack_tuple;
 static inline bool nf_ct_get_tuple_skb(struct nf_conntrack_tuple *dst_tuple,
 				       const struct sk_buff *skb)
@@ -419,8 +421,8 @@ struct nfnl_ct_hook {
 				  enum ip_conntrack_info *ctinfo);
 	size_t (*build_size)(const struct nf_conn *ct);
 	int (*build)(struct sk_buff *skb, struct nf_conn *ct,
-		     enum ip_conntrack_info ctinfo, u_int16_t ct_attr,
-		     u_int16_t ct_info_attr);
+		     enum ip_conntrack_info ctinfo,
+		     u_int16_t ct_attr, u_int16_t ct_info_attr);
 	int (*parse)(const struct nlattr *attr, struct nf_conn *ct);
 	int (*attach_expect)(const struct nlattr *attr, struct nf_conn *ct,
 			     u32 portid, u32 report);

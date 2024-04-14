@@ -88,10 +88,9 @@ static int __init control_va_addr_alignment(char *str)
 }
 __setup("align_va_addr", control_va_addr_alignment);
 
-// 这里是mmap的系统调用函数
-SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len, unsigned long,
-		prot, unsigned long, flags, unsigned long, fd, unsigned long,
-		off)
+SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
+		unsigned long, prot, unsigned long, flags,
+		unsigned long, fd, unsigned long, off)
 {
 	long error;
 	error = -EINVAL;
@@ -104,7 +103,7 @@ out:
 }
 
 static void find_start_end(unsigned long addr, unsigned long flags,
-			   unsigned long *begin, unsigned long *end)
+		unsigned long *begin, unsigned long *end)
 {
 	if (!in_compat_syscall() && (flags & MAP_32BIT)) {
 		/* This is usually used needed to map code in small
@@ -122,16 +121,16 @@ static void find_start_end(unsigned long addr, unsigned long flags,
 		return;
 	}
 
-	*begin = get_mmap_base(1);
+	*begin	= get_mmap_base(1);
 	if (in_compat_syscall())
 		*end = task_size_32bit();
 	else
 		*end = task_size_64bit(addr > DEFAULT_MAP_WINDOW);
 }
 
-unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
-				     unsigned long len, unsigned long pgoff,
-				     unsigned long flags)
+unsigned long
+arch_get_unmapped_area(struct file *filp, unsigned long addr,
+		unsigned long len, unsigned long pgoff, unsigned long flags)
 {
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
@@ -171,11 +170,10 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	return vm_unmapped_area(&info);
 }
 
-unsigned long arch_get_unmapped_area_topdown(struct file *filp,
-					     const unsigned long addr0,
-					     const unsigned long len,
-					     const unsigned long pgoff,
-					     const unsigned long flags)
+unsigned long
+arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
+			  const unsigned long len, const unsigned long pgoff,
+			  const unsigned long flags)
 {
 	struct vm_area_struct *vma;
 	struct mm_struct *mm = current->mm;

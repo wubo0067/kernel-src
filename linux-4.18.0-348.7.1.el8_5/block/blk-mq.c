@@ -288,7 +288,6 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 
 	/* csd/requeue_work/fifo_time is initialized before use */
 	rq->q = data->q;
-	// 这都是从request_queue中选出合适软硬队列
 	rq->mq_ctx = data->ctx;
 	rq->mq_hctx = data->hctx;
 	rq->rq_flags = 0;
@@ -370,7 +369,6 @@ static struct request *__blk_mq_alloc_request(struct blk_mq_alloc_data *data)
 	}
 
 retry:
-	// 从percpu中选择软件队列
 	data->ctx = blk_mq_get_ctx(q);
 	data->hctx = blk_mq_map_queue(q, data->cmd_flags, data->ctx);
 	if (!e)
@@ -1614,11 +1612,8 @@ static void __blk_mq_delay_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async,
 		return;
 
 	if (!async && !(hctx->flags & BLK_MQ_F_BLOCKING)) {
-		// 获得当前运行的cpu编号
 		int cpu = get_cpu();
-
 		if (cpumask_test_cpu(cpu, hctx->cpumask)) {
-			// 判断硬件队列是否在改cpu上运行
 			__blk_mq_run_hw_queue(hctx);
 			put_cpu();
 			return;
@@ -2175,18 +2170,14 @@ void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
 
 static void blk_add_rq_to_plug(struct blk_plug *plug, struct request *rq)
 {
-	// 将req加入plug->mq_list尾部，都是使用queuelist这个成员
 	list_add_tail(&rq->queuelist, &plug->mq_list);
 	plug->rq_count++;
-
 	if (!plug->multiple_queues && !list_is_singular(&plug->mq_list)) {
 		struct request *tmp;
-		// 获取plug->mq_list的第一个request
+
 		tmp = list_first_entry(&plug->mq_list, struct request,
 				       queuelist);
-		// 判断第一个request使用的request_queue和加入末尾的rq的request_queue是否是同一个
 		if (tmp->q != rq->q)
-			// 如果两个request使用的是不同的request_queue，那么就将plug->multiple_queues设置为true
 			plug->multiple_queues = true;
 	}
 }
@@ -2199,7 +2190,7 @@ static void blk_add_rq_to_plug(struct blk_plug *plug, struct request *rq)
  * Builds up a request structure from @q and @bio and send to the device. The
  * request may not be queued directly to hardware if:
  * * This request can be merged with another one
- * * We want to place request at plug queue for possible future merging, 将请求放入一个塞子队列中，为了将来的合并
+ * * We want to place request at plug queue for possible future merging
  * * There is an IO scheduler active at this queue
  *
  * It will not queue the request if there is an error with the bio, or at the
@@ -2228,23 +2219,18 @@ blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	if (!bio_integrity_prep(bio))
 		goto queue_exit;
 
-	// 判断能否在plug list中合并
 	if (!is_flush_fua && !blk_queue_nomerges(q) &&
 	    blk_attempt_plug_merge(q, bio, &same_queue_rq))
 		goto queue_exit;
 
-	// 使用io调度器(q->elevator)来进行合并，这是在硬件队列中进行的，如果合并成功就不需要创建一个独立
-	// 的request了。
 	if (blk_mq_sched_bio_merge(q, bio))
 		goto queue_exit;
-	// 服务质量，节流
+
 	rq_qos_throttle(q, bio);
 
 	hipri = bio->bi_opf & REQ_HIPRI;
 
 	data.cmd_flags = bio->bi_opf;
-
-	// 为bio分配一个request
 	rq = __blk_mq_alloc_request(&data);
 	if (unlikely(!rq)) {
 		rq_qos_cleanup(q, bio);
@@ -2252,7 +2238,7 @@ blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 			bio_wouldblock_error(bio);
 		goto queue_exit;
 	}
-	// 触发一个tracepoint
+
 	trace_block_getrq(q, bio, bio->bi_opf);
 
 	rq_qos_track(q, rq, bio);
@@ -2280,24 +2266,19 @@ blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		struct request *last = NULL;
 
 		if (!request_count)
-			// 如果塞子队列为空，那么就将当前的请求插入到塞子队列中
 			trace_block_plug(q);
 		else
-			// 得到plug队列中最后一个元素
 			last = list_entry_rq(plug->mq_list.prev);
 
 		if (request_count >= BLK_MAX_REQUEST_COUNT ||
 		    (last && blk_rq_bytes(last) >= BLK_PLUG_FLUSH_SIZE)) {
-			// 该函数也会调用blk_mq_sched_insert_request
 			blk_flush_plug_list(plug, false);
-			// 触发一个tracepoint，参数是comm，进程名
 			trace_block_plug(q);
 		}
-		// 将request加入plug mq_list
+
 		blk_add_rq_to_plug(plug, rq);
 	} else if (q->elevator) {
 		/* Insert the request at the IO scheduler queue */
-		// 这里将请求直接插入io调度层
 		blk_mq_sched_insert_request(rq, false, true, true);
 	} else if (plug && !blk_queue_nomerges(q)) {
 		/*
@@ -2402,7 +2383,7 @@ void blk_mq_free_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
 	}
 
 	blk_mq_clear_rq_mapping(set, tags, hctx_idx);
-
+	// 释放 page
 	while (!list_empty(&tags->page_list)) {
 		page = list_first_entry(&tags->page_list, struct page, lru);
 		list_del_init(&page->lru);
@@ -2476,6 +2457,8 @@ static int blk_mq_init_request(struct blk_mq_tag_set *set, struct request *rq,
 	return 0;
 }
 
+// 根据队列深度 depth 分配 request, 分配的 request 指针最终保存到 tags->static_rqs[i]。
+// 注意此处分配 request 时，同时也分配了 driver payload 的空间用于存放 cmd；
 int blk_mq_alloc_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
 		     unsigned int hctx_idx, unsigned int depth)
 {

@@ -2,8 +2,8 @@
 VERSION = 4
 PATCHLEVEL = 18
 SUBLEVEL = 0
-EXTRAVERSION =
-NAME = Merciless Moray
+EXTRAVERSION = -348.7.1.calmwu.x86_64
+NAME = calmwu
 
 #
 # DRM backport version
