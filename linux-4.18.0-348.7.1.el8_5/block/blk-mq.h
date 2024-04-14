@@ -11,7 +11,7 @@ struct blk_mq_tag_set;
 
 struct blk_mq_ctxs {
 	struct kobject kobj;
-	struct blk_mq_ctx __percpu	*queue_ctx;
+	struct blk_mq_ctx __percpu *queue_ctx;
 };
 
 /**
@@ -19,24 +19,24 @@ struct blk_mq_ctxs {
  */
 struct blk_mq_ctx {
 	struct {
-		spinlock_t		lock;
-		struct list_head	rq_lists[HCTX_MAX_TYPES];
+		spinlock_t lock;
+		struct list_head rq_lists[HCTX_MAX_TYPES];
 	} ____cacheline_aligned_in_smp;
 
-	unsigned int		cpu;
-	unsigned short		index_hw[HCTX_MAX_TYPES];
-	RH_KABI_BROKEN_INSERT(struct blk_mq_hw_ctx	*hctxs[HCTX_MAX_TYPES])
+	unsigned int cpu;
+	unsigned short index_hw[HCTX_MAX_TYPES];
+	RH_KABI_BROKEN_INSERT(struct blk_mq_hw_ctx *hctxs[HCTX_MAX_TYPES])
 
 	/* incremented at dispatch time */
-	unsigned long		rq_dispatched[2];
-	unsigned long		rq_merged;
+	unsigned long rq_dispatched[2];
+	unsigned long rq_merged;
 
 	/* incremented at completion time */
-	unsigned long		____cacheline_aligned_in_smp rq_completed[2];
+	unsigned long ____cacheline_aligned_in_smp rq_completed[2];
 
-	struct request_queue	*queue;
-	struct blk_mq_ctxs      *ctxs;
-	struct kobject		kobj;
+	struct request_queue *queue;
+	struct blk_mq_ctxs *ctxs;
+	struct kobject kobj;
 } ____cacheline_aligned_in_smp;
 
 void blk_mq_freeze_queue(struct request_queue *q);
@@ -70,11 +70,11 @@ int blk_mq_alloc_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
  * Internal helpers for request insertion into sw queues
  */
 void __blk_mq_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
-				bool at_head);
+			     bool at_head);
 void blk_mq_request_bypass_insert(struct request *rq, bool at_head,
 				  bool run_queue);
 void blk_mq_insert_requests(struct blk_mq_hw_ctx *hctx, struct blk_mq_ctx *ctx,
-				struct list_head *list);
+			    struct list_head *list);
 
 /* Used by blk_insert_cloned_request() to issue request directly */
 blk_status_t blk_mq_request_issue_directly(struct request *rq, bool last);
@@ -92,9 +92,9 @@ extern int blk_mq_hw_queue_to_node(struct blk_mq_queue_map *qmap, unsigned int);
  * @type: the hctx type index
  * @cpu: CPU
  */
-static inline struct blk_mq_hw_ctx *blk_mq_map_queue_type(struct request_queue *q,
-							  enum hctx_type type,
-							  unsigned int cpu)
+static inline struct blk_mq_hw_ctx *
+	blk_mq_map_queue_type(struct request_queue *q, enum hctx_type type,
+			      unsigned int cpu)
 {
 	return q->queue_hw_ctx[q->tag_set->map[type].mq_map[cpu]];
 }
@@ -118,7 +118,7 @@ static inline struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *q,
 		type = HCTX_TYPE_POLL;
 	else if ((flags & REQ_OP_MASK) == REQ_OP_READ)
 		type = HCTX_TYPE_READ;
-	
+
 	return ctx->hctxs[type];
 }
 
@@ -135,7 +135,7 @@ extern void blk_mq_hctx_kobj_init(struct blk_mq_hw_ctx *hctx);
 void blk_mq_release(struct request_queue *q);
 
 static inline struct blk_mq_ctx *__blk_mq_get_ctx(struct request_queue *q,
-					   unsigned int cpu)
+						  unsigned int cpu)
 {
 	return per_cpu_ptr(q->queue_ctx, cpu);
 }
@@ -170,7 +170,8 @@ static inline bool blk_mq_is_sbitmap_shared(unsigned int flags)
 	return flags & BLK_MQ_F_TAG_HCTX_SHARED;
 }
 
-static inline struct blk_mq_tags *blk_mq_tags_from_data(struct blk_mq_alloc_data *data)
+static inline struct blk_mq_tags *
+	blk_mq_tags_from_data(struct blk_mq_alloc_data *data)
 {
 	if (data->q->elevator)
 		return data->hctx->sched_tags;
@@ -241,7 +242,8 @@ static inline void __blk_mq_dec_active_requests(struct blk_mq_hw_ctx *hctx)
 static inline int __blk_mq_active_requests(struct blk_mq_hw_ctx *hctx)
 {
 	if (blk_mq_is_sbitmap_shared(hctx->flags))
-		return atomic_read(&hctx->queue->nr_active_requests_shared_sbitmap);
+		return atomic_read(
+			&hctx->queue->nr_active_requests_shared_sbitmap);
 	return atomic_read(&hctx->nr_active);
 }
 static inline void __blk_mq_put_driver_tag(struct blk_mq_hw_ctx *hctx,
@@ -270,7 +272,7 @@ static inline void blk_mq_clear_mq_map(struct blk_mq_queue_map *qmap)
 {
 	int cpu;
 
-	for_each_possible_cpu(cpu)
+	for_each_possible_cpu (cpu)
 		qmap->mq_map[cpu] = 0;
 }
 
@@ -298,6 +300,8 @@ static inline struct blk_plug *blk_mq_plug(struct request_queue *q,
 	/*
 	 * For regular block devices or read operations, use the context plug
 	 * which may be NULL if blk_start_plug() was not executed.
+	 * 在普通块设备或者读操作才使用plug list。
+	 * 函数是用于判断块设备请求队列是否支持分区（Zoned）功能。分区是一种块设备的特性，它将设备的存储空间划分为多个连续的区域（称为区域），每个区域具有特定的属性和限制。
 	 */
 	if (!blk_queue_is_zoned(q) || !op_is_write(bio_op(bio)))
 		return current->plug;
@@ -346,6 +350,5 @@ static inline bool hctx_may_queue(struct blk_mq_hw_ctx *hctx,
 	depth = max((bt->sb.depth + users - 1) / users, 4U);
 	return __blk_mq_active_requests(hctx) < depth;
 }
-
 
 #endif
