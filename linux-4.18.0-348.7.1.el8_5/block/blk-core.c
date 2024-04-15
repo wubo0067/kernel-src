@@ -943,13 +943,13 @@ end_io:
 
 static blk_qc_t do_make_request(struct bio *bio)
 {
-	// bio的bi_disk带有queue
+	// bio 的 bi_disk 带有 queue
 	struct request_queue *q = bio->bi_disk->queue;
 	blk_qc_t ret = BLK_QC_T_NONE;
 
 	if (queue_is_mq(q))
-		// 实际是这个函数blk_mq_make_request，构造一个multi-queue request
-		// 将bio插入请求队列中
+		// 实际是这个函数 blk_mq_make_request，构造一个 multi-queue request
+		// 将 bio 插入请求队列中
 		// make_requst_fn = blk_mq_make_request
 		return q->make_request_fn(q, bio);
 	ret = q->make_request_fn(q, bio);
@@ -992,7 +992,7 @@ blk_qc_t generic_make_request(struct bio *bio)
 	 * should be added at the tail
 	 */
 	if (current->bio_list) {
-		// task_struct中加入bio
+		// task_struct 中加入 bio
 		bio_list_add(&current->bio_list[0], bio);
 		goto out;
 	}
@@ -1700,7 +1700,7 @@ static void flush_plug_callbacks(struct blk_plug *plug, bool from_schedule)
 	LIST_HEAD(callbacks);
 
 	while (!list_empty(&plug->cb_list)) {
-		// 将plug->cb_list中的回调函数放入callbacks中，并将plug->cb_list初始化为空链表
+		// 将 plug->cb_list 中的回调函数放入 callbacks 中，并将 plug->cb_list 初始化为空链表
 		list_splice_init(&plug->cb_list, &callbacks);
 
 		while (!list_empty(&callbacks)) {
@@ -1749,6 +1749,7 @@ void blk_finish_plug(struct blk_plug *plug)
 {
 	if (plug != current->plug)
 		return;
+	// 本地泄洪，每个 task_struct 都有一个 plug
 	blk_flush_plug_list(plug, false);
 
 	current->plug = NULL;

@@ -626,7 +626,7 @@ struct task_struct {
 	 * scheduling-critical items should be added above here.
 	 */
 	randomized_struct_fields_start
-
+		// 这是内核状态的堆栈
 		void *stack;
 	RH_KABI_REPLACE(atomic_t usage, refcount_t usage)
 	/* Per task flags (PF_*), defined further below: */

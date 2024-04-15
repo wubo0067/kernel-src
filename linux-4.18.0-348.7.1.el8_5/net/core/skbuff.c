@@ -308,7 +308,7 @@ static struct sk_buff *__build_skb_around(struct sk_buff *skb,
 struct sk_buff *__build_skb(void *data, unsigned int frag_size)
 {
 	struct sk_buff *skb;
-
+	// 从 cache 中分配一个 sk_buff
 	skb = kmem_cache_alloc(skbuff_head_cache, GFP_ATOMIC);
 	if (unlikely(!skb))
 		return NULL;

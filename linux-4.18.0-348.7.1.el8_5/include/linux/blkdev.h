@@ -416,7 +416,7 @@ struct request_queue {
 	 */
 	RH_KABI_DEPRECATE(struct list_head,	queue_head)
 	struct request		*last_merge;
-	struct elevator_queue	*elevator;
+	struct elevator_queue	*elevator; // 电梯算法，要具体到 cfq，dd，none
 
 	struct blk_queue_stats	*stats;
 	struct rq_qos		*rq_qos;
@@ -427,13 +427,13 @@ struct request_queue {
 	const struct blk_mq_ops	*mq_ops;
 
 	/* sw queues */
-	struct blk_mq_ctx __percpu	*queue_ctx;
+	struct blk_mq_ctx __percpu	*queue_ctx; // 软件队列，一个等待发送到硬件队列的请求队列，按 cpu core 数量
 	RH_KABI_DEPRECATE(unsigned int,            nr_queues)
 
 	unsigned int		queue_depth;
 
 	/* hw dispatch queues */
-	struct blk_mq_hw_ctx	**queue_hw_ctx;
+	struct blk_mq_hw_ctx	**queue_hw_ctx; // 一个重要的上下文结构体，用于管理硬件队列
 	unsigned int		nr_hw_queues;
 
 	struct backing_dev_info	*backing_dev_info;

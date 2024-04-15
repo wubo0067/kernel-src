@@ -503,7 +503,7 @@ static void dd_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 	 * target zone. If it is the case, this releases the zone lock.
 	 */
 	blk_req_zone_write_unlock(rq);
-
+	// 如果request可以做merge insert那么就不用重新插入了
 	if (blk_mq_sched_try_insert_merge(q, rq))
 		return;
 	// 这里仅仅是做了tracepoint

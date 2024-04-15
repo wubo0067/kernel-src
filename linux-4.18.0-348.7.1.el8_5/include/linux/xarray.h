@@ -1261,6 +1261,8 @@ static inline struct xa_node *xa_parent_locked(const struct xarray *xa,
 /* Private */
 static inline void *xa_mk_node(const struct xa_node *node)
 {
+	// 如果最低2个bit为10,则该slot存放的是xa_node指针，怎么保证的最后两位是10的呢？
+	// 每个 `xa_node` 的地址都是对齐的，这意味着其最后几位（具体数量取决于系统和配置）总是为 0
 	return (void *)((unsigned long)node | 2);
 }
 
@@ -1273,6 +1275,7 @@ static inline struct xa_node *xa_to_node(const void *entry)
 /* Private */
 static inline bool xa_is_node(const void *entry)
 {
+	// 检查最低两位是不是10
 	return xa_is_internal(entry) && (unsigned long)entry > 4096;
 }
 

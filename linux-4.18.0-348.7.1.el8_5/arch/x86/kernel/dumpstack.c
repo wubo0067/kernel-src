@@ -33,15 +33,15 @@ bool noinstr in_task_stack(unsigned long *stack, struct task_struct *task,
 			   struct stack_info *info)
 {
 	unsigned long *begin = task_stack_page(task);
-	unsigned long *end   = task_stack_page(task) + THREAD_SIZE;
+	unsigned long *end = task_stack_page(task) + THREAD_SIZE;
 
 	if (stack < begin || stack >= end)
 		return false;
 
-	info->type	= STACK_TYPE_TASK;
-	info->begin	= begin;
-	info->end	= end;
-	info->next_sp	= NULL;
+	info->type = STACK_TYPE_TASK;
+	info->begin = begin;
+	info->end = end;
+	info->next_sp = NULL;
 
 	return true;
 }
@@ -57,10 +57,10 @@ bool noinstr in_entry_stack(unsigned long *stack, struct stack_info *info)
 	if ((void *)stack < begin || (void *)stack >= end)
 		return false;
 
-	info->type	= STACK_TYPE_ENTRY;
-	info->begin	= begin;
-	info->end	= end;
-	info->next_sp	= NULL;
+	info->type = STACK_TYPE_ENTRY;
+	info->begin = begin;
+	info->end = end;
+	info->next_sp = NULL;
 
 	return true;
 }
@@ -105,16 +105,17 @@ void show_opcodes(struct pt_regs *regs, const char *loglvl)
 	 * memory by pointing the userspace instruction pointer at it.
 	 */
 	bad_ip = user_mode(regs) &&
-		__chk_range_not_ok(prologue, OPCODE_BUFSIZE, TASK_SIZE_MAX);
+		 __chk_range_not_ok(prologue, OPCODE_BUFSIZE, TASK_SIZE_MAX);
 
-	if (bad_ip || probe_kernel_read(opcodes, (u8 *)prologue,
-					OPCODE_BUFSIZE)) {
+	if (bad_ip ||
+	    probe_kernel_read(opcodes, (u8 *)prologue, OPCODE_BUFSIZE)) {
 		printk("%sCode: Unable to access opcode bytes at RIP 0x%lx.\n",
 		       loglvl, prologue);
 	} else {
-		printk("%sCode: %" __stringify(PROLOGUE_SIZE) "ph <%02x> %"
-		       __stringify(EPILOGUE_SIZE) "ph\n", loglvl, opcodes,
-		       opcodes[PROLOGUE_SIZE], opcodes + PROLOGUE_SIZE + 1);
+		printk("%sCode: %" __stringify(PROLOGUE_SIZE) "ph <%02x> %" __stringify(
+			       EPILOGUE_SIZE) "ph\n",
+		       loglvl, opcodes, opcodes[PROLOGUE_SIZE],
+		       opcodes + PROLOGUE_SIZE + 1);
 	}
 }
 
@@ -132,7 +133,7 @@ void show_iret_regs(struct pt_regs *regs)
 {
 	show_ip(regs, KERN_DEFAULT);
 	printk(KERN_DEFAULT "RSP: %04x:%016lx EFLAGS: %08lx", (int)regs->ss,
-		regs->sp, regs->flags);
+	       regs->sp, regs->flags);
 }
 
 static void show_regs_if_on_stack(struct stack_info *info, struct pt_regs *regs,
@@ -161,11 +162,12 @@ static void show_regs_if_on_stack(struct stack_info *info, struct pt_regs *regs,
 	}
 }
 
+// calmwu，输出内核堆栈
 void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 			unsigned long *stack, char *log_lvl)
 {
 	struct unwind_state state;
-	struct stack_info stack_info = {0};
+	struct stack_info stack_info = { 0 };
 	unsigned long visit_mask = 0;
 	int graph_idx = 0;
 	bool partial = false;
@@ -173,7 +175,7 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 	printk("%sCall Trace:\n", log_lvl);
 
 	unwind_start(&state, task, regs, stack);
-	stack = stack ? : get_stack_pointer(task, regs);
+	stack = stack ?: get_stack_pointer(task, regs);
 	regs = unwind_get_entry_regs(&state, &partial);
 
 	/*
@@ -192,7 +194,7 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 	 * - hardirq stack
 	 * - entry stack
 	 */
-	for ( ; stack; stack = PTR_ALIGN(stack_info.next_sp, sizeof(long))) {
+	for (; stack; stack = PTR_ALIGN(stack_info.next_sp, sizeof(long))) {
 		const char *stack_name;
 
 		if (get_stack_info(stack, task, &stack_info, &visit_mask)) {
@@ -202,8 +204,10 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 			 * See if the next page up is valid so that we can
 			 * generate some kind of backtrace if this happens.
 			 */
-			stack = (unsigned long *)PAGE_ALIGN((unsigned long)stack);
-			if (get_stack_info(stack, task, &stack_info, &visit_mask))
+			stack = (unsigned long *)PAGE_ALIGN(
+				(unsigned long)stack);
+			if (get_stack_info(stack, task, &stack_info,
+					   &visit_mask))
 				break;
 		}
 
@@ -262,7 +266,7 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 			if (!reliable)
 				continue;
 
-next:
+		next:
 			/*
 			 * Get the next frame from the unwinder.  No need to
 			 * check for an error: if anything goes wrong, the rest
@@ -273,7 +277,8 @@ next:
 			/* if the frame has entry regs, print them */
 			regs = unwind_get_entry_regs(&state, &partial);
 			if (regs)
-				show_regs_if_on_stack(&stack_info, regs, partial);
+				show_regs_if_on_stack(&stack_info, regs,
+						      partial);
 		}
 
 		if (stack_name)
@@ -283,7 +288,7 @@ next:
 
 void show_stack(struct task_struct *task, unsigned long *sp)
 {
-	task = task ? : current;
+	task = task ?: current;
 
 	/*
 	 * Stack frames below this one aren't interesting.  Don't show them
@@ -378,20 +383,19 @@ int __die(const char *str, struct pt_regs *regs, long err)
 	if (IS_ENABLED(CONFIG_PREEMPTION))
 		pr = IS_ENABLED(CONFIG_PREEMPT_RT) ? " PREEMPT_RT" : " PREEMPT";
 
-	printk(KERN_DEFAULT
-	       "%s: %04lx [#%d]%s%s%s%s%s\n", str, err & 0xffff, ++die_counter,
-	       pr,
-	       IS_ENABLED(CONFIG_SMP)     ? " SMP"             : "",
-	       debug_pagealloc_enabled()  ? " DEBUG_PAGEALLOC" : "",
-	       IS_ENABLED(CONFIG_KASAN)   ? " KASAN"           : "",
+	printk(KERN_DEFAULT "%s: %04lx [#%d]%s%s%s%s%s\n", str, err & 0xffff,
+	       ++die_counter, pr, IS_ENABLED(CONFIG_SMP) ? " SMP" : "",
+	       debug_pagealloc_enabled() ? " DEBUG_PAGEALLOC" : "",
+	       IS_ENABLED(CONFIG_KASAN) ? " KASAN" : "",
 	       IS_ENABLED(CONFIG_PAGE_TABLE_ISOLATION) ?
-	       (boot_cpu_has(X86_FEATURE_PTI) ? " PTI" : " NOPTI") : "");
+		       (boot_cpu_has(X86_FEATURE_PTI) ? " PTI" : " NOPTI") :
+		       "");
 
 	show_regs(regs);
 	print_modules();
 
-	if (notify_die(DIE_OOPS, str, regs, err,
-			current->thread.trap_nr, SIGSEGV) == NOTIFY_STOP)
+	if (notify_die(DIE_OOPS, str, regs, err, current->thread.trap_nr,
+		       SIGSEGV) == NOTIFY_STOP)
 		return 1;
 
 	return 0;

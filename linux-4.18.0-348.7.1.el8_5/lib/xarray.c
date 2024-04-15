@@ -238,6 +238,8 @@ void *xas_load(struct xa_state *xas)
 	void *entry = xas_start(xas);
 
 	while (xa_is_node(entry)) {
+		// 如果entry是个node，也就是内部节点，最后两个bit位=10
+		// 减去2，换成真正的node地址
 		struct xa_node *node = xa_to_node(entry);
 
 		if (xas->xa_shift > node->shift)
@@ -393,7 +395,7 @@ static void *xas_alloc(struct xa_state *xas, unsigned int shift)
 	}
 	XA_NODE_BUG_ON(node, shift > BITS_PER_LONG);
 	XA_NODE_BUG_ON(node, !list_empty(&node->private_list));
-	node->shift = shift; // 设置shift = 6
+	node->shift = shift; // 设置shift = 6，如果是root节点，shift = 0
 	node->count = 0;
 	node->nr_values = 0;
 	RCU_INIT_POINTER(node->parent, xas->xa_node);
@@ -574,11 +576,13 @@ static int xas_expand(struct xa_state *xas, void *head)
 			return 0;
 		// 如果是空xarray，判断扩展数量
 		/*
-		0~63，shift = 6
-		(0~63) * 64范围， shift = 12
-		(0~63) * 64 * 64范围，shift = 18
+		xas_expand(63) = 6
+		xas_expand(64) = 12
+		xas_expand(128) = 12
+		xas_expand(4096) = 18
 		......
 		4T 的文件 64的7次方，树有7层
+		就看有几个shift，按shift
 		*/
 		while ((max >> shift) >= XA_CHUNK_SIZE)
 			shift += XA_CHUNK_SHIFT;
@@ -666,6 +670,7 @@ static void *xas_create(struct xa_state *xas, bool allow_root)
 		xas->xa_node = NULL;
 		if (!entry && xa_zero_busy(xa))
 			entry = XA_ZERO_ENTRY;
+		// entry是root，且为NULL
 		shift = xas_expand(xas, entry);
 		if (shift < 0)
 			return NULL;
@@ -673,7 +678,7 @@ static void *xas_create(struct xa_state *xas, bool allow_root)
 			shift = XA_CHUNK_SHIFT;
 		// 当xarray为空时，xa_head = NULL
 		entry = xa_head_locked(xa);
-		// 指向head的指针，后面给其赋值
+		//xarray结构中指向根节点struct xa_node *，现在是空指针，为了将来赋值，所以用了二维指针
 		slot = &xa->xa_head;
 	} else if (xas_error(xas)) {
 		return NULL;
@@ -691,20 +696,25 @@ static void *xas_create(struct xa_state *xas, bool allow_root)
 
 	// 当xarray为NULL时，shift = 6， order = 0
 	while (shift > order) {
+		// 直接减去6，shift = 0
 		shift -= XA_CHUNK_SHIFT;
 		if (!entry) {
+			// 分配一个struct xa_node *对象
 			node = xas_alloc(xas, shift);
 			if (!node)
 				break;
 			if (xa_track_free(xa))
 				node_mark_all(node, XA_FREE_MARK);
-			// xa_mk_node会给node地址加上2
+			// xa_mk_node会给node地址加上2，同时赋值给xa_head指针
 			rcu_assign_pointer(*slot, xa_mk_node(node));
 		} else if (xa_is_node(entry)) {
 			node = xa_to_node(entry);
 		} else {
 			break;
 		}
+		// 计算xas在node中的xa_offset
+		// 一层一层的下降
+		// entry应该是NULL，而且是root节点slot中存放数据的位置
 		entry = xas_descend(xas, node);
 		slot = &node->slots[xas->xa_offset];
 	}

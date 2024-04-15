@@ -1615,6 +1615,7 @@ _xfs_buf_ioapply(
 	 */
 	offset = bp->b_offset;
 	size = BBTOB(bp->b_length);
+	// 这里应该将元数据写入磁盘，例如 agf 的元数据
 	blk_start_plug(&plug);
 	for (i = 0; i < bp->b_map_count; i++) {
 		xfs_buf_ioapply_map(bp, i, &offset, &size, op);

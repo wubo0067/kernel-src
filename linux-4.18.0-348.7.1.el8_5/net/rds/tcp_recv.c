@@ -70,7 +70,8 @@ int rds_tcp_inc_copy_to_user(struct rds_incoming *inc, struct iov_iter *to)
 
 	tinc = container_of(inc, struct rds_tcp_incoming, ti_inc);
 
-	skb_queue_walk(&tinc->ti_skb_list, skb) {
+	skb_queue_walk(&tinc->ti_skb_list, skb)
+	{
 		unsigned long to_copy, skb_off;
 		for (skb_off = 0; skb_off < skb->len; skb_off += to_copy) {
 			to_copy = iov_iter_count(to);
@@ -120,7 +121,8 @@ static void rds_tcp_cong_recv(struct rds_connection *conn,
 	map_off = 0;
 	map = conn->c_fcong;
 
-	skb_queue_walk(&tinc->ti_skb_list, skb) {
+	skb_queue_walk(&tinc->ti_skb_list, skb)
+	{
 		skb_off = 0;
 		while (skb_off < skb->len) {
 			to_copy = min_t(unsigned int, PAGE_SIZE - map_off,
@@ -129,7 +131,8 @@ static void rds_tcp_cong_recv(struct rds_connection *conn,
 			BUG_ON(map_page >= RDS_CONG_MAP_PAGES);
 
 			/* only returns 0 or -error */
-			ret = skb_copy_bits(skb, skb_off,
+			ret = skb_copy_bits(
+				skb, skb_off,
 				(void *)map->m_page_addrs[map_page] + map_off,
 				to_copy);
 			BUG_ON(ret != 0);
@@ -143,7 +146,7 @@ static void rds_tcp_cong_recv(struct rds_connection *conn,
 		}
 	}
 
-	rds_cong_map_updated(map, ~(u64) 0);
+	rds_cong_map_updated(map, ~(u64)0);
 }
 
 struct rds_tcp_desc_arg {
@@ -181,7 +184,7 @@ static int rds_tcp_data_recv(read_descriptor_t *desc, struct sk_buff *skb,
 			rds_inc_path_init(&tinc->ti_inc, cp,
 					  cp->cp_conn->c_faddr);
 			tinc->ti_inc.i_rx_lat_trace[RDS_MSG_RX_HDR] =
-					local_clock();
+				local_clock();
 
 			/*
 			 * XXX * we might be able to use the __ variants when
@@ -196,8 +199,8 @@ static int rds_tcp_data_recv(read_descriptor_t *desc, struct sk_buff *skb,
 				 skb);
 			skb_copy_bits(skb, offset,
 				      (char *)&tinc->ti_inc.i_hdr +
-						sizeof(struct rds_header) -
-						tc->t_tinc_hdr_rem,
+					      sizeof(struct rds_header) -
+					      tc->t_tinc_hdr_rem,
 				      to_copy);
 			tc->t_tinc_hdr_rem -= to_copy;
 			left -= to_copy;
@@ -292,8 +295,8 @@ int rds_tcp_recv_path(struct rds_conn_path *cp)
 	struct socket *sock = tc->t_sock;
 	int ret = 0;
 
-	rdsdebug("recv worker path [%d] tc %p sock %p\n",
-		 cp->cp_index, tc, sock);
+	rdsdebug("recv worker path [%d] tc %p sock %p\n", cp->cp_index, tc,
+		 sock);
 
 	lock_sock(sock->sk);
 	ret = rds_tcp_read_sock(cp, GFP_KERNEL);
@@ -304,7 +307,7 @@ int rds_tcp_recv_path(struct rds_conn_path *cp)
 
 void rds_tcp_data_ready(struct sock *sk)
 {
-	void (*ready)(struct sock *sk);
+	void (*ready)(struct sock * sk);
 	struct rds_conn_path *cp;
 	struct rds_tcp_connection *tc;
 
@@ -334,9 +337,9 @@ out:
 
 int rds_tcp_recv_init(void)
 {
-	rds_tcp_incoming_slab = kmem_cache_create("rds_tcp_incoming",
-					sizeof(struct rds_tcp_incoming),
-					0, 0, NULL);
+	rds_tcp_incoming_slab =
+		kmem_cache_create("rds_tcp_incoming",
+				  sizeof(struct rds_tcp_incoming), 0, 0, NULL);
 	if (!rds_tcp_incoming_slab)
 		return -ENOMEM;
 	return 0;

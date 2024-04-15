@@ -145,7 +145,7 @@ static int __blk_mq_do_dispatch_sched(struct blk_mq_hw_ctx *hctx)
 		budget_token = blk_mq_get_dispatch_budget(q);
 		if (budget_token < 0)
 			break;
-		// 在这里从io调度中获取一个rq，dispatch_request = dd_dispatch_request
+		// 在这里从 io 调度中获取一个 rq，dispatch_request = dd_dispatch_request
 		rq = e->type->ops.dispatch_request(hctx);
 		if (!rq) {
 			blk_mq_put_dispatch_budget(q, budget_token);
@@ -421,7 +421,7 @@ static bool blk_mq_attempt_merge(struct request_queue *q,
 
 bool __blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio)
 {
-	// 得到io调度算法
+	// 得到 io 调度算法
 	struct elevator_queue *e = q->elevator;
 	struct blk_mq_ctx *ctx = blk_mq_get_ctx(q);
 	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, bio->bi_opf, ctx);
@@ -429,7 +429,7 @@ bool __blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio)
 	enum hctx_type type;
 
 	if (e && e->type->ops.bio_merge)
-		// 使用io调度算法来进行io和并
+		// 使用 io 调度算法来进行 io 和并
 		return e->type->ops.bio_merge(hctx, bio);
 
 	type = hctx->type;
@@ -483,6 +483,7 @@ void blk_mq_sched_insert_request(struct request *rq, bool at_head,
 				 bool run_queue, bool async)
 {
 	struct request_queue *q = rq->q;
+	// 调度成，具体的调度算法
 	struct elevator_queue *e = q->elevator;
 	// 软件队列
 	struct blk_mq_ctx *ctx = rq->mq_ctx;
@@ -518,13 +519,15 @@ void blk_mq_sched_insert_request(struct request *rq, bool at_head,
 		goto run;
 	}
 
-	// .insert_requests	= dd_insert_requests, 使用调度器的插入方法
+	// .insert_requests	= dd_insert_requests, 使用调度器 mq_deadline 的插入方法
 	if (e && e->type->ops.insert_requests) {
 		LIST_HEAD(list);
-		// 将request加入到一个list中
+		// 将 request 加入到一个 list 中
 		list_add(&rq->queuelist, &list);
+		// 将 request 插入 io scheduler 层
 		e->type->ops.insert_requests(hctx, &list, at_head);
 	} else {
+		// 如果没有配置块设备的调度器，直接插入到硬件队列中
 		spin_lock(&ctx->lock);
 		__blk_mq_insert_request(hctx, rq, at_head);
 		spin_unlock(&ctx->lock);
@@ -566,7 +569,7 @@ void blk_mq_sched_insert_requests(struct blk_mq_hw_ctx *hctx,
 		}
 		blk_mq_insert_requests(hctx, ctx, list);
 	}
-	// 插入队列后开始执行
+	// 执行硬件队列
 	blk_mq_run_hw_queue(hctx, run_queue_async);
 out:
 	percpu_ref_put(&q->q_usage_counter);
@@ -683,7 +686,7 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 		if (ret)
 			goto err_free_tags;
 	}
-	// 给request初始化一个bio调度算法
+	// 给 request 初始化一个 bio 调度算法
 	ret = e->ops.init_sched(q, e);
 	if (ret)
 		goto err_free_sbitmap;

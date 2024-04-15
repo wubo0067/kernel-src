@@ -4089,6 +4089,7 @@ static int __init kswapd_init(void)
 	int nid;
 
 	swap_setup();
+	// 宏遍历具有 N_MEMORY 状态的所有节点。N_MEMORY 状态表示节点具有内存，包括常规内存、高端内存和可移动内存
 	for_each_node_state(nid, N_MEMORY)
  		kswapd_run(nid);
 	return 0;

@@ -15,12 +15,13 @@
 #include "internal.h"
 
 struct callchain_cpus_entries {
-	struct rcu_head			rcu_head;
-	struct perf_callchain_entry	*cpu_entries[];
+	struct rcu_head rcu_head;
+	struct perf_callchain_entry *cpu_entries[];
 };
 
 int sysctl_perf_event_max_stack __read_mostly = PERF_MAX_STACK_DEPTH;
-int sysctl_perf_event_max_contexts_per_stack __read_mostly = PERF_MAX_CONTEXTS_PER_STACK;
+int sysctl_perf_event_max_contexts_per_stack __read_mostly =
+	PERF_MAX_CONTEXTS_PER_STACK;
 
 static inline size_t perf_callchain_entry__sizeof(void)
 {
@@ -33,7 +34,6 @@ static DEFINE_PER_CPU(int, callchain_recursion[PERF_NR_CONTEXTS]);
 static atomic_t nr_callchain_events;
 static DEFINE_MUTEX(callchain_mutex);
 static struct callchain_cpus_entries *callchain_cpus_entries;
-
 
 __weak void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
 				  struct pt_regs *regs)
@@ -52,7 +52,7 @@ static void release_callchain_buffers_rcu(struct rcu_head *head)
 
 	entries = container_of(head, struct callchain_cpus_entries, rcu_head);
 
-	for_each_possible_cpu(cpu)
+	for_each_possible_cpu (cpu)
 		kfree(entries->cpu_entries[cpu]);
 
 	kfree(entries);
@@ -86,9 +86,9 @@ static int alloc_callchain_buffers(void)
 
 	size = perf_callchain_entry__sizeof() * PERF_NR_CONTEXTS;
 
-	for_each_possible_cpu(cpu) {
-		entries->cpu_entries[cpu] = kmalloc_node(size, GFP_KERNEL,
-							 cpu_to_node(cpu));
+	for_each_possible_cpu (cpu) {
+		entries->cpu_entries[cpu] =
+			kmalloc_node(size, GFP_KERNEL, cpu_to_node(cpu));
 		if (!entries->cpu_entries[cpu])
 			goto fail;
 	}
@@ -98,7 +98,7 @@ static int alloc_callchain_buffers(void)
 	return 0;
 
 fail:
-	for_each_possible_cpu(cpu)
+	for_each_possible_cpu (cpu)
 		kfree(entries->cpu_entries[cpu]);
 	kfree(entries);
 
@@ -170,15 +170,15 @@ struct perf_callchain_entry *get_callchain_entry(int *rctx)
 		(*rctx * perf_callchain_entry__sizeof()));
 }
 
-void
-put_callchain_entry(int rctx)
+void put_callchain_entry(int rctx)
 {
 	put_recursion_context(this_cpu_ptr(callchain_recursion), rctx);
 }
 
-struct perf_callchain_entry *
-get_perf_callchain(struct pt_regs *regs, u32 init_nr, bool kernel, bool user,
-		   u32 max_stack, bool crosstask, bool add_mark)
+struct perf_callchain_entry *get_perf_callchain(struct pt_regs *regs,
+						u32 init_nr, bool kernel,
+						bool user, u32 max_stack,
+						bool crosstask, bool add_mark)
 {
 	struct perf_callchain_entry *entry;
 	struct perf_callchain_entry_ctx ctx;
@@ -188,10 +188,10 @@ get_perf_callchain(struct pt_regs *regs, u32 init_nr, bool kernel, bool user,
 	if (!entry)
 		return NULL;
 
-	ctx.entry     = entry;
+	ctx.entry = entry;
 	ctx.max_stack = max_stack;
-	ctx.nr	      = entry->nr = init_nr;
-	ctx.contexts       = 0;
+	ctx.nr = entry->nr = init_nr;
+	ctx.contexts = 0;
 	ctx.contexts_maxed = false;
 
 	if (kernel && !user_mode(regs)) {
@@ -201,8 +201,10 @@ get_perf_callchain(struct pt_regs *regs, u32 init_nr, bool kernel, bool user,
 	}
 
 	if (user) {
+		// ?????????????
 		if (!user_mode(regs)) {
-			if  (current->mm)
+			if (current->mm)
+				// ????task_struct???mm?
 				regs = task_pt_regs(current);
 			else
 				regs = NULL;
@@ -215,7 +217,8 @@ get_perf_callchain(struct pt_regs *regs, u32 init_nr, bool kernel, bool user,
 				goto exit_put;
 
 			if (add_mark)
-				perf_callchain_store_context(&ctx, PERF_CONTEXT_USER);
+				perf_callchain_store_context(&ctx,
+							     PERF_CONTEXT_USER);
 
 			fs = get_fs();
 			set_fs(USER_DS);
@@ -235,7 +238,8 @@ exit_put:
  * sysctl_perf_event_max_contexts_per_stack.
  */
 int perf_event_max_stack_handler(struct ctl_table *table, int write,
-				 void __user *buffer, size_t *lenp, loff_t *ppos)
+				 void __user *buffer, size_t *lenp,
+				 loff_t *ppos)
 {
 	int *value = table->data;
 	int new_value = *value, ret;

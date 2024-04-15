@@ -3,7 +3,7 @@
  * Copyright (c) 2000-2003,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
  */
-#ifndef	__XFS_LOG_PRIV_H__
+#ifndef __XFS_LOG_PRIV_H__
 #define __XFS_LOG_PRIV_H__
 
 struct xfs_buf;
@@ -14,11 +14,12 @@ struct xfs_mount;
 /*
  * Flags for log structure
  */
-#define XLOG_ACTIVE_RECOVERY	0x2	/* in the middle of recovery */
-#define	XLOG_RECOVERY_NEEDED	0x4	/* log was recovered */
-#define XLOG_IO_ERROR		0x8	/* log hit an I/O error, and being
+#define XLOG_ACTIVE_RECOVERY 0x2 /* in the middle of recovery */
+#define XLOG_RECOVERY_NEEDED 0x4 /* log was recovered */
+#define XLOG_IO_ERROR                                                          \
+	0x8 /* log hit an I/O error, and being
 					   shutdown */
-#define XLOG_TAIL_WARN		0x10	/* log tail verify warning issued */
+#define XLOG_TAIL_WARN 0x10 /* log tail verify warning issued */
 
 /*
  * get client id from packed copy.
@@ -41,22 +42,24 @@ static inline uint xlog_get_client_id(__be32 i)
  * In core log state
  */
 enum xlog_iclog_state {
-	XLOG_STATE_ACTIVE,	/* Current IC log being written to */
-	XLOG_STATE_WANT_SYNC,	/* Want to sync this iclog; no more writes */
-	XLOG_STATE_SYNCING,	/* This IC log is syncing */
-	XLOG_STATE_DONE_SYNC,	/* Done syncing to disk */
-	XLOG_STATE_CALLBACK,	/* Callback functions now */
-	XLOG_STATE_DIRTY,	/* Dirty IC log, not ready for ACTIVE status */
-	XLOG_STATE_IOERROR,	/* IO error happened in sync'ing log */
+	XLOG_STATE_ACTIVE, /* Current IC log being written to */
+	XLOG_STATE_WANT_SYNC, /* Want to sync this iclog; no more writes */
+	XLOG_STATE_SYNCING, /* This IC log is syncing */
+	XLOG_STATE_DONE_SYNC, /* Done syncing to disk */
+	XLOG_STATE_CALLBACK, /* Callback functions now */
+	XLOG_STATE_DIRTY, /* Dirty IC log, not ready for ACTIVE status */
+	XLOG_STATE_IOERROR, /* IO error happened in sync'ing log */
 };
 
 /*
  * Log ticket flags
  */
-#define XLOG_TIC_PERM_RESERV	0x1	/* permanent reservation */
+#define XLOG_TIC_PERM_RESERV 0x1 /* permanent reservation */
 
-#define XLOG_TIC_FLAGS \
-	{ XLOG_TIC_PERM_RESERV,	"XLOG_TIC_PERM_RESERV" }
+#define XLOG_TIC_FLAGS                                                         \
+	{                                                                      \
+		XLOG_TIC_PERM_RESERV, "XLOG_TIC_PERM_RESERV"                   \
+	}
 
 /*
  * Below are states for covering allocation transactions.
@@ -125,16 +128,16 @@ enum xlog_iclog_state {
  * This is why we have the NEED2 and DONE2 states before going idle.
  */
 
-#define XLOG_STATE_COVER_IDLE	0
-#define XLOG_STATE_COVER_NEED	1
-#define XLOG_STATE_COVER_DONE	2
-#define XLOG_STATE_COVER_NEED2	3
-#define XLOG_STATE_COVER_DONE2	4
+#define XLOG_STATE_COVER_IDLE 0
+#define XLOG_STATE_COVER_NEED 1
+#define XLOG_STATE_COVER_DONE 2
+#define XLOG_STATE_COVER_NEED2 3
+#define XLOG_STATE_COVER_DONE2 4
 
-#define XLOG_COVER_OPS		5
+#define XLOG_COVER_OPS 5
 
-/* Ticket reservation region accounting */ 
-#define XLOG_TIC_LEN_MAX	15
+/* Ticket reservation region accounting */
+#define XLOG_TIC_LEN_MAX 15
 
 /*
  * Reservation region
@@ -142,28 +145,28 @@ enum xlog_iclog_state {
  * we don't care about.
  */
 typedef struct xlog_res {
-	uint	r_len;	/* region length		:4 */
-	uint	r_type;	/* region's transaction type	:4 */
+	uint r_len; /* region length		:4 */
+	uint r_type; /* region's transaction type	:4 */
 } xlog_res_t;
 
 typedef struct xlog_ticket {
-	struct list_head   t_queue;	 /* reserve/write queue */
-	struct task_struct *t_task;	 /* task that owns this ticket */
-	xlog_tid_t	   t_tid;	 /* transaction identifier	 : 4  */
-	atomic_t	   t_ref;	 /* ticket reference count       : 4  */
-	int		   t_curr_res;	 /* current reservation in bytes : 4  */
-	int		   t_unit_res;	 /* unit reservation in bytes    : 4  */
-	char		   t_ocnt;	 /* original count		 : 1  */
-	char		   t_cnt;	 /* current count		 : 1  */
-	char		   t_clientid;	 /* who does this belong to;	 : 1  */
-	char		   t_flags;	 /* properties of reservation	 : 1  */
+	struct list_head t_queue; /* reserve/write queue */
+	struct task_struct *t_task; /* task that owns this ticket */
+	xlog_tid_t t_tid; /* transaction identifier	 : 4  */
+	atomic_t t_ref; /* ticket reference count       : 4  */
+	int t_curr_res; /* current reservation in bytes : 4  */
+	int t_unit_res; /* unit reservation in bytes    : 4  */
+	char t_ocnt; /* original count		 : 1  */
+	char t_cnt; /* current count		 : 1  */
+	char t_clientid; /* who does this belong to;	 : 1  */
+	char t_flags; /* properties of reservation	 : 1  */
 
-        /* reservation array fields */
-	uint		   t_res_num;                    /* num in array : 4 */
-	uint		   t_res_num_ophdrs;		 /* num op hdrs  : 4 */
-	uint		   t_res_arr_sum;		 /* array sum    : 4 */
-	uint		   t_res_o_flow;		 /* sum overflow : 4 */
-	xlog_res_t	   t_res_arr[XLOG_TIC_LEN_MAX];  /* array of res : 8 * 15 */ 
+	/* reservation array fields */
+	uint t_res_num; /* num in array : 4 */
+	uint t_res_num_ophdrs; /* num op hdrs  : 4 */
+	uint t_res_arr_sum; /* array sum    : 4 */
+	uint t_res_o_flow; /* sum overflow : 4 */
+	xlog_res_t t_res_arr[XLOG_TIC_LEN_MAX]; /* array of res : 8 * 15 */
 } xlog_ticket_t;
 
 /*
@@ -193,31 +196,31 @@ typedef struct xlog_ticket {
  * and move everything else out to subsequent cachelines.
  */
 typedef struct xlog_in_core {
-	wait_queue_head_t	ic_force_wait;
-	wait_queue_head_t	ic_write_wait;
-	struct xlog_in_core	*ic_next;
-	struct xlog_in_core	*ic_prev;
-	struct xlog		*ic_log;
-	u32			ic_size;
-	u32			ic_offset;
-	enum xlog_iclog_state	ic_state;
-	char			*ic_datap;	/* pointer to iclog data */
+	wait_queue_head_t ic_force_wait;
+	wait_queue_head_t ic_write_wait;
+	struct xlog_in_core *ic_next;
+	struct xlog_in_core *ic_prev;
+	struct xlog *ic_log;
+	u32 ic_size;
+	u32 ic_offset;
+	enum xlog_iclog_state ic_state;
+	char *ic_datap; /* pointer to iclog data */
 
 	/* Callback structures need their own cacheline */
-	spinlock_t		ic_callback_lock ____cacheline_aligned_in_smp;
-	struct list_head	ic_callbacks;
+	spinlock_t ic_callback_lock ____cacheline_aligned_in_smp;
+	struct list_head ic_callbacks;
 
 	/* reference counts need their own cacheline */
-	atomic_t		ic_refcnt ____cacheline_aligned_in_smp;
-	xlog_in_core_2_t	*ic_data;
-#define ic_header	ic_data->hic_header
+	atomic_t ic_refcnt ____cacheline_aligned_in_smp;
+	xlog_in_core_2_t *ic_data;
+#define ic_header ic_data->hic_header
 #ifdef DEBUG
-	bool			ic_fail_crc : 1;
+	bool ic_fail_crc : 1;
 #endif
-	struct semaphore	ic_sema;
-	struct work_struct	ic_end_io_work;
-	struct bio		ic_bio;
-	struct bio_vec		ic_bvec[];
+	struct semaphore ic_sema;
+	struct work_struct ic_end_io_work;
+	struct bio ic_bio;
+	struct bio_vec ic_bvec[];
 } xlog_in_core_t;
 
 /*
@@ -229,18 +232,18 @@ typedef struct xlog_in_core {
 struct xfs_cil;
 
 struct xfs_cil_ctx {
-	struct xfs_cil		*cil;
-	xfs_lsn_t		sequence;	/* chkpt sequence # */
-	xfs_lsn_t		start_lsn;	/* first LSN of chkpt commit */
-	xfs_lsn_t		commit_lsn;	/* chkpt commit record lsn */
-	struct xlog_ticket	*ticket;	/* chkpt ticket */
-	int			nvecs;		/* number of regions */
-	int			space_used;	/* aggregate size of regions */
-	struct list_head	busy_extents;	/* busy extents in chkpt */
-	struct xfs_log_vec	*lv_chain;	/* logvecs being pushed */
-	struct list_head	iclog_entry;
-	struct list_head	committing;	/* ctx committing list */
-	struct work_struct	discard_endio_work;
+	struct xfs_cil *cil;
+	xfs_lsn_t sequence; /* chkpt sequence # */
+	xfs_lsn_t start_lsn; /* first LSN of chkpt commit */
+	xfs_lsn_t commit_lsn; /* chkpt commit record lsn */
+	struct xlog_ticket *ticket; /* chkpt ticket */
+	int nvecs; /* number of regions */
+	int space_used; /* aggregate size of regions */
+	struct list_head busy_extents; /* busy extents in chkpt */
+	struct xfs_log_vec *lv_chain; /* logvecs being pushed */
+	struct list_head iclog_entry;
+	struct list_head committing; /* ctx committing list */
+	struct work_struct discard_endio_work;
 };
 
 /*
@@ -260,20 +263,20 @@ struct xfs_cil_ctx {
  * operations almost as efficient as the old logging methods.
  */
 struct xfs_cil {
-	struct xlog		*xc_log;
-	struct list_head	xc_cil;
-	spinlock_t		xc_cil_lock;
+	struct xlog *xc_log;
+	struct list_head xc_cil; // Commit Intent List
+	spinlock_t xc_cil_lock;
 
-	struct rw_semaphore	xc_ctx_lock ____cacheline_aligned_in_smp;
-	struct xfs_cil_ctx	*xc_ctx;
+	struct rw_semaphore xc_ctx_lock ____cacheline_aligned_in_smp;
+	struct xfs_cil_ctx *xc_ctx;
 
-	spinlock_t		xc_push_lock ____cacheline_aligned_in_smp;
-	xfs_lsn_t		xc_push_seq;
-	struct list_head	xc_committing;
-	wait_queue_head_t	xc_commit_wait;
-	xfs_lsn_t		xc_current_sequence;
-	struct work_struct	xc_push_work;
-	wait_queue_head_t	xc_push_wait;	/* background push throttle */
+	spinlock_t xc_push_lock ____cacheline_aligned_in_smp;
+	xfs_lsn_t xc_push_seq;
+	struct list_head xc_committing;
+	wait_queue_head_t xc_commit_wait;
+	xfs_lsn_t xc_current_sequence;
+	struct work_struct xc_push_work;
+	wait_queue_head_t xc_push_wait; /* background push throttle */
 } ____cacheline_aligned_in_smp;
 
 /*
@@ -359,20 +362,19 @@ struct xfs_cil {
  * occurred. Hence the simple throttle, and an ASSERT check to tell us that
  * we've overrun the max size.
  */
-#define XLOG_CIL_SPACE_LIMIT(log)	\
+#define XLOG_CIL_SPACE_LIMIT(log)                                              \
 	min_t(int, (log)->l_logsize >> 3, BBTOB(XLOG_TOTAL_REC_SHIFT(log)) << 4)
 
-#define XLOG_CIL_BLOCKING_SPACE_LIMIT(log)	\
-	(XLOG_CIL_SPACE_LIMIT(log) * 2)
+#define XLOG_CIL_BLOCKING_SPACE_LIMIT(log) (XLOG_CIL_SPACE_LIMIT(log) * 2)
 
 /*
  * ticket grant locks, queues and accounting have their own cachlines
  * as these are quite hot and can be operated on concurrently.
  */
 struct xlog_grant_head {
-	spinlock_t		lock ____cacheline_aligned_in_smp;
-	struct list_head	waiters;
-	atomic64_t		grant;
+	spinlock_t lock ____cacheline_aligned_in_smp;
+	struct list_head waiters;
+	atomic64_t grant;
 };
 
 /*
@@ -383,36 +385,36 @@ struct xlog_grant_head {
  */
 struct xlog {
 	/* The following fields don't need locking */
-	struct xfs_mount	*l_mp;	        /* mount point */
-	struct xfs_ail		*l_ailp;	/* AIL log is working with */
-	struct xfs_cil		*l_cilp;	/* CIL log is working with */
-	struct xfs_buftarg	*l_targ;        /* buftarg of log */
-	struct workqueue_struct	*l_ioend_workqueue; /* for I/O completions */
-	struct delayed_work	l_work;		/* background flush work */
-	uint			l_flags;
-	uint			l_quotaoffs_flag; /* XFS_DQ_*, for QUOTAOFFs */
-	struct list_head	*l_buf_cancel_table;
-	int			l_iclog_hsize;  /* size of iclog header */
-	int			l_iclog_heads;  /* # of iclog header sectors */
-	uint			l_sectBBsize;   /* sector size in BBs (2^n) */
-	int			l_iclog_size;	/* size of log in bytes */
-	int			l_iclog_bufs;	/* number of iclog buffers */
-	xfs_daddr_t		l_logBBstart;   /* start block of log */
-	int			l_logsize;      /* size of log in bytes */
-	int			l_logBBsize;    /* size of log in BB chunks */
+	struct xfs_mount *l_mp; /* mount point */
+	struct xfs_ail *l_ailp; /* AIL log is working with */
+	struct xfs_cil *l_cilp; /* CIL log is working with */
+	struct xfs_buftarg *l_targ; /* buftarg of log */
+	struct workqueue_struct *l_ioend_workqueue; /* for I/O completions */
+	struct delayed_work l_work; /* background flush work */
+	uint l_flags;
+	uint l_quotaoffs_flag; /* XFS_DQ_*, for QUOTAOFFs */
+	struct list_head *l_buf_cancel_table;
+	int l_iclog_hsize; /* size of iclog header */
+	int l_iclog_heads; /* # of iclog header sectors */
+	uint l_sectBBsize; /* sector size in BBs (2^n) */
+	int l_iclog_size; /* size of log in bytes */
+	int l_iclog_bufs; /* number of iclog buffers */
+	xfs_daddr_t l_logBBstart; /* start block of log */
+	int l_logsize; /* size of log in bytes */
+	int l_logBBsize; /* size of log in BB chunks */
 
 	/* The following block of fields are changed while holding icloglock */
-	wait_queue_head_t	l_flush_wait ____cacheline_aligned_in_smp;
-						/* waiting for iclog flush */
-	int			l_covered_state;/* state of "covering disk
+	wait_queue_head_t l_flush_wait ____cacheline_aligned_in_smp;
+	/* waiting for iclog flush */
+	int l_covered_state; /* state of "covering disk
 						 * log entries" */
-	xlog_in_core_t		*l_iclog;       /* head log queue	*/
-	spinlock_t		l_icloglock;    /* grab to change iclog state */
-	int			l_curr_cycle;   /* Cycle number of log writes */
-	int			l_prev_cycle;   /* Cycle number before last
+	xlog_in_core_t *l_iclog; /* head log queue	*/
+	spinlock_t l_icloglock; /* grab to change iclog state */
+	int l_curr_cycle; /* Cycle number of log writes */
+	int l_prev_cycle; /* Cycle number before last
 						 * block increment */
-	int			l_curr_block;   /* current logical log block */
-	int			l_prev_block;   /* previous logical log block */
+	int l_curr_block; /* current logical log block */
+	int l_prev_block; /* previous logical log block */
 
 	/*
 	 * l_last_sync_lsn and l_tail_lsn are atomics so they can be set and
@@ -421,69 +423,58 @@ struct xlog {
 	 * cacheline.
 	 */
 	/* lsn of last LR on disk */
-	atomic64_t		l_last_sync_lsn ____cacheline_aligned_in_smp;
+	atomic64_t l_last_sync_lsn ____cacheline_aligned_in_smp;
 	/* lsn of 1st LR with unflushed * buffers */
-	atomic64_t		l_tail_lsn ____cacheline_aligned_in_smp;
+	atomic64_t l_tail_lsn ____cacheline_aligned_in_smp;
 
-	struct xlog_grant_head	l_reserve_head;
-	struct xlog_grant_head	l_write_head;
+	struct xlog_grant_head l_reserve_head;
+	struct xlog_grant_head l_write_head;
 
-	struct xfs_kobj		l_kobj;
+	struct xfs_kobj l_kobj;
 
 	/* The following field are used for debugging; need to hold icloglock */
 #ifdef DEBUG
-	void			*l_iclog_bak[XLOG_MAX_ICLOGS];
+	void *l_iclog_bak[XLOG_MAX_ICLOGS];
 #endif
 	/* log recovery lsn tracking (for buffer submission */
-	xfs_lsn_t		l_recovery_lsn;
+	xfs_lsn_t l_recovery_lsn;
 };
 
-#define XLOG_BUF_CANCEL_BUCKET(log, blkno) \
+#define XLOG_BUF_CANCEL_BUCKET(log, blkno)                                     \
 	((log)->l_buf_cancel_table + ((uint64_t)blkno % XLOG_BC_TABLE_SIZE))
 
-#define XLOG_FORCED_SHUTDOWN(log) \
-	(unlikely((log)->l_flags & XLOG_IO_ERROR))
+#define XLOG_FORCED_SHUTDOWN(log) (unlikely((log)->l_flags & XLOG_IO_ERROR))
 
 /* common routines */
-extern int
-xlog_recover(
-	struct xlog		*log);
-extern int
-xlog_recover_finish(
-	struct xlog		*log);
-extern void
-xlog_recover_cancel(struct xlog *);
+extern int xlog_recover(struct xlog *log);
+extern int xlog_recover_finish(struct xlog *log);
+extern void xlog_recover_cancel(struct xlog *);
 
-extern __le32	 xlog_cksum(struct xlog *log, struct xlog_rec_header *rhead,
-			    char *dp, int size);
+extern __le32 xlog_cksum(struct xlog *log, struct xlog_rec_header *rhead,
+			 char *dp, int size);
 
 extern kmem_zone_t *xfs_log_ticket_zone;
-struct xlog_ticket *
-xlog_ticket_alloc(
-	struct xlog	*log,
-	int		unit_bytes,
-	int		count,
-	char		client,
-	bool		permanent);
+struct xlog_ticket *xlog_ticket_alloc(struct xlog *log, int unit_bytes,
+				      int count, char client, bool permanent);
 
-static inline void
-xlog_write_adv_cnt(void **ptr, int *len, int *off, size_t bytes)
+static inline void xlog_write_adv_cnt(void **ptr, int *len, int *off,
+				      size_t bytes)
 {
 	*ptr += bytes;
 	*len -= bytes;
 	*off += bytes;
 }
 
-void	xlog_print_tic_res(struct xfs_mount *mp, struct xlog_ticket *ticket);
-void	xlog_print_trans(struct xfs_trans *);
-int	xlog_write(struct xlog *log, struct xfs_log_vec *log_vector,
-		struct xlog_ticket *tic, xfs_lsn_t *start_lsn,
-		struct xlog_in_core **commit_iclog, uint flags,
-		bool need_start_rec);
-int	xlog_commit_record(struct xlog *log, struct xlog_ticket *ticket,
-		struct xlog_in_core **iclog, xfs_lsn_t *lsn);
-void	xfs_log_ticket_ungrant(struct xlog *log, struct xlog_ticket *ticket);
-void	xfs_log_ticket_regrant(struct xlog *log, struct xlog_ticket *ticket);
+void xlog_print_tic_res(struct xfs_mount *mp, struct xlog_ticket *ticket);
+void xlog_print_trans(struct xfs_trans *);
+int xlog_write(struct xlog *log, struct xfs_log_vec *log_vector,
+	       struct xlog_ticket *tic, xfs_lsn_t *start_lsn,
+	       struct xlog_in_core **commit_iclog, uint flags,
+	       bool need_start_rec);
+int xlog_commit_record(struct xlog *log, struct xlog_ticket *ticket,
+		       struct xlog_in_core **iclog, xfs_lsn_t *lsn);
+void xfs_log_ticket_ungrant(struct xlog *log, struct xlog_ticket *ticket);
+void xfs_log_ticket_regrant(struct xlog *log, struct xlog_ticket *ticket);
 
 /*
  * When we crack an atomic LSN, we sample it first so that the value will not
@@ -492,8 +483,8 @@ void	xfs_log_ticket_regrant(struct xlog *log, struct xlog_ticket *ticket);
  * be used to sample and crack LSNs that are stored and updated in atomic
  * variables.
  */
-static inline void
-xlog_crack_atomic_lsn(atomic64_t *lsn, uint *cycle, uint *block)
+static inline void xlog_crack_atomic_lsn(atomic64_t *lsn, uint *cycle,
+					 uint *block)
 {
 	xfs_lsn_t val = atomic64_read(lsn);
 
@@ -504,8 +495,8 @@ xlog_crack_atomic_lsn(atomic64_t *lsn, uint *cycle, uint *block)
 /*
  * Calculate and assign a value to an atomic LSN variable from component pieces.
  */
-static inline void
-xlog_assign_atomic_lsn(atomic64_t *lsn, uint cycle, uint block)
+static inline void xlog_assign_atomic_lsn(atomic64_t *lsn, uint cycle,
+					  uint block)
 {
 	atomic64_set(lsn, xlog_assign_lsn(cycle, block));
 }
@@ -515,27 +506,26 @@ xlog_assign_atomic_lsn(atomic64_t *lsn, uint cycle, uint block)
  * change while we are cracking it into the component values. This means we
  * will always get consistent component values to work from.
  */
-static inline void
-xlog_crack_grant_head_val(int64_t val, int *cycle, int *space)
+static inline void xlog_crack_grant_head_val(int64_t val, int *cycle,
+					     int *space)
 {
 	*cycle = val >> 32;
 	*space = val & 0xffffffff;
 }
 
-static inline void
-xlog_crack_grant_head(atomic64_t *head, int *cycle, int *space)
+static inline void xlog_crack_grant_head(atomic64_t *head, int *cycle,
+					 int *space)
 {
 	xlog_crack_grant_head_val(atomic64_read(head), cycle, space);
 }
 
-static inline int64_t
-xlog_assign_grant_head_val(int cycle, int space)
+static inline int64_t xlog_assign_grant_head_val(int cycle, int space)
 {
 	return ((int64_t)cycle << 32) | space;
 }
 
-static inline void
-xlog_assign_grant_head(atomic64_t *head, int cycle, int space)
+static inline void xlog_assign_grant_head(atomic64_t *head, int cycle,
+					  int space)
 {
 	atomic64_set(head, xlog_assign_grant_head_val(cycle, space));
 }
@@ -543,21 +533,17 @@ xlog_assign_grant_head(atomic64_t *head, int cycle, int space)
 /*
  * Committed Item List interfaces
  */
-int	xlog_cil_init(struct xlog *log);
-void	xlog_cil_init_post_recovery(struct xlog *log);
-void	xlog_cil_destroy(struct xlog *log);
-bool	xlog_cil_empty(struct xlog *log);
+int xlog_cil_init(struct xlog *log);
+void xlog_cil_init_post_recovery(struct xlog *log);
+void xlog_cil_destroy(struct xlog *log);
+bool xlog_cil_empty(struct xlog *log);
 
 /*
  * CIL force routines
  */
-xfs_lsn_t
-xlog_cil_force_lsn(
-	struct xlog *log,
-	xfs_lsn_t sequence);
+xfs_lsn_t xlog_cil_force_lsn(struct xlog *log, xfs_lsn_t sequence);
 
-static inline void
-xlog_cil_force(struct xlog *log)
+static inline void xlog_cil_force(struct xlog *log)
 {
 	xlog_cil_force_lsn(log, log->l_cilp->xc_current_sequence);
 }
@@ -567,11 +553,8 @@ xlog_cil_force(struct xlog *log)
  * by a spinlock. This matches the semantics of all the wait queues used in the
  * log code.
  */
-static inline void
-xlog_wait(
-	struct wait_queue_head	*wq,
-	struct spinlock		*lock)
-		__releases(lock)
+static inline void xlog_wait(struct wait_queue_head *wq, struct spinlock *lock)
+	__releases(lock)
 {
 	DECLARE_WAITQUEUE(wait, current);
 
@@ -588,14 +571,11 @@ xlog_wait(
  * smaller LSN. In turn, this means that the modification in the log would not
  * replay.
  */
-static inline bool
-xlog_valid_lsn(
-	struct xlog	*log,
-	xfs_lsn_t	lsn)
+static inline bool xlog_valid_lsn(struct xlog *log, xfs_lsn_t lsn)
 {
-	int		cur_cycle;
-	int		cur_block;
-	bool		valid = true;
+	int cur_cycle;
+	int cur_block;
+	bool valid = true;
 
 	/*
 	 * First, sample the current lsn without locking to avoid added
@@ -633,4 +613,4 @@ xlog_valid_lsn(
 	return valid;
 }
 
-#endif	/* __XFS_LOG_PRIV_H__ */
+#endif /* __XFS_LOG_PRIV_H__ */

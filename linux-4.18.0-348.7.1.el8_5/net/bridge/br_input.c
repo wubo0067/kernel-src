@@ -27,8 +27,8 @@
 br_should_route_hook_t __rcu *br_should_route_hook __read_mostly;
 EXPORT_SYMBOL(br_should_route_hook);
 
-static int
-br_netif_receive_skb(struct net *net, struct sock *sk, struct sk_buff *skb)
+static int br_netif_receive_skb(struct net *net, struct sock *sk,
+				struct sk_buff *skb)
 {
 	br_drop_fake_rtable(skb);
 	return netif_receive_skb(skb);
@@ -51,8 +51,7 @@ static int br_pass_frame_up(struct sk_buff *skb)
 	 * packet is allowed except in promisc modue when someone
 	 * may be running packet capture.
 	 */
-	if (!(brdev->flags & IFF_PROMISC) &&
-	    !br_allowed_egress(vg, skb)) {
+	if (!(brdev->flags & IFF_PROMISC) && !br_allowed_egress(vg, skb)) {
 		kfree_skb(skb);
 		return NET_RX_DROP;
 	}
@@ -66,13 +65,13 @@ static int br_pass_frame_up(struct sk_buff *skb)
 	br_multicast_count(br, NULL, skb, br_multicast_igmp_type(skb),
 			   BR_MCAST_DIR_TX);
 
-	return NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN,
-		       dev_net(indev), NULL, skb, indev, NULL,
-		       br_netif_receive_skb);
+	return NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN, dev_net(indev), NULL,
+		       skb, indev, NULL, br_netif_receive_skb);
 }
 
 /* note: already called with rcu_read_lock */
-int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
+int br_handle_frame_finish(struct net *net, struct sock *sk,
+			   struct sk_buff *skb)
 {
 	struct net_bridge_port *p = br_port_get_rcu(skb->dev);
 	enum br_pkt_type pkt_type = BR_PKT_UNICAST;
@@ -93,6 +92,7 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 	/* insert into forwarding database after filtering to avoid spoofing */
 	br = p->br;
 	if (p->flags & BR_LEARNING)
+		// 就需要学习新的源 MAC，更新 FDB
 		br_fdb_update(br, p, eth_hdr(skb)->h_source, vid, false);
 
 	local_rcv = !!(br->dev->flags & IFF_PROMISC);
@@ -114,21 +114,20 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 	BR_INPUT_SKB_CB(skb)->brdev = br->dev;
 	BR_INPUT_SKB_CB(skb)->src_port_isolated = !!(p->flags & BR_ISOLATED);
 
-	if (IS_ENABLED(CONFIG_INET) &&
-	    (skb->protocol == htons(ETH_P_ARP) ||
-	     skb->protocol == htons(ETH_P_RARP))) {
+	if (IS_ENABLED(CONFIG_INET) && (skb->protocol == htons(ETH_P_ARP) ||
+					skb->protocol == htons(ETH_P_RARP))) {
 		br_do_proxy_suppress_arp(skb, br, vid, p);
 	} else if (IS_ENABLED(CONFIG_IPV6) &&
 		   skb->protocol == htons(ETH_P_IPV6) &&
 		   br_opt_get(br, BROPT_NEIGH_SUPPRESS_ENABLED) &&
 		   pskb_may_pull(skb, sizeof(struct ipv6hdr) +
-				 sizeof(struct nd_msg)) &&
+					      sizeof(struct nd_msg)) &&
 		   ipv6_hdr(skb)->nexthdr == IPPROTO_ICMPV6) {
-			struct nd_msg *msg, _msg;
+		struct nd_msg *msg, _msg;
 
-			msg = br_is_nd_neigh_msg(skb, &_msg);
-			if (msg)
-				br_do_suppress_nd(skb, br, vid, p, msg);
+		msg = br_is_nd_neigh_msg(skb, &_msg);
+		if (msg)
+			br_do_suppress_nd(skb, br, vid, p, msg);
 	}
 
 	switch (pkt_type) {
@@ -157,10 +156,13 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 		unsigned long now = jiffies;
 
 		if (test_bit(BR_FDB_LOCAL, &dst->flags))
+			// 进入 br_pass_frame_up 的 skb 是打算经由 Bridge 设备，输入到本地 Host 的。
+			// 数据包从网桥端口设备进入，经过网桥设备，然后再进入协议栈，其实是“两次经过 net_device”，一次是端口设备，另一次是网桥设备。
 			return br_pass_frame_up(skb);
 
 		if (now != dst->used)
 			dst->used = now;
+		// 直接转发的某个端口通过函数 br_forward
 		br_forward(dst->dst, skb, local_rcv, false);
 	} else {
 		if (!mcast_hit)
@@ -191,7 +193,8 @@ static void __br_handle_local_finish(struct sk_buff *skb)
 }
 
 /* note: already called with rcu_read_lock */
-static int br_handle_local_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
+static int br_handle_local_finish(struct net *net, struct sock *sk,
+				  struct sk_buff *skb)
 {
 	__br_handle_local_finish(skb);
 
@@ -207,15 +210,19 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 {
 	struct net_bridge_port *p;
 	struct sk_buff *skb = *pskb;
+	// 目的地的 mac 地址
 	const unsigned char *dest = eth_hdr(skb)->h_dest;
 	br_should_route_hook_t *rhook;
 
+	//如果该数据包产生于本机，而目标同时为本机
 	if (unlikely(skb->pkt_type == PACKET_LOOPBACK))
 		return RX_HANDLER_PASS;
 
 	if (!is_valid_ether_addr(eth_hdr(skb)->h_source))
+		// 檢測源 mac 地址的合法性：組播（包括廣播）和全 0 的源 mac 地址是非法的
 		goto drop;
 
+	/*檢測 skb 是否共享，如果是共享的，clone 出一份新的 skb，老的 skb 計數通過 kfree_skb 減 1*/
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (!skb)
 		return RX_HANDLER_CONSUMED;
@@ -245,7 +252,7 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 		 */
 		fwd_mask |= p->group_fwd_mask;
 		switch (dest[5]) {
-		case 0x00:	/* Bridge Group Address */
+		case 0x00: /* Bridge Group Address */
 			/* If STP is turned off,
 			   then must forward to keep loop detection */
 			if (p->br->stp_enabled == BR_NO_STP ||
@@ -255,10 +262,10 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 			__br_handle_local_finish(skb);
 			return RX_HANDLER_PASS;
 
-		case 0x01:	/* IEEE MAC (Pause) */
+		case 0x01: /* IEEE MAC (Pause) */
 			goto drop;
 
-		case 0x0E:	/* 802.1AB LLDP */
+		case 0x0E: /* 802.1AB LLDP */
 			fwd_mask |= p->br->group_fwd_mask;
 			if (fwd_mask & (1u << dest[5]))
 				goto forward;
@@ -278,8 +285,9 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 		 *   - returns = 0 (stolen/nf_queue)
 		 * Thus return 1 from the okfn() to signal the skb is ok to pass
 		 */
-		if (NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN,
-			    dev_net(skb->dev), NULL, skb, skb->dev, NULL,
+		/*如果是 linklocal 地址，並且不是上面幾種情況，則上送到自身*/
+		if (NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN, dev_net(skb->dev),
+			    NULL, skb, skb->dev, NULL,
 			    br_handle_local_finish) == 1) {
 			return RX_HANDLER_PASS;
 		} else {
@@ -300,15 +308,15 @@ forward:
 		}
 		/* fall through */
 	case BR_STATE_LEARNING:
+		/*目的地址是否是設備鏈路層地址 */
 		if (ether_addr_equal(p->br->dev->dev_addr, dest))
 			skb->pkt_type = PACKET_HOST;
 
-		NF_HOOK(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING,
-			dev_net(skb->dev), NULL, skb, skb->dev, NULL,
-			br_handle_frame_finish);
+		NF_HOOK(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING, dev_net(skb->dev),
+			NULL, skb, skb->dev, NULL, br_handle_frame_finish);
 		break;
 	default:
-drop:
+	drop:
 		kfree_skb(skb);
 	}
 	return RX_HANDLER_CONSUMED;

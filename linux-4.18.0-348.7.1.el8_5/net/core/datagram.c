@@ -70,8 +70,8 @@ static inline int connection_based(struct sock *sk)
 	return sk->sk_type == SOCK_SEQPACKET || sk->sk_type == SOCK_STREAM;
 }
 
-static int receiver_wake_function(wait_queue_entry_t *wait, unsigned int mode, int sync,
-				  void *key)
+static int receiver_wake_function(wait_queue_entry_t *wait, unsigned int mode,
+				  int sync, void *key)
 {
 	/*
 	 * Avoid a wakeup if event not interesting for us
@@ -162,13 +162,10 @@ done:
 	return skb;
 }
 
-struct sk_buff *__skb_try_recv_from_queue(struct sock *sk,
-					  struct sk_buff_head *queue,
-					  unsigned int flags,
-					  void (*destructor)(struct sock *sk,
-							   struct sk_buff *skb),
-					  int *off, int *err,
-					  struct sk_buff **last)
+struct sk_buff *__skb_try_recv_from_queue(
+	struct sock *sk, struct sk_buff_head *queue, unsigned int flags,
+	void (*destructor)(struct sock *sk, struct sk_buff *skb), int *off,
+	int *err, struct sk_buff **last)
 {
 	bool peek_at_off = false;
 	struct sk_buff *skb;
@@ -180,7 +177,8 @@ struct sk_buff *__skb_try_recv_from_queue(struct sock *sk,
 	}
 
 	*last = queue->prev;
-	skb_queue_walk(queue, skb) {
+	skb_queue_walk(queue, skb)
+	{
 		if (flags & MSG_PEEK) {
 			if (peek_at_off && _off >= skb->len &&
 			    (_off || skb->peeked)) {
@@ -242,13 +240,10 @@ struct sk_buff *__skb_try_recv_from_queue(struct sock *sk,
  *	quite explicitly by POSIX 1003.1g, don't change them without having
  *	the standard around please.
  */
-struct sk_buff *__skb_try_recv_datagram(struct sock *sk,
-					struct sk_buff_head *queue,
-					unsigned int flags,
-					void (*destructor)(struct sock *sk,
-							   struct sk_buff *skb),
-					int *off, int *err,
-					struct sk_buff **last)
+struct sk_buff *__skb_try_recv_datagram(
+	struct sock *sk, struct sk_buff_head *queue, unsigned int flags,
+	void (*destructor)(struct sock *sk, struct sk_buff *skb), int *off,
+	int *err, struct sk_buff **last)
 {
 	struct sk_buff *skb;
 	unsigned long cpu_flags;
@@ -290,12 +285,10 @@ no_packet:
 }
 EXPORT_SYMBOL(__skb_try_recv_datagram);
 
-struct sk_buff *__skb_recv_datagram(struct sock *sk,
-				    struct sk_buff_head *sk_queue,
-				    unsigned int flags,
-				    void (*destructor)(struct sock *sk,
-						       struct sk_buff *skb),
-				    int *off, int *err)
+struct sk_buff *__skb_recv_datagram(
+	struct sock *sk, struct sk_buff_head *sk_queue, unsigned int flags,
+	void (*destructor)(struct sock *sk, struct sk_buff *skb), int *off,
+	int *err)
 {
 	struct sk_buff *skb, *last;
 	long timeo;
@@ -311,8 +304,7 @@ struct sk_buff *__skb_recv_datagram(struct sock *sk,
 		if (*err != -EAGAIN)
 			break;
 	} while (timeo &&
-		 !__skb_wait_for_more_packets(sk, sk_queue, err,
-					      &timeo, last));
+		 !__skb_wait_for_more_packets(sk, sk_queue, err, &timeo, last));
 
 	return NULL;
 }
@@ -324,8 +316,8 @@ struct sk_buff *skb_recv_datagram(struct sock *sk, unsigned int flags,
 	int off = 0;
 
 	return __skb_recv_datagram(sk, &sk->sk_receive_queue,
-				   flags | (noblock ? MSG_DONTWAIT : 0),
-				   NULL, &off, err);
+				   flags | (noblock ? MSG_DONTWAIT : 0), NULL,
+				   &off, err);
 }
 EXPORT_SYMBOL(skb_recv_datagram);
 
@@ -413,17 +405,21 @@ int skb_kill_datagram(struct sock *sk, struct sk_buff *skb, unsigned int flags)
 }
 EXPORT_SYMBOL(skb_kill_datagram);
 
-INDIRECT_CALLABLE_DECLARE(static size_t simple_copy_to_iter(const void *addr,
-						size_t bytes,
-						void *data __always_unused,
-						struct iov_iter *i));
+INDIRECT_CALLABLE_DECLARE(static size_t simple_copy_to_iter(
+	const void *addr, size_t bytes, void *data __always_unused,
+	struct iov_iter *i));
 
+// offset 是拷贝的起始位置
 static int __skb_datagram_iter(const struct sk_buff *skb, int offset,
 			       struct iov_iter *to, int len, bool fault_short,
 			       size_t (*cb)(const void *, size_t, void *,
-					    struct iov_iter *), void *data)
+					    struct iov_iter *),
+			       void *data)
 {
+	// 获得 skb 头部长度
 	int start = skb_headlen(skb);
+	// skb 头部指的是数据部分的头部，而不是网络协议头部，对于一个包含 TCP 数据的数据包，skb 数据部分头部通常是空的
+	// python3 72922 [000] 251202.356260: probe:__skb_datagram_iter_L11: (ffffffffb41ad7bf) copy=78 offset=0 start=78
 	int i, copy = start - offset, start_off = offset, n;
 	struct sk_buff *frag_iter;
 
@@ -431,8 +427,8 @@ static int __skb_datagram_iter(const struct sk_buff *skb, int offset,
 	if (copy > 0) {
 		if (copy > len)
 			copy = len;
-		n = INDIRECT_CALL_1(cb, simple_copy_to_iter,
-				    skb->data + offset, copy, data, to);
+		n = INDIRECT_CALL_1(cb, simple_copy_to_iter, skb->data + offset,
+				    copy, data, to);
 		offset += n;
 		if (n != copy)
 			goto short_copy;
@@ -455,8 +451,9 @@ static int __skb_datagram_iter(const struct sk_buff *skb, int offset,
 			if (copy > len)
 				copy = len;
 			n = INDIRECT_CALL_1(cb, simple_copy_to_iter,
-					vaddr + skb_frag_off(frag) + offset - start,
-					copy, data, to);
+					    vaddr + skb_frag_off(frag) +
+						    offset - start,
+					    copy, data, to);
 			kunmap(page);
 			offset += n;
 			if (n != copy)
@@ -467,7 +464,8 @@ static int __skb_datagram_iter(const struct sk_buff *skb, int offset,
 		start = end;
 	}
 
-	skb_walk_frags(skb, frag_iter) {
+	skb_walk_frags(skb, frag_iter)
+	{
 		int end;
 
 		WARN_ON(start > offset + len);
@@ -476,8 +474,8 @@ static int __skb_datagram_iter(const struct sk_buff *skb, int offset,
 		if ((copy = end - offset) > 0) {
 			if (copy > len)
 				copy = len;
-			if (__skb_datagram_iter(frag_iter, offset - start,
-						to, copy, fault_short, cb, data))
+			if (__skb_datagram_iter(frag_iter, offset - start, to,
+						copy, fault_short, cb, data))
 				goto fault;
 			if ((len -= copy) == 0)
 				return 0;
@@ -514,16 +512,17 @@ short_copy:
  *      @hash: hash request to update
  */
 int skb_copy_and_hash_datagram_iter(const struct sk_buff *skb, int offset,
-			   struct iov_iter *to, int len,
-			   struct ahash_request *hash)
+				    struct iov_iter *to, int len,
+				    struct ahash_request *hash)
 {
 	return __skb_datagram_iter(skb, offset, to, len, true,
-			hash_and_copy_to_iter, hash);
+				   hash_and_copy_to_iter, hash);
 }
 EXPORT_SYMBOL(skb_copy_and_hash_datagram_iter);
 
 static size_t simple_copy_to_iter(const void *addr, size_t bytes,
-		void *data __always_unused, struct iov_iter *i)
+				  void *data __always_unused,
+				  struct iov_iter *i)
 {
 	return copy_to_iter(addr, bytes, i);
 }
@@ -540,7 +539,7 @@ int skb_copy_datagram_iter(const struct sk_buff *skb, int offset,
 {
 	trace_skb_copy_datagram_iovec(skb, len);
 	return __skb_datagram_iter(skb, offset, to, len, false,
-			simple_copy_to_iter, NULL);
+				   simple_copy_to_iter, NULL);
 }
 EXPORT_SYMBOL(skb_copy_datagram_iter);
 
@@ -554,8 +553,7 @@ EXPORT_SYMBOL(skb_copy_datagram_iter);
  *	Returns 0 or -EFAULT.
  */
 int skb_copy_datagram_from_iter(struct sk_buff *skb, int offset,
-				 struct iov_iter *from,
-				 int len)
+				struct iov_iter *from, int len)
 {
 	int start = skb_headlen(skb);
 	int i, copy = start - offset;
@@ -585,9 +583,9 @@ int skb_copy_datagram_from_iter(struct sk_buff *skb, int offset,
 
 			if (copy > len)
 				copy = len;
-			copied = copy_page_from_iter(skb_frag_page(frag),
-					  frag->page_offset + offset - start,
-					  copy, from);
+			copied = copy_page_from_iter(
+				skb_frag_page(frag),
+				frag->page_offset + offset - start, copy, from);
 			if (copied != copy)
 				goto fault;
 
@@ -598,7 +596,8 @@ int skb_copy_datagram_from_iter(struct sk_buff *skb, int offset,
 		start = end;
 	}
 
-	skb_walk_frags(skb, frag_iter) {
+	skb_walk_frags(skb, frag_iter)
+	{
 		int end;
 
 		WARN_ON(start > offset + len);
@@ -607,9 +606,8 @@ int skb_copy_datagram_from_iter(struct sk_buff *skb, int offset,
 		if ((copy = end - offset) > 0) {
 			if (copy > len)
 				copy = len;
-			if (skb_copy_datagram_from_iter(frag_iter,
-							offset - start,
-							from, copy))
+			if (skb_copy_datagram_from_iter(
+				    frag_iter, offset - start, from, copy))
 				goto fault;
 			if ((len -= copy) == 0)
 				return 0;
@@ -706,7 +704,7 @@ static int skb_copy_and_csum_datagram(const struct sk_buff *skb, int offset,
 				      __wsum *csump)
 {
 	return __skb_datagram_iter(skb, offset, to, len, true,
-			csum_and_copy_to_iter, csump);
+				   csum_and_copy_to_iter, csump);
 }
 
 __sum16 __skb_checksum_complete_head(struct sk_buff *skb, int len)
@@ -764,8 +762,8 @@ EXPORT_SYMBOL(__skb_checksum_complete);
  *		 -EINVAL - checksum failure.
  *		 -EFAULT - fault during copy.
  */
-int skb_copy_and_csum_datagram_msg(struct sk_buff *skb,
-				   int hlen, struct msghdr *msg)
+int skb_copy_and_csum_datagram_msg(struct sk_buff *skb, int hlen,
+				   struct msghdr *msg)
 {
 	__wsum csum;
 	int chunk = skb->len - hlen;
@@ -780,8 +778,8 @@ int skb_copy_and_csum_datagram_msg(struct sk_buff *skb,
 			goto fault;
 	} else {
 		csum = csum_partial(skb->data, hlen, skb->csum);
-		if (skb_copy_and_csum_datagram(skb, hlen, &msg->msg_iter,
-					       chunk, &csum))
+		if (skb_copy_and_csum_datagram(skb, hlen, &msg->msg_iter, chunk,
+					       &csum))
 			goto fault;
 
 		if (csum_fold(csum)) {
@@ -813,8 +811,7 @@ EXPORT_SYMBOL(skb_copy_and_csum_datagram_msg);
  *	and you use a different write policy from sock_writeable()
  *	then please supply your own write_space callback.
  */
-__poll_t datagram_poll(struct file *file, struct socket *sock,
-			   poll_table *wait)
+__poll_t datagram_poll(struct file *file, struct socket *sock, poll_table *wait)
 {
 	struct sock *sk = sock->sk;
 	__poll_t mask;

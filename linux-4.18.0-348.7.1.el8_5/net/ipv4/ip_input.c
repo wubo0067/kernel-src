@@ -426,12 +426,14 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt,
 	/* When the interface is in promisc. mode, drop all the crap
 	 * that it receives, do not try to analyse it.
 	 */
+	// 如果数据包不是发送给本机的，丢弃数据包
 	if (skb->pkt_type == PACKET_OTHERHOST)
 		goto drop;
 
 	net = dev_net(dev);
 	__IP_UPD_PO_STATS(net, IPSTATS_MIB_IN, skb->len);
 
+	// 如果其他地方也在使用数据包，复制一份新的数据包
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (!skb) {
 		__IP_INC_STATS(net, IPSTATS_MIB_INDISCARDS);
@@ -500,7 +502,7 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt,
 	if (!skb_sk_is_prefetched(skb))
 		skb_orphan(skb);
 
-	// 执行IPv4 prerouteting链规则
+	// 执行 IPv4 prerouteting 链规则
 	return NF_HOOK(NFPROTO_IPV4, NF_INET_PRE_ROUTING, net, NULL, skb, dev,
 		       NULL, ip_rcv_finish);
 

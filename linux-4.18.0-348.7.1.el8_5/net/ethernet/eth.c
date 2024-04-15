@@ -160,7 +160,7 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	unsigned short _service_access_point;
 	const unsigned short *sap;
 	const struct ethhdr *eth;
-
+	// 这里会改变 skb 的归属的 dev，如果是 veth，从 veth_xmit 过来，这里会将发送的 dev 改变为 peer_dev
 	skb->dev = dev;
 	skb_reset_mac_header(skb);
 

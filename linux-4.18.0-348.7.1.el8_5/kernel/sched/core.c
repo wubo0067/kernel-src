@@ -611,7 +611,7 @@ void resched_curr(struct rq *rq)
 	cpu = cpu_of(rq);
 
 	if (cpu == smp_processor_id()) {
-		// 设置curr需要重新调度的标志位TIF_NEED_RESCHED
+		// 设置 curr 需要重新调度的标志位 TIF_NEED_RESCHED
 		set_tsk_need_resched(curr);
 		set_preempt_need_resched();
 		return;
@@ -2220,7 +2220,7 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state,
 		success = 1;
 		trace_sched_waking(p);
 		p->state = TASK_RUNNING;
-		// 设置当前进程的状态为TASK_RUNNING
+		// 设置当前进程的状态为 TASK_RUNNING
 		trace_sched_wakeup(p);
 		goto out;
 	}
@@ -3084,7 +3084,7 @@ static struct rq *finish_task_switch(struct task_struct *prev)
 		membarrier_mm_sync_core_before_usermode(mm);
 		mmdrop(mm);
 	}
-	// 如果被调度出去的task状态是TASK_DEAD
+	// 如果被调度出去的 task 状态是 TASK_DEAD
 	if (unlikely(prev_state == TASK_DEAD)) {
 		if (prev->sched_class->task_dead)
 			prev->sched_class->task_dead(prev);
@@ -3750,7 +3750,7 @@ static inline struct task_struct *pick_next_task(struct rq *rq,
 	if (likely((prev->sched_class == &idle_sched_class ||
 		    prev->sched_class == &fair_sched_class) &&
 		   rq->nr_running == rq->cfs.h_nr_running)) {
-		// 如果运行队列中进程的数量等于cfs运行队列中进程的数量
+		// 如果运行队列中进程的数量等于 cfs 运行队列中进程的数量
 		p = pick_next_task_fair(rq, prev, rf);
 		if (unlikely(p == RETRY_TASK))
 			goto restart;

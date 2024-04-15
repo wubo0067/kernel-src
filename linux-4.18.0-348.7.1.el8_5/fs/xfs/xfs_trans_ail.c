@@ -803,13 +803,16 @@ xfs_trans_ail_update_bulk(
 
 			xfs_ail_delete(ailp, lip);
 		} else {
+			// 这个 lip 是插入
 			trace_xfs_ail_insert(lip, 0, lsn);
 		}
 		lip->li_lsn = lsn;
+		// 将 xfs_log_item 加入 tmp 链表中
 		list_add(&lip->li_ail, &tmp);
 	}
 
 	if (!list_empty(&tmp))
+		// 如果 tmp 不为空，将 tmp 链表中的元素都移动到 ailp 链表中
 		xfs_ail_splice(ailp, cur, &tmp, lsn);
 
 	xfs_ail_update_finish(ailp, tail_lsn);
