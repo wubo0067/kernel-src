@@ -679,9 +679,17 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 	 * Additionally, this is a per-hw queue depth.
 	 */
 	// Maximum number of requests in the queue
+	/*
+            bash 1354736 [000] 9667923.001220:       probe:blk_mq_init_sched: (ffffffffb3e71c30) nr_hw_queues=4 queue_depth=316 elevator_name="kyber"
+            bash 1354736 [000] 9667923.001224: probe:blk_mq_sched_alloc_tags: (ffffffffb3e71cb6) nr_requests=256
+            bash 1354736 [000] 9667923.001304: probe:blk_mq_sched_alloc_tags: (ffffffffb3e71cb6) nr_requests=256
+            bash 1354736 [000] 9667923.001371: probe:blk_mq_sched_alloc_tags: (ffffffffb3e71cb6) nr_requests=256
+            bash 1354736 [000] 9667923.001438: probe:blk_mq_sched_alloc_tags: (ffffffffb3e71cb6) nr_requests=256
+	*/
 	q->nr_requests =
 		2 * min_t(unsigned int, q->tag_set->queue_depth, BLKDEV_MAX_RQ);
 
+	// 可见这个块设备里有 4 个硬件队列，每条硬件队列都要分配 sched_tags
 	queue_for_each_hw_ctx (q, hctx, i) {
 		ret = blk_mq_sched_alloc_tags(q, hctx, i);
 		if (ret)
@@ -693,12 +701,8 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 		if (ret)
 			goto err_free_tags;
 	}
-<<<<<<< HEAD
 	// 给 request 初始化一个 bio 调度算法
-	== == == =
-
->>>>>>> d415b875e94d0e8ae2831e166c7258a7f21fcfce
-			 ret = e->ops.init_sched(q, e);
+	ret = e->ops.init_sched(q, e);
 	if (ret)
 		goto err_free_sbitmap;
 

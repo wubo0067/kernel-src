@@ -425,13 +425,19 @@ struct request_queue {
 	make_request_fn *make_request_fn;
 	dma_drain_needed_fn *dma_drain_needed;
 
-	const struct blk_mq_ops *mq_ops;
+	const struct blk_mq_ops *mq_ops; // scsi_mq_ops_no_commit 会初始化这个变量
 
 	/* sw queues */
 	struct blk_mq_ctx __percpu	*queue_ctx; // 软件队列，一个等待发送到硬件队列的请求队列，按 cpu core 数量
 	RH_KABI_DEPRECATE(unsigned int,            nr_queues)
 
-	struct backing_dev_info *backing_dev_info;
+	unsigned int		queue_depth;
+
+	/* hw dispatch queues */
+	struct blk_mq_hw_ctx	**queue_hw_ctx; // 硬件队列
+	unsigned int		nr_hw_queues;
+
+	struct backing_dev_info	*backing_dev_info;
 
 	/*
 	 * The queue owner gets to use this for whatever they like.
@@ -557,7 +563,8 @@ struct request_queue {
 
 	struct mutex sysfs_lock;
 
-	RH_KABI_REPLACE(atomic_t mq_freeze_depth, int mq_freeze_depth)
+	RH_KABI_REPLACE(atomic_t                mq_freeze_depth,
+			int			mq_freeze_depth)
 
 #if defined(CONFIG_BLK_DEV_BSG)
 	struct bsg_class_device bsg_dev;

@@ -2187,28 +2187,17 @@ void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
 
 static void blk_add_rq_to_plug(struct blk_plug *plug, struct request *rq)
 {
-<<<<<<< HEAD
 	// 将 req 加入 plug->mq_list 尾部，都是使用 queuelist 这个成员
-	== == == =
->>>>>>> d415b875e94d0e8ae2831e166c7258a7f21fcfce
-			 list_add_tail(&rq->queuelist, &plug->mq_list);
+	list_add_tail(&rq->queuelist, &plug->mq_list);
 	plug->rq_count++;
 	if (!plug->multiple_queues && !list_is_singular(&plug->mq_list)) {
 		struct request *tmp;
-<<<<<<< HEAD
 		// 获取 plug->mq_list 的第一个 request
+		// 如果两个 request 使用的是不同的 request_queue，那么就将 plug->multiple_queues 设置为 true
 		tmp = list_first_entry(&plug->mq_list, struct request,
 				       queuelist);
 		// 判断第一个 request 使用的 request_queue 和加入末尾的 rq 的 request_queue 是否是同一个
 		if (tmp->q != rq->q)
-			// 如果两个 request 使用的是不同的 request_queue，那么就将 plug->multiple_queues 设置为 true
-			== == == =
-
-					 tmp = list_first_entry(&plug->mq_list,
-								struct request,
-								queuelist);
-		if (tmp->q != rq->q)
->>>>>>> d415b875e94d0e8ae2831e166c7258a7f21fcfce
 			plug->multiple_queues = true;
 	}
 }
@@ -2250,44 +2239,33 @@ blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	if (!bio_integrity_prep(bio))
 		goto queue_exit;
 
-<<<<<<< HEAD
 	// 判断能否在 plug list 中合并
-	== == == =
->>>>>>> d415b875e94d0e8ae2831e166c7258a7f21fcfce
-			 if (!is_flush_fua && !blk_queue_nomerges(q) &&
-			     blk_attempt_plug_merge(
-				     q, bio, &same_queue_rq)) goto queue_exit;
+	if (!is_flush_fua && !blk_queue_nomerges(q) &&
+	    blk_attempt_plug_merge(q, bio, &same_queue_rq))
+		goto queue_exit;
 
-<<<<<<< HEAD
 	// 使用 io 调度器 (q->elevator) 来进行合并，这是在硬件队列中进行的，如果合并成功就不需要创建一个独立
 	// 的 request 了。
-	== == == =
->>>>>>> d415b875e94d0e8ae2831e166c7258a7f21fcfce
-			 if (blk_mq_sched_bio_merge(q, bio)) goto queue_exit;
+	if (blk_mq_sched_bio_merge(q, bio))
+		goto queue_exit;
 
 	rq_qos_throttle(q, bio);
 
 	hipri = bio->bi_opf & REQ_HIPRI;
 
 	data.cmd_flags = bio->bi_opf;
-<<<<<<< HEAD
 
 	// 为 bio 分配一个 request
-	== == == =
->>>>>>> d415b875e94d0e8ae2831e166c7258a7f21fcfce
-			 rq = __blk_mq_alloc_request(&data);
+
+	rq = __blk_mq_alloc_request(&data);
 	if (unlikely(!rq)) {
 		rq_qos_cleanup(q, bio);
 		if (bio->bi_opf & REQ_NOWAIT)
 			bio_wouldblock_error(bio);
 		goto queue_exit;
 	}
-<<<<<<< HEAD
 	// 触发一个 tracepoint
-	== == == =
-
->>>>>>> d415b875e94d0e8ae2831e166c7258a7f21fcfce
-			 trace_block_getrq(q, bio, bio->bi_opf);
+	trace_block_getrq(q, bio, bio->bi_opf);
 
 	rq_qos_track(q, rq, bio);
 

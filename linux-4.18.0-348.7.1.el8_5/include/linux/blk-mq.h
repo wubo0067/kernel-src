@@ -154,9 +154,10 @@ struct blk_mq_tag_set_aux {
 struct blk_mq_tag_set {
 	struct blk_mq_queue_map map[RH_HCTX_MAX_TYPES];
 	unsigned int nr_maps;
-	const struct blk_mq_ops *ops;
-	unsigned int nr_hw_queues;
-	unsigned int queue_depth;
+	const struct blk_mq_ops *
+		ops; // 定义块设备驱动 mq 的操作集合，如果是 scsi 设备该变量会被初始化为 scsi_mq_ops
+	unsigned int nr_hw_queues; // 硬件队列的数量
+	unsigned int queue_depth; // 队列的深度
 	unsigned int reserved_tags;
 	unsigned int cmd_size;
 	int numa_node;
