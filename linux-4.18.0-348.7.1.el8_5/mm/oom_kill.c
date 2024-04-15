@@ -1,6 +1,6 @@
 /*
  *  linux/mm/oom_kill.c
- *
+ * 
  *  Copyright (C)  1998,2000  Rik van Riel
  *	Thanks go out to Claus Fischer for some serious inspiration and
  *	for goading me into coding this file...
@@ -87,7 +87,7 @@ static bool oom_cpuset_eligible(struct task_struct *start,
 		return true;
 
 	rcu_read_lock();
-	for_each_thread (start, tsk) {
+	for_each_thread(start, tsk) {
 		if (mask) {
 			/*
 			 * If this is a mempolicy constrained oom, tsk's
@@ -129,7 +129,7 @@ struct task_struct *find_lock_task_mm(struct task_struct *p)
 
 	rcu_read_lock();
 
-	for_each_thread (p, t) {
+	for_each_thread(p, t) {
 		task_lock(t);
 		if (likely(t->mm))
 			goto found;
@@ -207,8 +207,9 @@ long oom_badness(struct task_struct *p, unsigned long totalpages)
 	 * the middle of vfork
 	 */
 	adj = (long)p->signal->oom_score_adj;
-	if (adj == OOM_SCORE_ADJ_MIN || test_bit(MMF_OOM_SKIP, &p->mm->flags) ||
-	    in_vfork(p)) {
+	if (adj == OOM_SCORE_ADJ_MIN ||
+			test_bit(MMF_OOM_SKIP, &p->mm->flags) ||
+			in_vfork(p)) {
 		task_unlock(p);
 		return LONG_MIN;
 	}
@@ -218,18 +219,17 @@ long oom_badness(struct task_struct *p, unsigned long totalpages)
 	 * task's rss, pagetable and swap space use.
 	 */
 	points = get_mm_rss(p->mm) + get_mm_counter(p->mm, MM_SWAPENTS) +
-		 mm_pgtables_bytes(p->mm) / PAGE_SIZE;
+		mm_pgtables_bytes(p->mm) / PAGE_SIZE;
 	task_unlock(p);
 
 	/* Normalize to oom_score_adj units */
-	// adj如果是个负值，那么points会变小
 	adj *= totalpages / 1000;
 	points += adj;
 
 	return points;
 }
 
-static const char *const oom_constraint_text[] = {
+static const char * const oom_constraint_text[] = {
 	[CONSTRAINT_NONE] = "CONSTRAINT_NONE",
 	[CONSTRAINT_CPUSET] = "CONSTRAINT_CPUSET",
 	[CONSTRAINT_MEMORY_POLICY] = "CONSTRAINT_MEMORY_POLICY",
@@ -253,7 +253,6 @@ static enum oom_constraint constrained_alloc(struct oom_control *oc)
 	}
 
 	/* Default to all available memory */
-	// 机器的物理内存大小，单位page
 	oc->totalpages = totalram_pages() + total_swap_pages;
 
 	if (!IS_ENABLED(CONFIG_NUMA))
@@ -277,20 +276,20 @@ static enum oom_constraint constrained_alloc(struct oom_control *oc)
 	if (oc->nodemask &&
 	    !nodes_subset(node_states[N_MEMORY], *oc->nodemask)) {
 		oc->totalpages = total_swap_pages;
-		for_each_node_mask (nid, *oc->nodemask)
+		for_each_node_mask(nid, *oc->nodemask)
 			oc->totalpages += node_present_pages(nid);
 		return CONSTRAINT_MEMORY_POLICY;
 	}
 
 	/* Check this allocation failure is caused by cpuset's wall function */
-	for_each_zone_zonelist_nodemask (zone, z, oc->zonelist, highest_zoneidx,
-					 oc->nodemask)
+	for_each_zone_zonelist_nodemask(zone, z, oc->zonelist,
+			highest_zoneidx, oc->nodemask)
 		if (!cpuset_zone_allowed(zone, oc->gfp_mask))
 			cpuset_limited = true;
 
 	if (cpuset_limited) {
 		oc->totalpages = total_swap_pages;
-		for_each_node_mask (nid, cpuset_current_mems_allowed)
+		for_each_node_mask(nid, cpuset_current_mems_allowed)
 			oc->totalpages += node_present_pages(nid);
 		return CONSTRAINT_CPUSET;
 	}
@@ -366,8 +365,7 @@ static void select_bad_process(struct oom_control *oc)
 		struct task_struct *p;
 
 		rcu_read_lock();
-		for_each_process (p)
-			// oom_evaluate_task返回0，这是oc->chosen就是badness task
+		for_each_process(p)
 			if (oom_evaluate_task(p, oc))
 				break;
 		rcu_read_unlock();
@@ -397,8 +395,8 @@ static int dump_task(struct task_struct *p, void *arg)
 	}
 
 	pr_info("[%7d] %5d %5d %8lu %8lu %8ld %8lu         %5hd %s\n",
-		task->pid, from_kuid(&init_user_ns, task_uid(task)), task->tgid,
-		task->mm->total_vm, get_mm_rss(task->mm),
+		task->pid, from_kuid(&init_user_ns, task_uid(task)),
+		task->tgid, task->mm->total_vm, get_mm_rss(task->mm),
 		mm_pgtables_bytes(task->mm),
 		get_mm_counter(task->mm, MM_SWAPENTS),
 		task->signal->oom_score_adj, task->comm);
@@ -428,7 +426,7 @@ static void dump_tasks(struct oom_control *oc)
 		struct task_struct *p;
 
 		rcu_read_lock();
-		for_each_process (p)
+		for_each_process(p)
 			dump_task(p, oc);
 		rcu_read_unlock();
 	}
@@ -438,8 +436,8 @@ static void dump_oom_summary(struct oom_control *oc, struct task_struct *victim)
 {
 	/* one line summary of the oom killer context. */
 	pr_info("oom-kill:constraint=%s,nodemask=%*pbl",
-		oom_constraint_text[oc->constraint],
-		nodemask_pr_args(oc->nodemask));
+			oom_constraint_text[oc->constraint],
+			nodemask_pr_args(oc->nodemask));
 	cpuset_print_current_mems_allowed();
 	mem_cgroup_print_oom_context(oc->memcg, victim);
 	pr_cont(",task=%s,pid=%d,uid=%d\n", victim->comm, victim->pid,
@@ -450,7 +448,7 @@ static void dump_header(struct oom_control *oc, struct task_struct *p)
 {
 	pr_warn("%s invoked oom-killer: gfp_mask=%#x(%pGg), order=%d, oom_score_adj=%hd\n",
 		current->comm, oc->gfp_mask, &oc->gfp_mask, oc->order,
-		current->signal->oom_score_adj);
+			current->signal->oom_score_adj);
 	if (!IS_ENABLED(CONFIG_COMPACTION) && oc->order)
 		pr_warn("COMPACTION is disabled!!!\n");
 
@@ -476,7 +474,7 @@ static DECLARE_WAIT_QUEUE_HEAD(oom_victims_wait);
 
 static bool oom_killer_disabled __read_mostly;
 
-#define K(x) ((x) << (PAGE_SHIFT - 10))
+#define K(x) ((x) << (PAGE_SHIFT-10))
 
 /*
  * task->mm can be NULL if the task is the exited group leader.  So to
@@ -488,7 +486,7 @@ bool process_shares_mm(struct task_struct *p, struct mm_struct *mm)
 {
 	struct task_struct *t;
 
-	for_each_thread (p, t) {
+	for_each_thread(p, t) {
 		struct mm_struct *t_mm = READ_ONCE(t->mm);
 		if (t_mm)
 			return t_mm == mm;
@@ -518,7 +516,7 @@ void __oom_reap_task_mm(struct mm_struct *mm)
 	 */
 	set_bit(MMF_UNSTABLE, &mm->flags);
 
-	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+	for (vma = mm->mmap ; vma; vma = vma->vm_next) {
 		if (!can_madv_lru_vma(vma))
 			continue;
 
@@ -541,8 +539,7 @@ void __oom_reap_task_mm(struct mm_struct *mm)
 						vma->vm_end);
 			tlb_gather_mmu(&tlb, mm, range.start, range.end);
 			mmu_notifier_invalidate_range_start(&range);
-			unmap_page_range(&tlb, vma, range.start, range.end,
-					 NULL);
+			unmap_page_range(&tlb, vma, range.start, range.end, NULL);
 			mmu_notifier_invalidate_range_end(&range);
 			tlb_finish_mmu(&tlb, range.start, range.end);
 		}
@@ -585,10 +582,10 @@ static bool oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
 	__oom_reap_task_mm(mm);
 
 	pr_info("oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
-		task_pid_nr(tsk), tsk->comm,
-		K(get_mm_counter(mm, MM_ANONPAGES)),
-		K(get_mm_counter(mm, MM_FILEPAGES)),
-		K(get_mm_counter(mm, MM_SHMEMPAGES)));
+			task_pid_nr(tsk), tsk->comm,
+			K(get_mm_counter(mm, MM_ANONPAGES)),
+			K(get_mm_counter(mm, MM_FILEPAGES)),
+			K(get_mm_counter(mm, MM_SHMEMPAGES)));
 	mmap_read_unlock(mm);
 
 	trace_finish_task_reaping(tsk->pid);
@@ -603,14 +600,14 @@ static void oom_reap_task(struct task_struct *tsk)
 
 	/* Retry the mmap_read_trylock(mm) a few times */
 	while (attempts++ < MAX_OOM_REAP_RETRIES && !oom_reap_task_mm(tsk, mm))
-		schedule_timeout_idle(HZ / 10);
+		schedule_timeout_idle(HZ/10);
 
 	if (attempts <= MAX_OOM_REAP_RETRIES ||
 	    test_bit(MMF_OOM_SKIP, &mm->flags))
 		goto done;
 
-	pr_info("oom_reaper: unable to reap pid:%d (%s)\n", task_pid_nr(tsk),
-		tsk->comm);
+	pr_info("oom_reaper: unable to reap pid:%d (%s)\n",
+		task_pid_nr(tsk), tsk->comm);
 	sched_show_task(tsk);
 	debug_show_all_locks();
 
@@ -675,7 +672,7 @@ static inline void wake_oom_reaper(struct task_struct *tsk)
 }
 #endif /* CONFIG_MMU */
 
-	/**
+/**
  * mark_oom_victim - mark the given task as OOM victim
  * @tsk: task to mark
  *
@@ -685,7 +682,7 @@ static inline void wake_oom_reaper(struct task_struct *tsk)
  * tsk->mm has to be non NULL and caller has to guarantee it is stable (either
  * under task_lock or operate on the current).
  */
-	static void mark_oom_victim(struct task_struct *tsk)
+static void mark_oom_victim(struct task_struct *tsk)
 {
 	struct mm_struct *mm = tsk->mm;
 
@@ -759,8 +756,8 @@ bool oom_killer_disable(signed long timeout)
 	oom_killer_disabled = true;
 	mutex_unlock(&oom_lock);
 
-	ret = wait_event_interruptible_timeout(
-		oom_victims_wait, !atomic_read(&oom_victims), timeout);
+	ret = wait_event_interruptible_timeout(oom_victims_wait,
+			!atomic_read(&oom_victims), timeout);
 	if (ret <= 0) {
 		oom_killer_enable();
 		return false;
@@ -831,7 +828,7 @@ static bool task_will_free_mem(struct task_struct *task)
 	 * b) the task is also reapable by the oom reaper.
 	 */
 	rcu_read_lock();
-	for_each_process (p) {
+	for_each_process(p) {
 		if (!process_shares_mm(p, mm))
 			continue;
 		if (same_thread_group(task, p))
@@ -879,12 +876,12 @@ static void __oom_kill_process(struct task_struct *victim, const char *message)
 	do_send_sig_info(SIGKILL, SEND_SIG_PRIV, victim, PIDTYPE_TGID);
 	mark_oom_victim(victim);
 	pr_err("%s: Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB, UID:%u pgtables:%lukB oom_score_adj:%hd\n",
-	       message, task_pid_nr(victim), victim->comm, K(mm->total_vm),
-	       K(get_mm_counter(mm, MM_ANONPAGES)),
-	       K(get_mm_counter(mm, MM_FILEPAGES)),
-	       K(get_mm_counter(mm, MM_SHMEMPAGES)),
-	       from_kuid(&init_user_ns, task_uid(victim)),
-	       mm_pgtables_bytes(mm) >> 10, victim->signal->oom_score_adj);
+		message, task_pid_nr(victim), victim->comm, K(mm->total_vm),
+		K(get_mm_counter(mm, MM_ANONPAGES)),
+		K(get_mm_counter(mm, MM_FILEPAGES)),
+		K(get_mm_counter(mm, MM_SHMEMPAGES)),
+		from_kuid(&init_user_ns, task_uid(victim)),
+		mm_pgtables_bytes(mm) >> 10, victim->signal->oom_score_adj);
 	task_unlock(victim);
 
 	/*
@@ -897,7 +894,7 @@ static void __oom_kill_process(struct task_struct *victim, const char *message)
 	 * pending fatal signal.
 	 */
 	rcu_read_lock();
-	for_each_process (p) {
+	for_each_process(p) {
 		if (!process_shares_mm(p, mm))
 			continue;
 		if (same_thread_group(p, victim))
@@ -906,8 +903,8 @@ static void __oom_kill_process(struct task_struct *victim, const char *message)
 			can_oom_reap = false;
 			set_bit(MMF_OOM_SKIP, &mm->flags);
 			pr_info("oom killer %d (%s) has mm pinned by %d (%s)\n",
-				task_pid_nr(victim), victim->comm,
-				task_pid_nr(p), p->comm);
+					task_pid_nr(victim), victim->comm,
+					task_pid_nr(p), p->comm);
 			continue;
 		}
 		/*
@@ -947,7 +944,7 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
 	struct task_struct *victim = oc->chosen;
 	struct mem_cgroup *oom_group;
 	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
-				      DEFAULT_RATELIMIT_BURST);
+					      DEFAULT_RATELIMIT_BURST);
 
 	/*
 	 * If the task is already exiting, don't alarm the sysadmin or kill
@@ -982,7 +979,7 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
 	if (oom_group) {
 		mem_cgroup_print_oom_group(oom_group);
 		mem_cgroup_scan_tasks(oom_group, oom_kill_memcg_member,
-				      (void *)message);
+				      (void*)message);
 		mem_cgroup_put(oom_group);
 	}
 }
@@ -1008,7 +1005,7 @@ static void check_panic_on_oom(struct oom_control *oc)
 		return;
 	dump_header(oc, NULL);
 	panic("Out of memory: %s panic_on_oom is enabled\n",
-	      sysctl_panic_on_oom == 2 ? "compulsory" : "system-wide");
+		sysctl_panic_on_oom == 2 ? "compulsory" : "system-wide");
 }
 
 static BLOCKING_NOTIFIER_HEAD(oom_notify_list);
@@ -1089,12 +1086,10 @@ bool out_of_memory(struct oom_control *oc)
 	    current->signal->oom_score_adj != OOM_SCORE_ADJ_MIN) {
 		get_task_struct(current);
 		oc->chosen = current;
-		oom_kill_process(oc,
-				 "Out of memory (oom_kill_allocating_task)");
+		oom_kill_process(oc, "Out of memory (oom_kill_allocating_task)");
 		return true;
 	}
 
-	// **选择被kill的process
 	select_bad_process(oc);
 	/* Found nothing?!?! */
 	if (!oc->chosen) {
@@ -1109,9 +1104,8 @@ bool out_of_memory(struct oom_control *oc)
 			panic("System is deadlocked on memory\n");
 	}
 	if (oc->chosen && oc->chosen != (void *)-1UL) {
-		oom_kill_process(oc, !is_memcg_oom(oc) ?
-					     "Out of memory" :
-					     "Memory cgroup out of memory");
+		oom_kill_process(oc, !is_memcg_oom(oc) ? "Out of memory" :
+				 "Memory cgroup out of memory");
 		/*
 		 * Give the killed process a good chance to exit before trying
 		 * to allocate memory again.

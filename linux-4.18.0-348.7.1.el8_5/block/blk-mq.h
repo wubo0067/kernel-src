@@ -148,7 +148,6 @@ static inline struct blk_mq_ctx *__blk_mq_get_ctx(struct request_queue *q,
  */
 static inline struct blk_mq_ctx *blk_mq_get_ctx(struct request_queue *q)
 {
-	// 软件队列是个percpu变量：struct blk_mq_ctx __percpu	*queue_ctx;
 	return __blk_mq_get_ctx(q, raw_smp_processor_id());
 }
 

@@ -494,7 +494,6 @@ static void dd_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 {
 	// 从硬件队列上下文
 	struct request_queue *q = hctx->queue;
-	// struct elevator_queue	*elevator;
 	struct deadline_data *dd = q->elevator->elevator_data;
 	const int data_dir = rq_data_dir(rq);
 
@@ -506,14 +505,13 @@ static void dd_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 	// 如果request可以做merge insert那么就不用重新插入了
 	if (blk_mq_sched_try_insert_merge(q, rq))
 		return;
-	// 这里仅仅是做了tracepoint
+
 	blk_mq_sched_request_inserted(rq);
 
 	if (at_head || blk_rq_is_passthrough(rq)) {
 		if (at_head)
 			list_add(&rq->queuelist, &dd->dispatch);
 		else
-			// 插入dd的dispatch队列
 			list_add_tail(&rq->queuelist, &dd->dispatch);
 	} else {
 		deadline_add_rq_rb(dd, rq);
@@ -544,7 +542,7 @@ static void dd_insert_requests(struct blk_mq_hw_ctx *hctx,
 
 		rq = list_first_entry(list, struct request, queuelist);
 		list_del_init(&rq->queuelist);
-		// 插入io调度策略的队列
+		// 插入 io 调度策略的队列
 		dd_insert_request(hctx, rq, at_head);
 	}
 	spin_unlock(&dd->lock);

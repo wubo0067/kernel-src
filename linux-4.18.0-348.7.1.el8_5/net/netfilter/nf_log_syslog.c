@@ -53,10 +53,10 @@ static void nf_log_dump_vlan(struct nf_log_buf *m, const struct sk_buff *skb)
 	vid = skb_vlan_tag_get(skb);
 	nf_log_buf_add(m, "VPROTO=%04x VID=%u ", ntohs(skb->vlan_proto), vid);
 }
-static void noinline_for_stack dump_arp_packet(struct nf_log_buf *m,
-					       const struct nf_loginfo *info,
-					       const struct sk_buff *skb,
-					       unsigned int nhoff)
+static void noinline_for_stack
+dump_arp_packet(struct nf_log_buf *m,
+		const struct nf_loginfo *info,
+		const struct sk_buff *skb, unsigned int nhoff)
 {
 	const struct arppayload *ap;
 	struct arppayload _arpp;
@@ -88,7 +88,8 @@ static void noinline_for_stack dump_arp_packet(struct nf_log_buf *m,
 	/* If it's for Ethernet and the lengths are OK, then log the ARP
 	 * payload.
 	 */
-	if (ah->ar_hrd != htons(ARPHRD_ETHER) || ah->ar_hln != ETH_ALEN ||
+	if (ah->ar_hrd != htons(ARPHRD_ETHER) ||
+	    ah->ar_hln != ETH_ALEN ||
 	    ah->ar_pln != sizeof(__be32))
 		return;
 
@@ -102,20 +103,20 @@ static void noinline_for_stack dump_arp_packet(struct nf_log_buf *m,
 		       ap->mac_src, ap->ip_src, ap->mac_dst, ap->ip_dst);
 }
 
-static void nf_log_dump_packet_common(struct nf_log_buf *m, u8 pf,
-				      unsigned int hooknum,
-				      const struct sk_buff *skb,
-				      const struct net_device *in,
-				      const struct net_device *out,
-				      const struct nf_loginfo *loginfo,
-				      const char *prefix)
+static void
+nf_log_dump_packet_common(struct nf_log_buf *m, u8 pf,
+			  unsigned int hooknum, const struct sk_buff *skb,
+			  const struct net_device *in,
+			  const struct net_device *out,
+			  const struct nf_loginfo *loginfo, const char *prefix)
 {
 	const struct net_device *physoutdev __maybe_unused;
 	const struct net_device *physindev __maybe_unused;
 
 	nf_log_buf_add(m, KERN_SOH "%c%sIN=%s OUT=%s ",
-		       '0' + loginfo->u.log.level, prefix, in ? in->name : "",
-		       out ? out->name : "");
+		       '0' + loginfo->u.log.level, prefix,
+			in ? in->name : "",
+			out ? out->name : "");
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	physindev = nf_bridge_get_physindev(skb);
 	if (physindev && in != physindev)
@@ -152,10 +153,10 @@ static void nf_log_arp_packet(struct net *net, u_int8_t pf,
 }
 
 static struct nf_logger nf_arp_logger __read_mostly = {
-	.name = "nf_log_arp",
-	.type = NF_LOG_TYPE_LOG,
-	.logfn = nf_log_arp_packet,
-	.me = THIS_MODULE,
+	.name		= "nf_log_arp",
+	.type		= NF_LOG_TYPE_LOG,
+	.logfn		= nf_log_arp_packet,
+	.me		= THIS_MODULE,
 };
 
 static void nf_log_dump_sk_uid_gid(struct net *net, struct nf_log_buf *m,
@@ -175,11 +176,12 @@ static void nf_log_dump_sk_uid_gid(struct net *net, struct nf_log_buf *m,
 	read_unlock_bh(&sk->sk_callback_lock);
 }
 
-static noinline_for_stack int nf_log_dump_tcp_header(struct nf_log_buf *m,
-						     const struct sk_buff *skb,
-						     u8 proto, int fragment,
-						     unsigned int offset,
-						     unsigned int logflags)
+static noinline_for_stack int
+nf_log_dump_tcp_header(struct nf_log_buf *m,
+		       const struct sk_buff *skb,
+		       u8 proto, int fragment,
+		       unsigned int offset,
+		       unsigned int logflags)
 {
 	struct tcphdr _tcph;
 	const struct tcphdr *th;
@@ -198,19 +200,19 @@ static noinline_for_stack int nf_log_dump_tcp_header(struct nf_log_buf *m,
 	}
 
 	/* Max length: 20 "SPT=65535 DPT=65535 " */
-	nf_log_buf_add(m, "SPT=%u DPT=%u ", ntohs(th->source), ntohs(th->dest));
+	nf_log_buf_add(m, "SPT=%u DPT=%u ",
+		       ntohs(th->source), ntohs(th->dest));
 	/* Max length: 30 "SEQ=4294967295 ACK=4294967295 " */
 	if (logflags & NF_LOG_TCPSEQ) {
-		nf_log_buf_add(m, "SEQ=%u ACK=%u ", ntohl(th->seq),
-			       ntohl(th->ack_seq));
+		nf_log_buf_add(m, "SEQ=%u ACK=%u ",
+			       ntohl(th->seq), ntohl(th->ack_seq));
 	}
 
 	/* Max length: 13 "WINDOW=65535 " */
 	nf_log_buf_add(m, "WINDOW=%u ", ntohs(th->window));
 	/* Max length: 9 "RES=0x3C " */
-	nf_log_buf_add(
-		m, "RES=0x%02x ",
-		(u_int8_t)(ntohl(tcp_flag_word(th) & TCP_RESERVED_BITS) >> 22));
+	nf_log_buf_add(m, "RES=0x%02x ", (u_int8_t)(ntohl(tcp_flag_word(th) &
+					    TCP_RESERVED_BITS) >> 22));
 	/* Max length: 32 "CWR ECE URG ACK PSH RST SYN FIN " */
 	if (th->cwr)
 		nf_log_buf_add(m, "CWR ");
@@ -231,8 +233,7 @@ static noinline_for_stack int nf_log_dump_tcp_header(struct nf_log_buf *m,
 	/* Max length: 11 "URGP=65535 " */
 	nf_log_buf_add(m, "URGP=%u ", ntohs(th->urg_ptr));
 
-	if ((logflags & NF_LOG_TCPOPT) &&
-	    th->doff * 4 > sizeof(struct tcphdr)) {
+	if ((logflags & NF_LOG_TCPOPT) && th->doff * 4 > sizeof(struct tcphdr)) {
 		unsigned int optsize = th->doff * 4 - sizeof(struct tcphdr);
 		u8 _opt[60 - sizeof(struct tcphdr)];
 		unsigned int i;
@@ -256,10 +257,11 @@ static noinline_for_stack int nf_log_dump_tcp_header(struct nf_log_buf *m,
 	return 0;
 }
 
-static noinline_for_stack int nf_log_dump_udp_header(struct nf_log_buf *m,
-						     const struct sk_buff *skb,
-						     u8 proto, int fragment,
-						     unsigned int offset)
+static noinline_for_stack int
+nf_log_dump_udp_header(struct nf_log_buf *m,
+		       const struct sk_buff *skb,
+		       u8 proto, int fragment,
+		       unsigned int offset)
 {
 	struct udphdr _udph;
 	const struct udphdr *uh;
@@ -267,7 +269,7 @@ static noinline_for_stack int nf_log_dump_udp_header(struct nf_log_buf *m,
 	if (proto == IPPROTO_UDP)
 		/* Max length: 10 "PROTO=UDP "     */
 		nf_log_buf_add(m, "PROTO=UDP ");
-	else /* Max length: 14 "PROTO=UDPLITE " */
+	else	/* Max length: 14 "PROTO=UDPLITE " */
 		nf_log_buf_add(m, "PROTO=UDPLITE ");
 
 	if (fragment)
@@ -282,19 +284,18 @@ static noinline_for_stack int nf_log_dump_udp_header(struct nf_log_buf *m,
 	}
 
 	/* Max length: 20 "SPT=65535 DPT=65535 " */
-	nf_log_buf_add(m, "SPT=%u DPT=%u LEN=%u ", ntohs(uh->source),
-		       ntohs(uh->dest), ntohs(uh->len));
+	nf_log_buf_add(m, "SPT=%u DPT=%u LEN=%u ",
+		       ntohs(uh->source), ntohs(uh->dest), ntohs(uh->len));
 
 out:
 	return 0;
 }
 
 /* One level of recursion won't kill us */
-static noinline_for_stack void dump_ipv4_packet(struct net *net,
-						struct nf_log_buf *m,
-						const struct nf_loginfo *info,
-						const struct sk_buff *skb,
-						unsigned int iphoff)
+static noinline_for_stack void
+dump_ipv4_packet(struct net *net, struct nf_log_buf *m,
+		 const struct nf_loginfo *info,
+		 const struct sk_buff *skb, unsigned int iphoff)
 {
 	const struct iphdr *ih;
 	unsigned int logflags;
@@ -334,14 +335,15 @@ static noinline_for_stack void dump_ipv4_packet(struct net *net,
 	if (ntohs(ih->frag_off) & IP_OFFSET)
 		nf_log_buf_add(m, "FRAG:%u ", ntohs(ih->frag_off) & IP_OFFSET);
 
-	if ((logflags & NF_LOG_IPOPT) && ih->ihl * 4 > sizeof(struct iphdr)) {
+	if ((logflags & NF_LOG_IPOPT) &&
+	    ih->ihl * 4 > sizeof(struct iphdr)) {
 		unsigned char _opt[4 * 15 - sizeof(struct iphdr)];
 		const unsigned char *op;
 		unsigned int i, optsize;
 
 		optsize = ih->ihl * 4 - sizeof(struct iphdr);
-		op = skb_header_pointer(skb, iphoff + sizeof(_iph), optsize,
-					_opt);
+		op = skb_header_pointer(skb, iphoff + sizeof(_iph),
+					optsize, _opt);
 		if (!op) {
 			nf_log_buf_add(m, "TRUNCATED");
 			return;
@@ -380,8 +382,7 @@ static noinline_for_stack void dump_ipv4_packet(struct net *net,
 			[ICMP_TIMESTAMP] = 20,
 			[ICMP_TIMESTAMPREPLY] = 20,
 			[ICMP_ADDRESS] = 12,
-			[ICMP_ADDRESSREPLY] = 12
-		};
+			[ICMP_ADDRESSREPLY] = 12 };
 		const struct icmphdr *ich;
 		struct icmphdr _icmph;
 
@@ -404,7 +405,8 @@ static noinline_for_stack void dump_ipv4_packet(struct net *net,
 		nf_log_buf_add(m, "TYPE=%u CODE=%u ", ich->type, ich->code);
 
 		/* Max length: 25 "INCOMPLETE [65535 bytes] " */
-		if (ich->type <= NR_ICMP_TYPES && required_len[ich->type] &&
+		if (ich->type <= NR_ICMP_TYPES &&
+		    required_len[ich->type] &&
 		    skb->len - iphoff - ih->ihl * 4 < required_len[ich->type]) {
 			nf_log_buf_add(m, "INCOMPLETE [%u bytes] ",
 				       skb->len - iphoff - ih->ihl * 4);
@@ -436,8 +438,7 @@ static noinline_for_stack void dump_ipv4_packet(struct net *net,
 			if (!iphoff) { /* Only recurse once. */
 				nf_log_buf_add(m, "[");
 				dump_ipv4_packet(net, m, info, skb,
-						 iphoff + ih->ihl * 4 +
-							 sizeof(_icmph));
+						 iphoff + ih->ihl * 4 + sizeof(_icmph));
 				nf_log_buf_add(m, "] ");
 			}
 
@@ -525,9 +526,11 @@ static noinline_for_stack void dump_ipv4_packet(struct net *net,
 	/* maxlen = 230+   91  + 230 + 252 = 803 */
 }
 
-static noinline_for_stack void dump_ipv6_packet(
-	struct net *net, struct nf_log_buf *m, const struct nf_loginfo *info,
-	const struct sk_buff *skb, unsigned int ip6hoff, int recurse)
+static noinline_for_stack void
+dump_ipv6_packet(struct net *net, struct nf_log_buf *m,
+		 const struct nf_loginfo *info,
+		 const struct sk_buff *skb, unsigned int ip6hoff,
+		 int recurse)
 {
 	const struct ipv6hdr *ih;
 	unsigned int hdrlen = 0;
@@ -554,7 +557,8 @@ static noinline_for_stack void dump_ipv6_packet(
 	/* Max length: 44 "LEN=65535 TC=255 HOPLIMIT=255 FLOWLBL=FFFFF " */
 	nf_log_buf_add(m, "LEN=%zu TC=%u HOPLIMIT=%u FLOWLBL=%u ",
 		       ntohs(ih->payload_len) + sizeof(struct ipv6hdr),
-		       (ntohl(*(__be32 *)ih) & 0x0ff00000) >> 20, ih->hop_limit,
+		       (ntohl(*(__be32 *)ih) & 0x0ff00000) >> 20,
+		       ih->hop_limit,
 		       (ntohl(*(__be32 *)ih) & 0x000fffff));
 
 	fragment = 0;
@@ -631,9 +635,8 @@ static noinline_for_stack void dump_ipv6_packet(
 							&_ahdr);
 				if (!ah) {
 					/* Max length: 26 "INCOMPLETE [65535 bytes] )" */
-					nf_log_buf_add(
-						m, "INCOMPLETE [%u bytes] )",
-						skb->len - ptr);
+					nf_log_buf_add(m, "INCOMPLETE [%u bytes] )",
+						       skb->len - ptr);
 					return;
 				}
 
@@ -660,14 +663,14 @@ static noinline_for_stack void dump_ipv6_packet(
 				eh = skb_header_pointer(skb, ptr, sizeof(_esph),
 							&_esph);
 				if (!eh) {
-					nf_log_buf_add(
-						m, "INCOMPLETE [%u bytes] )",
-						skb->len - ptr);
+					nf_log_buf_add(m, "INCOMPLETE [%u bytes] )",
+						       skb->len - ptr);
 					return;
 				}
 
 				/* Length: 16 "SPI=0xF1234567 )" */
-				nf_log_buf_add(m, "SPI=0x%x )", ntohl(eh->spi));
+				nf_log_buf_add(m, "SPI=0x%x )",
+					       ntohl(eh->spi));
 			}
 			return;
 		default:
@@ -684,8 +687,8 @@ static noinline_for_stack void dump_ipv6_packet(
 
 	switch (currenthdr) {
 	case IPPROTO_TCP:
-		if (nf_log_dump_tcp_header(m, skb, currenthdr, fragment, ptr,
-					   logflags))
+		if (nf_log_dump_tcp_header(m, skb, currenthdr, fragment,
+					   ptr, logflags))
 			return;
 		break;
 	case IPPROTO_UDP:
@@ -712,8 +715,8 @@ static noinline_for_stack void dump_ipv6_packet(
 		}
 
 		/* Max length: 18 "TYPE=255 CODE=255 " */
-		nf_log_buf_add(m, "TYPE=%u CODE=%u ", ic->icmp6_type,
-			       ic->icmp6_code);
+		nf_log_buf_add(m, "TYPE=%u CODE=%u ",
+			       ic->icmp6_type, ic->icmp6_code);
 
 		switch (ic->icmp6_type) {
 		case ICMPV6_ECHO_REQUEST:
@@ -793,7 +796,8 @@ static void dump_ipv4_mac_header(struct nf_log_buf *m,
 
 fallback:
 	nf_log_buf_add(m, "MAC=");
-	if (dev->hard_header_len && skb->mac_header != skb->network_header) {
+	if (dev->hard_header_len &&
+	    skb->mac_header != skb->network_header) {
 		const unsigned char *p = skb_mac_header(skb);
 		unsigned int i;
 
@@ -804,8 +808,8 @@ fallback:
 	nf_log_buf_add(m, " ");
 }
 
-static void nf_log_ip_packet(struct net *net, u_int8_t pf, unsigned int hooknum,
-			     const struct sk_buff *skb,
+static void nf_log_ip_packet(struct net *net, u_int8_t pf,
+			     unsigned int hooknum, const struct sk_buff *skb,
 			     const struct net_device *in,
 			     const struct net_device *out,
 			     const struct nf_loginfo *loginfo,
@@ -822,8 +826,8 @@ static void nf_log_ip_packet(struct net *net, u_int8_t pf, unsigned int hooknum,
 	if (!loginfo)
 		loginfo = &default_loginfo;
 
-	nf_log_dump_packet_common(m, pf, hooknum, skb, in, out, loginfo,
-				  prefix);
+	nf_log_dump_packet_common(m, pf, hooknum, skb, in,
+				  out, loginfo, prefix);
 
 	if (in)
 		dump_ipv4_mac_header(m, loginfo, skb);
@@ -834,10 +838,10 @@ static void nf_log_ip_packet(struct net *net, u_int8_t pf, unsigned int hooknum,
 }
 
 static struct nf_logger nf_ip_logger __read_mostly = {
-	.name = "nf_log_ipv4", // 这是模块名
-	.type = NF_LOG_TYPE_LOG,
-	.logfn = nf_log_ip_packet,
-	.me = THIS_MODULE,
+	.name		= "nf_log_ipv4",
+	.type		= NF_LOG_TYPE_LOG,
+	.logfn		= nf_log_ip_packet,
+	.me		= THIS_MODULE,
 };
 
 static void dump_ipv6_mac_header(struct nf_log_buf *m,
@@ -867,7 +871,8 @@ static void dump_ipv6_mac_header(struct nf_log_buf *m,
 
 fallback:
 	nf_log_buf_add(m, "MAC=");
-	if (dev->hard_header_len && skb->mac_header != skb->network_header) {
+	if (dev->hard_header_len &&
+	    skb->mac_header != skb->network_header) {
 		const unsigned char *p = skb_mac_header(skb);
 		unsigned int len = dev->hard_header_len;
 		unsigned int i;
@@ -915,8 +920,8 @@ static void nf_log_ip6_packet(struct net *net, u_int8_t pf,
 	if (!loginfo)
 		loginfo = &default_loginfo;
 
-	nf_log_dump_packet_common(m, pf, hooknum, skb, in, out, loginfo,
-				  prefix);
+	nf_log_dump_packet_common(m, pf, hooknum, skb, in, out,
+				  loginfo, prefix);
 
 	if (in)
 		dump_ipv6_mac_header(m, loginfo, skb);
@@ -927,10 +932,10 @@ static void nf_log_ip6_packet(struct net *net, u_int8_t pf,
 }
 
 static struct nf_logger nf_ip6_logger __read_mostly = {
-	.name = "nf_log_ipv6",
-	.type = NF_LOG_TYPE_LOG,
-	.logfn = nf_log_ip6_packet,
-	.me = THIS_MODULE,
+	.name		= "nf_log_ipv6",
+	.type		= NF_LOG_TYPE_LOG,
+	.logfn		= nf_log_ip6_packet,
+	.me		= THIS_MODULE,
 };
 
 static void nf_log_netdev_packet(struct net *net, u_int8_t pf,
@@ -943,33 +948,30 @@ static void nf_log_netdev_packet(struct net *net, u_int8_t pf,
 {
 	switch (skb->protocol) {
 	case htons(ETH_P_IP):
-		nf_log_ip_packet(net, pf, hooknum, skb, in, out, loginfo,
-				 prefix);
+		nf_log_ip_packet(net, pf, hooknum, skb, in, out, loginfo, prefix);
 		break;
 	case htons(ETH_P_IPV6):
-		nf_log_ip6_packet(net, pf, hooknum, skb, in, out, loginfo,
-				  prefix);
+		nf_log_ip6_packet(net, pf, hooknum, skb, in, out, loginfo, prefix);
 		break;
 	case htons(ETH_P_ARP):
 	case htons(ETH_P_RARP):
-		nf_log_arp_packet(net, pf, hooknum, skb, in, out, loginfo,
-				  prefix);
+		nf_log_arp_packet(net, pf, hooknum, skb, in, out, loginfo, prefix);
 		break;
 	}
 }
 
 static struct nf_logger nf_netdev_logger __read_mostly = {
-	.name = "nf_log_netdev",
-	.type = NF_LOG_TYPE_LOG,
-	.logfn = nf_log_netdev_packet,
-	.me = THIS_MODULE,
+	.name		= "nf_log_netdev",
+	.type		= NF_LOG_TYPE_LOG,
+	.logfn		= nf_log_netdev_packet,
+	.me		= THIS_MODULE,
 };
 
 static struct nf_logger nf_bridge_logger __read_mostly = {
-	.name = "nf_log_bridge",
-	.type = NF_LOG_TYPE_LOG,
-	.logfn = nf_log_netdev_packet,
-	.me = THIS_MODULE,
+	.name		= "nf_log_bridge",
+	.type		= NF_LOG_TYPE_LOG,
+	.logfn		= nf_log_netdev_packet,
+	.me		= THIS_MODULE,
 };
 
 static int __net_init nf_log_syslog_net_init(struct net *net)

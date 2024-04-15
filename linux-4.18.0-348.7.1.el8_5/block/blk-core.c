@@ -950,10 +950,7 @@ static blk_qc_t do_make_request(struct bio *bio)
 	if (queue_is_mq(q))
 		// 实际是这个函数 blk_mq_make_request，构造一个 multi-queue request
 		// 将 bio 插入请求队列中
-		// make_requst_fn = blk_mq_make_request
 		return q->make_request_fn(q, bio);
-	ret = q->make_request_fn(q, bio);
-	blk_queue_exit(q);
 	return ret;
 }
 
@@ -1123,15 +1120,13 @@ blk_qc_t submit_bio(struct bio *bio)
 			       bio_devname(bio, b), count);
 		}
 	}
-	// 通用块层的主要入口
+
 	return generic_make_request(bio);
 }
 EXPORT_SYMBOL(submit_bio);
 
-/**/**
- * @brief
- *
- */
+/**
+ * blk_cloned_rq_check_limits - Helper function to check a cloned request
  *                              for the new queue limits
  * @q:  the queue
  * @rq: the request being checked

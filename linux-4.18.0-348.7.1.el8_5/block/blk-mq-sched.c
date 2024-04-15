@@ -145,8 +145,12 @@ static int __blk_mq_do_dispatch_sched(struct blk_mq_hw_ctx *hctx)
 		budget_token = blk_mq_get_dispatch_budget(q);
 		if (budget_token < 0)
 			break;
+<<<<<<< HEAD
 		// 在这里从 io 调度中获取一个 rq，dispatch_request = dd_dispatch_request
-		rq = e->type->ops.dispatch_request(hctx);
+		== == == =
+
+>>>>>>> d415b875e94d0e8ae2831e166c7258a7f21fcfce
+				 rq = e->type->ops.dispatch_request(hctx);
 		if (!rq) {
 			blk_mq_put_dispatch_budget(q, budget_token);
 			/*
@@ -198,7 +202,6 @@ static int __blk_mq_do_dispatch_sched(struct blk_mq_hw_ctx *hctx)
 			dispatched |= blk_mq_dispatch_hctx_list(&rq_list);
 		} while (!list_empty(&rq_list));
 	} else {
-		// 在这里获取
 		dispatched = blk_mq_dispatch_rq_list(hctx, &rq_list, count);
 	}
 
@@ -295,7 +298,6 @@ static int blk_mq_do_dispatch_ctx(struct blk_mq_hw_ctx *hctx)
 static int __blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 {
 	struct request_queue *q = hctx->queue;
-	// 电梯队列
 	struct elevator_queue *e = q->elevator;
 	const bool has_sched_dispatch = e && e->type->ops.dispatch_request;
 	int ret = 0;
@@ -421,16 +423,22 @@ static bool blk_mq_attempt_merge(struct request_queue *q,
 
 bool __blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio)
 {
+<<<<<<< HEAD
 	// 得到 io 调度算法
-	struct elevator_queue *e = q->elevator;
+	== == == =
+>>>>>>> d415b875e94d0e8ae2831e166c7258a7f21fcfce
+			 struct elevator_queue *e = q->elevator;
 	struct blk_mq_ctx *ctx = blk_mq_get_ctx(q);
 	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, bio->bi_opf, ctx);
 	bool ret = false;
 	enum hctx_type type;
 
 	if (e && e->type->ops.bio_merge)
+<<<<<<< HEAD
 		// 使用 io 调度算法来进行 io 和并
-		return e->type->ops.bio_merge(hctx, bio);
+		== == == =
+>>>>>>> d415b875e94d0e8ae2831e166c7258a7f21fcfce
+				 return e->type->ops.bio_merge(hctx, bio);
 
 	type = hctx->type;
 	if ((hctx->flags & BLK_MQ_F_SHOULD_MERGE) &&
@@ -485,9 +493,7 @@ void blk_mq_sched_insert_request(struct request *rq, bool at_head,
 	struct request_queue *q = rq->q;
 	// 调度成，具体的调度算法
 	struct elevator_queue *e = q->elevator;
-	// 软件队列
 	struct blk_mq_ctx *ctx = rq->mq_ctx;
-	// 硬件队列
 	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
 
 	WARN_ON(e && (rq->tag != BLK_MQ_NO_TAG));
@@ -672,6 +678,7 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 	 * since we don't split into sync/async like the old code did.
 	 * Additionally, this is a per-hw queue depth.
 	 */
+	// Maximum number of requests in the queue
 	q->nr_requests =
 		2 * min_t(unsigned int, q->tag_set->queue_depth, BLKDEV_MAX_RQ);
 
@@ -686,8 +693,12 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 		if (ret)
 			goto err_free_tags;
 	}
+<<<<<<< HEAD
 	// 给 request 初始化一个 bio 调度算法
-	ret = e->ops.init_sched(q, e);
+	== == == =
+
+>>>>>>> d415b875e94d0e8ae2831e166c7258a7f21fcfce
+			 ret = e->ops.init_sched(q, e);
 	if (ret)
 		goto err_free_sbitmap;
 
@@ -725,11 +736,13 @@ err_free_tags:
  */
 void blk_mq_sched_free_requests(struct request_queue *q)
 {
+	// 示硬件队列，更准备的说是硬件队列上下文
 	struct blk_mq_hw_ctx *hctx;
 	int i;
-
+	// hw_ctx 代表硬件队列，每个硬件队列都有自己的 blk_mq_tags，用于管理 request
 	queue_for_each_hw_ctx (q, hctx, i) {
 		if (hctx->sched_tags)
+			// 包含了块设备的硬件配置信息，例如硬件队列数 nr_hw_queues，队列深度 queue_depth 等
 			blk_mq_free_rqs(q->tag_set, hctx->sched_tags, i);
 	}
 }

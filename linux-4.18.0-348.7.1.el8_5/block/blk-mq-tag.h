@@ -6,7 +6,8 @@
  * Tag address space map.
  */
 struct blk_mq_tags {
-	unsigned int nr_tags;
+	unsigned int
+		nr_tags; // 每个硬件队列的深度（包含预留的个数 reserved_tags）；
 	unsigned int nr_reserved_tags;
 
 	atomic_t active_queues;
@@ -14,9 +15,10 @@ struct blk_mq_tags {
 	struct sbitmap_queue RH_KABI_RENAME(bitmap_tags, __bitmap_tags);
 	struct sbitmap_queue RH_KABI_RENAME(breserved_tags, __breserved_tags);
 
-	struct request **rqs;
-	struct request **static_rqs;
-	struct list_head page_list;
+	struct request **rqs; // struct request *类型数组，数组长度为 nr_tags；
+	struct request **
+		static_rqs; // struct request *类型数组，数组长度为 nr_tags；数组元素在 blk_mq_alloc_rqs() 中根据硬队列深度真实分配了队列的 request；
+	struct list_head page_list; // 用于链接分配出的 page
 
 	RH_KABI_EXTEND(struct sbitmap_queue *bitmap_tags)
 	RH_KABI_EXTEND(struct sbitmap_queue *breserved_tags)
@@ -29,13 +31,12 @@ struct blk_mq_tags {
 };
 
 extern struct blk_mq_tags *blk_mq_init_tags(unsigned int nr_tags,
-					unsigned int reserved_tags,
-					int node, unsigned int flags);
+					    unsigned int reserved_tags,
+					    int node, unsigned int flags);
 extern void blk_mq_free_tags(struct blk_mq_tags *tags, unsigned int flags);
 extern int blk_mq_init_bitmaps(struct sbitmap_queue *bitmap_tags,
 			       struct sbitmap_queue *breserved_tags,
-			       unsigned int queue_depth,
-			       unsigned int reserved,
+			       unsigned int queue_depth, unsigned int reserved,
 			       int node, int alloc_policy);
 
 extern int blk_mq_init_shared_sbitmap(struct blk_mq_tag_set *set);
@@ -44,16 +45,16 @@ extern unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data);
 extern void blk_mq_put_tag(struct blk_mq_tags *tags, struct blk_mq_ctx *ctx,
 			   unsigned int tag);
 extern int blk_mq_tag_update_depth(struct blk_mq_hw_ctx *hctx,
-					struct blk_mq_tags **tags,
-					unsigned int depth, bool can_grow);
+				   struct blk_mq_tags **tags,
+				   unsigned int depth, bool can_grow);
 extern void blk_mq_tag_resize_shared_sbitmap(struct blk_mq_tag_set *set,
 					     unsigned int size);
 
 extern void blk_mq_tag_wakeup_all(struct blk_mq_tags *tags, bool);
 void blk_mq_queue_tag_busy_iter(struct request_queue *q, busy_iter_fn *fn,
-		void *priv);
+				void *priv);
 void blk_mq_all_tag_iter(struct blk_mq_tags *tags, busy_tag_iter_fn *fn,
-		void *priv);
+			 void *priv);
 
 static inline struct sbq_wait_state *bt_wait_ptr(struct sbitmap_queue *bt,
 						 struct blk_mq_hw_ctx *hctx)
@@ -64,9 +65,9 @@ static inline struct sbq_wait_state *bt_wait_ptr(struct sbitmap_queue *bt,
 }
 
 enum {
-	BLK_MQ_NO_TAG		= -1U,
-	BLK_MQ_TAG_MIN		= 1,
-	BLK_MQ_TAG_MAX		= BLK_MQ_NO_TAG - 1,
+	BLK_MQ_NO_TAG = -1U,
+	BLK_MQ_TAG_MIN = 1,
+	BLK_MQ_TAG_MAX = BLK_MQ_NO_TAG - 1,
 };
 
 extern bool __blk_mq_tag_busy(struct blk_mq_hw_ctx *);

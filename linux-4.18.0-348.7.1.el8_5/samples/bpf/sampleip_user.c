@@ -18,10 +18,10 @@
 #include "perf-sys.h"
 #include "trace_helpers.h"
 
-#define DEFAULT_FREQ 99
-#define DEFAULT_SECS 5
-#define MAX_IPS 8192
-#define PAGE_OFFSET 0xffff880000000000
+#define DEFAULT_FREQ	99
+#define DEFAULT_SECS	5
+#define MAX_IPS		8192
+#define PAGE_OFFSET	0xffff880000000000
 
 static int map_fd;
 static int nr_cpus;
@@ -39,17 +39,16 @@ static int sampling_start(int freq, struct bpf_program *prog,
 	int i, pmu_fd;
 
 	struct perf_event_attr pe_sample_attr = {
-		.type = PERF_TYPE_SOFTWARE, // 这表示内核提供的一种软件定义的事件（即使没有可用的硬件支持）。
+		.type = PERF_TYPE_SOFTWARE,
 		.freq = 1,
 		.sample_period = freq,
-		.config =
-			PERF_COUNT_SW_CPU_CLOCK, // 这将报告CPU时钟，这是每个CPU的高分辨率计时器
+		.config = PERF_COUNT_SW_CPU_CLOCK,
 		.inherit = 1,
 	};
 
 	for (i = 0; i < nr_cpus; i++) {
 		pmu_fd = sys_perf_event_open(&pe_sample_attr, -1 /* pid */, i,
-					     -1 /* group_fd */, 0 /* flags */);
+					    -1 /* group_fd */, 0 /* flags */);
 		if (pmu_fd < 0) {
 			fprintf(stderr, "ERROR: Initializing perf sampling\n");
 			return 1;
@@ -208,8 +207,8 @@ int main(int argc, char **argv)
 	signal(SIGTERM, int_exit);
 
 	/* do sampling */
-	printf("Sampling at %d Hertz for %d seconds. Ctrl-C also ends.\n", freq,
-	       secs);
+	printf("Sampling at %d Hertz for %d seconds. Ctrl-C also ends.\n",
+	       freq, secs);
 	if (sampling_start(freq, prog, links) != 0)
 		goto cleanup;
 

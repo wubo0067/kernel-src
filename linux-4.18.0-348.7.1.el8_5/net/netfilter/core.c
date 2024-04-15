@@ -41,15 +41,16 @@ EXPORT_SYMBOL(nf_hooks_needed);
 static DEFINE_MUTEX(nf_hook_mutex);
 
 /* max hooks per family/hooknum */
-#define MAX_HOOK_COUNT 1024
+#define MAX_HOOK_COUNT		1024
 
-#define nf_entry_dereference(e)                                                \
+#define nf_entry_dereference(e) \
 	rcu_dereference_protected(e, lockdep_is_held(&nf_hook_mutex))
 
 static struct nf_hook_entries *allocate_hook_entries_size(u16 num)
 {
 	struct nf_hook_entries *e;
-	size_t alloc = sizeof(*e) + sizeof(struct nf_hook_entry) * num +
+	size_t alloc = sizeof(*e) +
+		       sizeof(struct nf_hook_entry) * num +
 		       sizeof(struct nf_hook_ops *) * num +
 		       sizeof(struct nf_hook_entries_rcu_head);
 
@@ -86,7 +87,8 @@ static void nf_hook_entries_free(struct nf_hook_entries *e)
 	call_rcu(&head->head, __nf_hook_entries_free);
 }
 
-static unsigned int accept_all(void *priv, struct sk_buff *skb,
+static unsigned int accept_all(void *priv,
+			       struct sk_buff *skb,
 			       const struct nf_hook_state *state)
 {
 	return NF_ACCEPT; /* ACCEPT makes nf_hook_slow call next hook */
@@ -98,8 +100,8 @@ static const struct nf_hook_ops dummy_ops = {
 };
 
 static struct nf_hook_entries *
-	nf_hook_entries_grow(const struct nf_hook_entries *old,
-			     const struct nf_hook_ops *reg)
+nf_hook_entries_grow(const struct nf_hook_entries *old,
+		     const struct nf_hook_ops *reg)
 {
 	unsigned int i, alloc_entries, nhooks, old_entries;
 	struct nf_hook_ops **orig_ops = NULL;
@@ -180,7 +182,7 @@ static void hooks_validate(const struct nf_hook_entries *hooks)
 }
 
 int nf_hook_entries_insert_raw(struct nf_hook_entries __rcu **pp,
-			       const struct nf_hook_ops *reg)
+				const struct nf_hook_ops *reg)
 {
 	struct nf_hook_entries *new_hooks;
 	struct nf_hook_entries *p;
@@ -260,11 +262,9 @@ out_assign:
 	return old;
 }
 
-// 返回一个链的对象，pf是协议类型，例如NFPROTO_IPV4
-static struct nf_hook_entries __rcu **nf_hook_entry_head(struct net *net,
-							 int pf,
-							 unsigned int hooknum,
-							 struct net_device *dev)
+static struct nf_hook_entries __rcu **
+nf_hook_entry_head(struct net *net, int pf, unsigned int hooknum,
+		   struct net_device *dev)
 {
 	switch (pf) {
 	case NFPROTO_NETDEV:
@@ -310,7 +310,6 @@ static struct nf_hook_entries __rcu **nf_hook_entry_head(struct net *net,
 	return NULL;
 }
 
-// 注册一个nf_hook_entry
 static int __nf_register_net_hook(struct net *net, int pf,
 				  const struct nf_hook_ops *reg)
 {
@@ -322,8 +321,8 @@ static int __nf_register_net_hook(struct net *net, int pf,
 		if (reg->hooknum == NF_NETDEV_INGRESS)
 			return -EOPNOTSUPP;
 #endif
-		if (reg->hooknum != NF_NETDEV_INGRESS || !reg->dev ||
-		    dev_net(reg->dev) != net)
+		if (reg->hooknum != NF_NETDEV_INGRESS ||
+		    !reg->dev || dev_net(reg->dev) != net)
 			return -EINVAL;
 	}
 
@@ -446,7 +445,6 @@ void nf_hook_entries_delete_raw(struct nf_hook_entries __rcu **pp,
 }
 EXPORT_SYMBOL_GPL(nf_hook_entries_delete_raw);
 
-// 注册hook ops
 int nf_register_net_hook(struct net *net, const struct nf_hook_ops *reg)
 {
 	int err;
@@ -537,6 +535,7 @@ int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state,
 }
 EXPORT_SYMBOL(nf_hook_slow);
 
+
 int skb_make_writable(struct sk_buff *skb, unsigned int writable_len)
 {
 	if (writable_len > skb->len)
@@ -571,8 +570,8 @@ EXPORT_SYMBOL_GPL(nf_ct_hook);
 /* This does not belong here, but locally generated errors need it if connection
    tracking in use: without this, connection may not be in hash table, and hence
    manufactured ICMP or RST packets will not be associated with it. */
-void (*ip_ct_attach)(struct sk_buff *,
-		     const struct sk_buff *) __rcu __read_mostly;
+void (*ip_ct_attach)(struct sk_buff *, const struct sk_buff *)
+		__rcu __read_mostly;
 EXPORT_SYMBOL(ip_ct_attach);
 
 struct nf_nat_hook __rcu *nf_nat_hook __read_mostly;
@@ -621,14 +620,14 @@ EXPORT_SYMBOL(nf_ct_get_tuple_skb);
 
 /* Built-in default zone used e.g. by modules. */
 const struct nf_conntrack_zone nf_ct_zone_dflt = {
-	.id = NF_CT_DEFAULT_ZONE_ID,
-	.dir = NF_CT_DEFAULT_ZONE_DIR,
+	.id	= NF_CT_DEFAULT_ZONE_ID,
+	.dir	= NF_CT_DEFAULT_ZONE_DIR,
 };
 EXPORT_SYMBOL_GPL(nf_ct_zone_dflt);
 #endif /* CONFIG_NF_CONNTRACK */
 
-static void __net_init __netfilter_net_init(struct nf_hook_entries __rcu **e,
-					    int max)
+static void __net_init
+__netfilter_net_init(struct nf_hook_entries __rcu **e, int max)
 {
 	int h;
 
@@ -638,25 +637,21 @@ static void __net_init __netfilter_net_init(struct nf_hook_entries __rcu **e,
 
 static int __net_init netfilter_net_init(struct net *net)
 {
-	__netfilter_net_init(net->nf.hooks_ipv4,
-			     ARRAY_SIZE(net->nf.hooks_ipv4));
-	__netfilter_net_init(net->nf.hooks_ipv6,
-			     ARRAY_SIZE(net->nf.hooks_ipv6));
+	__netfilter_net_init(net->nf.hooks_ipv4, ARRAY_SIZE(net->nf.hooks_ipv4));
+	__netfilter_net_init(net->nf.hooks_ipv6, ARRAY_SIZE(net->nf.hooks_ipv6));
 #ifdef CONFIG_NETFILTER_FAMILY_ARP
 	__netfilter_net_init(net->nf.hooks_arp, ARRAY_SIZE(net->nf.hooks_arp));
 #endif
 #ifdef CONFIG_NETFILTER_FAMILY_BRIDGE
-	__netfilter_net_init(net->nf.hooks_bridge,
-			     ARRAY_SIZE(net->nf.hooks_bridge));
+	__netfilter_net_init(net->nf.hooks_bridge, ARRAY_SIZE(net->nf.hooks_bridge));
 #endif
 #if IS_ENABLED(CONFIG_DECNET)
-	__netfilter_net_init(net->nf.hooks_decnet,
-			     ARRAY_SIZE(net->nf.hooks_decnet));
+	__netfilter_net_init(net->nf.hooks_decnet, ARRAY_SIZE(net->nf.hooks_decnet));
 #endif
 
 #ifdef CONFIG_PROC_FS
-	net->nf.proc_netfilter =
-		proc_net_mkdir(net, "netfilter", net->proc_net);
+	net->nf.proc_netfilter = proc_net_mkdir(net, "netfilter",
+						net->proc_net);
 	if (!net->nf.proc_netfilter) {
 		if (!net_eq(net, &init_net))
 			pr_err("cannot create netfilter proc entry");
