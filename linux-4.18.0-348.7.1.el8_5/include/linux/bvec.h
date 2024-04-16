@@ -39,20 +39,20 @@
  * This holds because page_is_mergeable() checks the above property.
  */
 struct bio_vec {
-	struct page	*bv_page;
-	unsigned int	bv_len;
-	unsigned int	bv_offset;
+	struct page	*bv_page; // 指向段所在的页框指针
+	unsigned int	bv_len; // 段的字节长度
+	unsigned int	bv_offset; // 页框中数据的便宜量
 };
 
 struct bvec_iter {
 	sector_t		bi_sector;	/* device address in 512 byte
-						   sectors */
-	unsigned int		bi_size;	/* residual I/O count */
+						   sectors I/O 请求的块设备起始扇区(每个扇区512 字节)*/
+	unsigned int		bi_size;	/* residual I/O count 待传输的字节大小*/
 
-	unsigned int		bi_idx;		/* current index into bvl_vec */
+	unsigned int		bi_idx;		/* current index into bvl_vec bio_vec中当前索引，遍历bio_vec使用*/
 
 	unsigned int            bi_bvec_done;	/* number of bytes completed in
-						   current bvec */
+						   current bvec 当前 bio_vec中已经处理完成的字节数，比那里bio_vec使用*/
 	/*
 	 * FOR RH USE ONLY.
 	 *

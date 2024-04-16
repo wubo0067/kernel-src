@@ -136,9 +136,9 @@ struct request_aux {
  * especially blk_mq_rq_ctx_init() to take care of the added fields.
  */
 struct request {
-	struct request_queue *q;
-	struct blk_mq_ctx *mq_ctx;
-	struct blk_mq_hw_ctx *mq_hctx;
+	struct request_queue *q; // 归属的 request_queue
+	struct blk_mq_ctx *mq_ctx; // 这个请求放到的软件队列
+	struct blk_mq_hw_ctx *mq_hctx; // 这个请求发送到的硬件队列
 
 	unsigned int cmd_flags; /* op and common flags */
 	req_flags_t rq_flags;
@@ -146,14 +146,14 @@ struct request {
 	int internal_tag;
 
 	/* the following two fields are internal, NEVER access directly */
-	unsigned int __data_len; /* total data len */
+	unsigned int __data_len; /* total data len */ // 当前 request 读取或写入到块设备的字节大小
 	int tag;
-	sector_t __sector; /* sector cursor */
+	sector_t __sector; /* sector cursor */ // 当前 request 读取或写入到块设备的起始扇区，每个扇区 512 字节
 
-	struct bio *bio;
-	struct bio *biotail;
+	struct bio *bio; // 组成这个 request 的 bio 链表
+	struct bio *biotail; // 这个链表的最后一个 bio
 
-	struct list_head queuelist;
+	struct list_head queuelist; // 双向链表，用于挂载到 request_queue 的 request_list 链表上
 
 	/*
 	 * The hash is used inside the scheduler, and killed once the
@@ -425,17 +425,17 @@ struct request_queue {
 	make_request_fn *make_request_fn;
 	dma_drain_needed_fn *dma_drain_needed;
 
-	const struct blk_mq_ops *mq_ops; // scsi_mq_ops_no_commit 会初始化这个变量
+	const struct blk_mq_ops *mq_ops; // scsi_mq_ops/scsi_mq_ops_no_commit 会初始化这个变量，块设备驱动 mq 的操作集合，用于抽象快设备驱动的行为
 
 	/* sw queues */
 	struct blk_mq_ctx __percpu	*queue_ctx; // 软件队列，一个等待发送到硬件队列的请求队列，按 cpu core 数量
-	RH_KABI_DEPRECATE(unsigned int,            nr_queues)
+	RH_KABI_DEPRECATE(unsigned int,            nr_queues) // 软件队列的数量，对应 cpu core 的数量
 
 	unsigned int		queue_depth;
 
 	/* hw dispatch queues */
-	struct blk_mq_hw_ctx	**queue_hw_ctx; // 硬件队列
-	unsigned int		nr_hw_queues;
+	struct blk_mq_hw_ctx	**queue_hw_ctx; // 块硬件队列数组
+	unsigned int		nr_hw_queues; // 块设备硬件队列的数量
 
 	struct backing_dev_info	*backing_dev_info;
 
@@ -585,7 +585,7 @@ struct request_queue {
 	struct bio_set bio_split;
 
 #ifdef CONFIG_BLK_DEBUG_FS
-	struct dentry *debugfs_dir;
+	struct dentry *debugfs_dir; // 通过/sys/kernel/debug/block/xxx/可以查看块设备的信息
 	struct dentry *sched_debugfs_dir;
 #endif
 

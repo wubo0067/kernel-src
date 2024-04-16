@@ -272,6 +272,7 @@ static inline bool blk_mq_need_time_stamp(struct request *rq)
 	return (rq->rq_flags & (RQF_IO_STAT | RQF_STATS)) || rq->q->elevator;
 }
 
+// 对新分配的 request 进行初始化，赋值软件队列、起始时间等
 static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 					  unsigned int tag, u64 alloc_time_ns)
 {
@@ -288,11 +289,8 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 
 	/* csd/requeue_work/fifo_time is initialized before use */
 	rq->q = data->q;
-<<<<<<< HEAD
 	// 这都是从 request_queue 中选出合适软硬队列
-	== == == =
->>>>>>> d415b875e94d0e8ae2831e166c7258a7f21fcfce
-			 rq->mq_ctx = data->ctx;
+	rq->mq_ctx = data->ctx;
 	rq->mq_hctx = data->hctx;
 	rq->rq_flags = 0;
 	rq->cmd_flags = data->cmd_flags;
@@ -384,6 +382,7 @@ retry:
 	 * case just retry the hctx assignment and tag allocation as CPU hotplug
 	 * should have migrated us to an online CPU by now.
 	 */
+	// 从硬件队列的 blk_mq_tags 结构体的 tags->bitmap_tags 或者 tags->breserved_tags 分配一个空闲的 tag，一个 request 必须分配一个空闲的 tag 才能 I/O 传输
 	tag = blk_mq_get_tag(data);
 	if (tag == BLK_MQ_NO_TAG) {
 		if (data->flags & BLK_MQ_REQ_NOWAIT)
@@ -1712,7 +1711,7 @@ void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
 	 * quiesced.
 	 */
 	hctx_lock(hctx, &srcu_idx);
-	need_run = !blk_queue_quiesced(hctx->queue) &&
+	need_run = !blk_queue_quiesced(hctx->queue) && // 有 request 需要传输
 		   blk_mq_hctx_has_pending(hctx);
 	hctx_unlock(hctx, srcu_idx);
 
@@ -3193,7 +3192,7 @@ EXPORT_SYMBOL(blk_mq_init_queue);
 
 /*
  * Helper for setting up a queue with mq ops, given queue depth, and
- * the passed in mq ops flags.
+ * the passed in mq ops flags. 初始化一个请求队列
  */
 struct request_queue *blk_mq_init_sq_queue(struct blk_mq_tag_set *set,
 					   const struct blk_mq_ops *ops,

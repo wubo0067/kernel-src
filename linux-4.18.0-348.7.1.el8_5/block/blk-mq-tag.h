@@ -3,12 +3,13 @@
 #define INT_BLK_MQ_TAG_H
 
 /*
- * Tag address space map.
+ * Tag address space map. 管理struct request的分配，与硬件队列blk_mq_hw_ctx对应。
  */
 struct blk_mq_tags {
 	unsigned int
 		nr_tags; // 每个硬件队列的深度（包含预留的个数 reserved_tags）；
-	unsigned int nr_reserved_tags;
+		// 这个硬件队列最多包含 nr_tags 个 request，这些 request 是通过 blk_mq_alloc_rq() 分配的；保存在 static_rqs 数组中
+	unsigned int nr_reserved_tags; // 每个硬件队列预留的 tag 个数，static_rqs[0~ (nr_reserved_tags-1]] 这 nr_reserved_tags 个 request
 
 	atomic_t active_queues;
 
@@ -20,7 +21,11 @@ struct blk_mq_tags {
 		static_rqs; // struct request *类型数组，数组长度为 nr_tags；数组元素在 blk_mq_alloc_rqs() 中根据硬队列深度真实分配了队列的 request；
 	struct list_head page_list; // 用于链接分配出的 page
 
+	// tag 的位图；每个 bit 代表一个 tag 标记，用于标示硬件队列中的 request；1 位已分配，0 为为分配；
+	// bitmap_tags 管理 static_rqs[nr_reserved_tags ~ nr_tags] 这 nr_tags- nr_reserved_tags 个 request；
 	RH_KABI_EXTEND(struct sbitmap_queue *bitmap_tags)
+	// 保留 tag 的位图，每个 bit 代表一个 tag 标记，用于标示硬件队列中的 request；1 位已分配，0 为为分配；
+	// breserved_tags 管理 static_rqs[0~ (nr_reserved_tags-1]] 这 nr_reserved_tags 个 request
 	RH_KABI_EXTEND(struct sbitmap_queue *breserved_tags)
 
 	/*

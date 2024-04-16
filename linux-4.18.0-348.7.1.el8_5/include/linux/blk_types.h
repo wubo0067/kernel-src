@@ -174,15 +174,16 @@ static inline void bio_issue_init(struct bio_issue *issue,
 /*
  * main unit of I/O for the block layer and lower layers (ie drivers and
  * stacking drivers)
+ * 记录了一次i/o操作所必须的相关信息，用于I/O操作的数据缓存位置，I/O操作的块设备起始扇区，是读操作还是写操作等等
  */
 struct bio {
-	struct bio		*bi_next;	/* request queue link */
-	struct gendisk		*bi_disk;
-	unsigned int		bi_opf;		/* bottom bits req flags,
+	struct bio		*bi_next;	/* request queue link，指向链表中下一个bio */
+	struct gendisk		*bi_disk; // 当前 bio 发往的磁盘
+	unsigned int		bi_opf;		/* bottom bits req flags, 低24位为请求标志位，高8位为请求操作位
 						 * top bits REQ_OP. Use
 						 * accessors.
 						 */
-	unsigned short		bi_flags;	/* status, etc and bvec pool number */
+	unsigned short		bi_flags;	/* status, etc and bvec pool number bio状态等信息 */
 	unsigned short		bi_ioprio;
 	unsigned short		bi_write_hint;
 	blk_status_t		bi_status;
@@ -203,9 +204,9 @@ struct bio {
 	struct bvec_iter	bi_iter;
 
 	atomic_t		__bi_remaining;
-	bio_end_io_t		*bi_end_io;
+	bio_end_io_t		*bi_end_io; // bio 的 I/O 操作结束时调用的函数，关注这里很重要
 
-	void			*bi_private;
+	void			*bi_private; // 通用块层和块设备驱动程序的 I/O 完成方法使用的指针
 #ifdef CONFIG_BLK_CGROUP
 	/*
 	 * Represents the association of the css and request_queue for the bio.
@@ -222,7 +223,7 @@ struct bio {
 #endif
 	};
 
-	unsigned short		bi_vcnt;	/* how many bio_vec's */
+	unsigned short		bi_vcnt;	/* how many bio_vec's  bio对象包含bio_vec对象的数目*/
 
 	/*
 	 * Everything starting with bi_max_vecs will be preserved by bio_reset()
@@ -232,9 +233,9 @@ struct bio {
 
 	atomic_t		__bi_cnt;	/* pin count */
 
-	struct bio_vec		*bi_io_vec;	/* the actual vec list */
+	struct bio_vec		*bi_io_vec;	/* the actual vec list，存放段的数组，bio中每个段由一个bio_vec来描述 */
 
-	struct bio_set		*bi_pool;
+	struct bio_set		*bi_pool; // 备用的 bio 内存池
 
 	RH_KABI_USE(1, u64	bi_iocost_cost)
 	RH_KABI_RESERVE(2)
