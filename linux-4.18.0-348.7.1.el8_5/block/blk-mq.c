@@ -2913,7 +2913,7 @@ static bool __blk_mq_alloc_map_and_request(struct blk_mq_tag_set *set,
 		set, hctx_idx, set->queue_depth, set->reserved_tags, flags);
 	if (!set->tags[hctx_idx])
 		return false;
-
+	// 预分配 request
 	ret = blk_mq_alloc_rqs(set, set->tags[hctx_idx], hctx_idx,
 			       set->queue_depth);
 	if (!ret)
@@ -3534,6 +3534,7 @@ static int blk_mq_realloc_tag_set_tags(struct blk_mq_tag_set *set,
  * May fail with EINVAL for various error conditions. May adjust the
  * requested depth down, if it's too large. In that case, the set
  * value will be stored in set->queue_depth.
+ * blk_mq_alloc_tag_set 分配的不是 blk_mq_tag_set，而是为全体硬队列分配 blk_mq_tags 指针数组，每个硬队列对应一个 blk_mq_tags 指针
  */
 int blk_mq_alloc_tag_set(struct blk_mq_tag_set *set)
 {
@@ -3542,6 +3543,7 @@ int blk_mq_alloc_tag_set(struct blk_mq_tag_set *set)
 	BUILD_BUG_ON(BLK_MQ_MAX_DEPTH > 1 << BLK_MQ_UNIQUE_TAG_BITS);
 
 	if (!set->nr_hw_queues)
+		// 如果硬件队列数量为 0，则返回 -EINVAL
 		return -EINVAL;
 	if (!set->queue_depth)
 		return -EINVAL;

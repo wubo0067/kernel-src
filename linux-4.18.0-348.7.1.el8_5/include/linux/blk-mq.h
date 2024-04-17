@@ -47,7 +47,8 @@ struct blk_mq_hw_ctx {
 	wait_queue_entry_t dispatch_wait;
 	atomic_t wait_index;
 
-	struct blk_mq_tags *tags; // 这应该是 blk_mq_tag_set 中的一个，每一个硬件队列对应一个 blk_mq_tags
+	struct blk_mq_tags *
+		tags; // 这应该是 blk_mq_tag_set 中的一个，每一个硬件队列对应一个 blk_mq_tags
 	struct blk_mq_tags *
 		sched_tags; // 针对有调度的算法的硬件队列，用来保存硬队列对应的 blk_mq_tags
 	// blk_mq_tags 主要是管理 struct request 的分配，blk_mq_tags 与硬件队列 blk_mq_hw_ctx 一一对应
@@ -150,10 +151,11 @@ struct blk_mq_tag_set_aux {
  * @tag_list_lock: Serializes tag_list accesses.
  * @tag_list:	   List of the request queues that use this tag set. See also
  *		   request_queue.tag_set_list.
+ * blk_mq_alloc_tag_set 这是个全局对象
  */
 struct blk_mq_tag_set {
 	struct blk_mq_queue_map
-		map[RH_HCTX_MAX_TYPES]; // 数组下标为 cpu 编号，数组元素为 cpu 编号对应的硬件队列编号
+		map[RH_HCTX_MAX_TYPES]; // 每个数组元素代表一种硬件队列类型，主要的硬件列类型包括三种，默认模式，读模式，轮询模式
 	unsigned int nr_maps;
 	const struct blk_mq_ops *
 		ops; // 定义块设备驱动 mq 的操作集合，如果是 scsi 设备该变量会被初始化为 scsi_mq_ops/scsi_mq_ops_no_commit
@@ -161,13 +163,17 @@ struct blk_mq_tag_set {
 	unsigned int nr_hw_queues; // 硬件队列的数量
 	unsigned int queue_depth; // 硬件队列的深度，包含预留的个数 reserved_tags
 	unsigned int reserved_tags; // 每个硬件队列预留的元素个数
-	unsigned int cmd_size; // 块设备驱动为每个 request 分配的额外的空间大小，一般用于存放设备驱动 payload 数据
+	unsigned int
+		cmd_size; // 块设备驱动为每个 request 分配的额外的空间大小，一般用于存放设备驱动 payload 数据
 	int numa_node; // 块设备连接的 NUMA（Non Uniform Memory Access Architecture）节点，分配 request 内存时使用，避免远程内存访问问题
-	unsigned int timeout; // 请求处理的超时时间，单位是 jiffies，例如 ufs 默认是 30s
+	unsigned int
+		timeout; // 请求处理的超时时间，单位是 jiffies，例如 ufs 默认是 30s
 	unsigned int flags;
 	void *driver_data;
 
-	struct blk_mq_tags **tags; // 每个硬件队列都有一个 blk_mq_tags 结构体，一共具有 nr_hw_queues 个元素
+	struct blk_mq_tags **
+		tags; // 每个硬件队列都有一个 blk_mq_tags 结构体，一共具有 nr_hw_queues 个元素
+	// blk_mq_realloc_tag_set_tags 这个函数分配的
 
 	struct mutex tag_list_lock; // 互斥锁，用于同步访问 tag_list
 	struct list_head tag_list;

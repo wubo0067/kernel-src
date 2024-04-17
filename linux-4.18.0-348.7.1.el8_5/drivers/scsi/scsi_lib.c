@@ -1879,6 +1879,7 @@ static const struct blk_mq_ops scsi_mq_ops = {
 
 struct request_queue *scsi_mq_alloc_queue(struct scsi_device *sdev)
 {
+	// scsi 设备驱动初始化时，调用 blk_mq_init_queue 来初始化 request_queue
 	sdev->request_queue = blk_mq_init_queue(&sdev->host->tag_set);
 	if (IS_ERR(sdev->request_queue))
 		return NULL;
