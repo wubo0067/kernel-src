@@ -2505,9 +2505,11 @@ int blk_mq_alloc_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
 	 * rq_size is the size of the request plus driver payload, rounded
 	 * to the cacheline size
 	 */
+	// 3dccdf53c2f38399b11085ded4447ce1467f006c 这个 commit 修改了 cmd_size 的大小
 	rq_size = round_up(sizeof(struct request_aux) + sizeof(struct request) +
 				   set->cmd_size,
 			   cache_line_size());
+	// 每个 rq 的大小乘以硬件队列深度
 	left = rq_size * depth;
 	// 根据队列深度，/sys/block/<块设备>/queue/nr_requests
 	for (i = 0; i < depth;) {
@@ -3419,6 +3421,7 @@ static int __blk_mq_alloc_rq_maps(struct blk_mq_tag_set *set)
 	int i;
 
 	for (i = 0; i < set->nr_hw_queues; i++) {
+		// 循环硬件队列数量
 		if (!__blk_mq_alloc_map_and_request(set, i))
 			goto out_unwind;
 		cond_resched();
@@ -3447,8 +3450,9 @@ static int blk_mq_alloc_map_and_requests(struct blk_mq_tag_set *set)
 	do {
 		err = __blk_mq_alloc_rq_maps(set);
 		if (!err)
+			// 分配成功，跳出
 			break;
-
+		// 队列深度减半
 		set->queue_depth >>= 1;
 		if (set->queue_depth < set->reserved_tags + BLK_MQ_TAG_MIN) {
 			err = -ENOMEM;
