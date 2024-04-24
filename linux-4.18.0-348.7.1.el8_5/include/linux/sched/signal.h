@@ -85,7 +85,10 @@ struct signal_struct {
 	atomic_t sigcnt;
 	atomic_t live;
 	int nr_threads;
-	struct list_head thread_head;
+	struct list_head
+		thread_head; // 是一个链表头，它被用来链接同一个进程中的所有线程。
+	// 在 Linux 内核中，一个进程可以包含多个线程，这些线程共享同一个 signal_struct 结构体。
+	// thread_head 成员的作用就是将这些线程链接在一起，形成一个线程链表。
 
 	wait_queue_head_t wait_chldexit; /* for wait4() */
 

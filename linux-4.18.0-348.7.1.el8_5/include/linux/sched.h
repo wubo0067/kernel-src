@@ -706,7 +706,7 @@ struct task_struct {
 
 	struct sched_info sched_info;
 
-	struct list_head tasks;
+	struct list_head tasks; // 全局进程链表
 #ifdef CONFIG_SMP
 	struct plist_node pushable_tasks;
 	struct rb_node pushable_dl_tasks;
@@ -891,8 +891,9 @@ struct task_struct {
 	atomic_t tick_dep_mask;
 #endif
 	/* Context switch counts: */
-	unsigned long nvcsw;
-	unsigned long nivcsw;
+	unsigned long nvcsw; // 表示进程主动切换次数
+	unsigned long
+		nivcsw; // nivcsw 表示进程被动切换次数，两者之和就是进程总的切换次数
 
 	/* Monotonic time in nsecs: */
 	u64 start_time;
@@ -938,7 +939,9 @@ struct task_struct {
 	struct sysv_shm sysvshm;
 #endif
 #ifdef CONFIG_DETECT_HUNG_TASK
-	unsigned long last_switch_count;
+	unsigned long
+		last_switch_count; // 这个变量只有两个地方修改，一是在新建进程的时候设置初始值 last_switch_count=nvcsw+nivcsw。
+	// 另一个是在 khungtaskd 中进行更新
 #endif
 	/* Filesystem information: */
 	struct fs_struct *fs;

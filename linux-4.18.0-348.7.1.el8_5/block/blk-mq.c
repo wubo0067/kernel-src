@@ -277,6 +277,7 @@ static struct request *blk_mq_rq_ctx_init(struct blk_mq_alloc_data *data,
 					  unsigned int tag, u64 alloc_time_ns)
 {
 	struct blk_mq_tags *tags = blk_mq_tags_from_data(data);
+	// 从 static_rqs 数组中根据 tag 来获取 request
 	struct request *rq = tags->static_rqs[tag];
 
 	if (data->q->elevator) {
@@ -382,7 +383,7 @@ retry:
 	 * case just retry the hctx assignment and tag allocation as CPU hotplug
 	 * should have migrated us to an online CPU by now.
 	 */
-	// 从硬件队列的 blk_mq_tags 结构体的 tags->bitmap_tags 或者 tags->breserved_tags 分配一个空闲的 tag，一个 request 必须分配一个空闲的 tag 才能 I/O 传输
+	// !! 从硬件队列的 blk_mq_tags 结构体的 tags->bitmap_tags 或者 tags->breserved_tags 分配一个空闲的 tag，一个 request 必须分配一个空闲的 tag 才能 I/O 传输
 	tag = blk_mq_get_tag(data);
 	if (tag == BLK_MQ_NO_TAG) {
 		if (data->flags & BLK_MQ_REQ_NOWAIT)
