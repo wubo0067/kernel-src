@@ -999,6 +999,7 @@ void check_preempt_curr(struct rq *rq, struct task_struct *p, int flags)
 	const struct sched_class *class;
 
 	if (p->sched_class == rq->curr->sched_class) {
+		// 如果调度器强占者的调度器和当前任务的调度器相同
 		rq->curr->sched_class->check_preempt_curr(rq, p, flags);
 	} else {
 		for_each_class(class)
@@ -3397,6 +3398,7 @@ void scheduler_tick(void)
 {
 	int cpu = smp_processor_id();
 	struct rq *rq = cpu_rq(cpu);
+	// 当前正在执行的 task_struct
 	struct task_struct *curr = rq->curr;
 	struct rq_flags rf;
 
@@ -3406,6 +3408,7 @@ void scheduler_tick(void)
 	rq_lock(rq, &rf);
 
 	update_rq_clock(rq);
+	// 调度器的 tick 函数
 	curr->sched_class->task_tick(rq, curr, 0);
 	calc_global_load_tick(rq);
 	psi_task_tick(rq);
