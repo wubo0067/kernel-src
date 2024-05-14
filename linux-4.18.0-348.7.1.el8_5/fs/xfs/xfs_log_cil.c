@@ -291,12 +291,14 @@ static void xlog_cil_insert_format_items(struct xlog *log, struct xfs_trans *tp,
 	}
 
 	list_for_each_entry (lip, &tp->t_items, li_trans) {
+		// 循环 tran 中所有的 t_item is used to collect all metadata items
 		struct xfs_log_vec *lv;
 		struct xfs_log_vec *old_lv = NULL;
 		struct xfs_log_vec *shadow;
 		bool ordered = false;
 
 		/* Skip items which aren't dirty in this transaction. */
+		// 判断在 tran 中的 xfs_log_item 是否是 dirty 的
 		if (!test_bit(XFS_LI_DIRTY, &lip->li_flags))
 			continue;
 
@@ -889,6 +891,7 @@ static void xlog_cil_push_background(struct xlog *log)
 	spin_lock(&cil->xc_push_lock);
 	if (cil->xc_push_seq < cil->xc_current_sequence) {
 		cil->xc_push_seq = cil->xc_current_sequence;
+		// 在工作队列 m_cil_workqueue 上调度一个工作，这个工作会调用 xlog_cil_push_work 函数
 		queue_work(log->l_mp->m_cil_workqueue, &cil->xc_push_work);
 	}
 
@@ -991,7 +994,7 @@ void xfs_log_commit_cil(struct xfs_mount *mp, struct xfs_trans *tp,
 	/* lock out background commit */
 	// 获取 CIL 上下文锁
 	down_read(&cil->xc_ctx_lock);
-	// 将 tp 的 items 插入到 cil 中
+	// 将 tp 的 items 插入到 cil 中，xfs_trans->t_item is used to collect all metadata items
 	xlog_cil_insert_items(log, tp);
 
 	xc_commit_lsn = cil->xc_ctx->sequence;

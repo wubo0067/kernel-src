@@ -2294,6 +2294,7 @@ int xlog_write(struct xlog *log, struct xfs_log_vec *log_vector,
 		ASSERT(flags & XLOG_COMMIT_TRANS);
 		*commit_iclog = iclog;
 	} else {
+		// 这里会将 xfslog 写入磁盘，调用 submit_bio
 		error = xlog_state_release_iclog(log, iclog);
 	}
 	spin_unlock(&log->l_icloglock);

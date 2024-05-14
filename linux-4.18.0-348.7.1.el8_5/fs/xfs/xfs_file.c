@@ -56,6 +56,7 @@ static bool xfs_is_falloc_aligned(struct xfs_inode *ip, loff_t pos,
 		}
 		mask = XFS_FSB_TO_B(mp, mp->m_sb.sb_rextsize) - 1;
 	} else {
+		// sb_blocksize = 4096
 		mask = mp->m_sb.sb_blocksize - 1;
 	}
 
@@ -240,7 +241,7 @@ STATIC ssize_t xfs_file_buffered_aio_read(struct kiocb *iocb,
 {
 	struct xfs_inode *ip = XFS_I(file_inode(iocb->ki_filp));
 	ssize_t ret;
-	// 触发一个tracepoint
+	// 触发一个 tracepoint
 	trace_xfs_file_buffered_read(ip, iov_iter_count(to), iocb->ki_pos);
 
 	if (iocb->ki_flags & IOCB_NOWAIT) {
@@ -265,7 +266,7 @@ STATIC ssize_t xfs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
-	// 判断inode是否是DAX模式
+	// 判断 inode 是否是 DAX 模式
 	if (IS_DAX(inode))
 		ret = xfs_file_dax_read(iocb, to);
 	else if (iocb->ki_flags & IOCB_DIRECT)
