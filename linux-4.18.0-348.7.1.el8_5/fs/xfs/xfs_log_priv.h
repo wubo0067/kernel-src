@@ -556,11 +556,15 @@ static inline void xlog_cil_force(struct xlog *log)
 static inline void xlog_wait(struct wait_queue_head *wq, struct spinlock *lock)
 	__releases(lock)
 {
+	// wait_event 应该是封装了下面的方法
+	// 创建一个等待队列项
 	DECLARE_WAITQUEUE(wait, current);
-
+	// 把等待项加入等待队列中，
 	add_wait_queue_exclusive(wq, &wait);
+	// 不被信号中断
 	__set_current_state(TASK_UNINTERRUPTIBLE);
 	spin_unlock(lock);
+	// 让出 cpu
 	schedule();
 	remove_wait_queue(wq, &wait);
 }

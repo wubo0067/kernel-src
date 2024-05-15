@@ -417,7 +417,7 @@ static bool __xlog_state_release_iclog(struct xlog *log,
 	if (iclog->ic_state == XLOG_STATE_WANT_SYNC) {
 		/* update tail before writing to iclog */
 		xfs_lsn_t tail_lsn = xlog_assign_tail_lsn(log->l_mp);
-
+		// 开始写入 iclog
 		iclog->ic_state = XLOG_STATE_SYNCING;
 		iclog->ic_header.h_tail_lsn = cpu_to_be64(tail_lsn);
 		xlog_verify_tail_lsn(log, iclog, tail_lsn);
@@ -1003,6 +1003,7 @@ xfs_lsn_t xlog_assign_tail_lsn_locked(struct xfs_mount *mp)
 	 * To make sure we always have a valid LSN for the log tail we keep
 	 * track of the last LSN which was committed in log->l_last_sync_lsn,
 	 * and use that when the AIL was empty.
+	 * 遍历 AIL 链表，找到最小的 LSN
 	 */
 	lip = xfs_ail_min(mp->m_ail);
 	if (lip)
@@ -1095,7 +1096,7 @@ static void xlog_ioend_work(struct work_struct *work)
 		xfs_alert(log->l_mp, "log I/O error %d", error);
 		xfs_force_shutdown(log->l_mp, SHUTDOWN_LOG_IO_ERROR);
 	}
-
+	// bio 写入完成，驱动告诉 xfs in core log 写入磁盘了
 	xlog_state_done_syncing(iclog);
 	bio_uninit(&iclog->ic_bio);
 
@@ -2439,6 +2440,7 @@ static void xlog_state_set_callback(struct xlog *log,
 				    struct xlog_in_core *iclog,
 				    xfs_lsn_t header_lsn)
 {
+	// 状态从 XLOG_STATE_DONE_SYNC 切换到 XLOG_STATE_CALLBACK
 	iclog->ic_state = XLOG_STATE_CALLBACK;
 
 	ASSERT(XFS_LSN_CMP(atomic64_read(&log->l_last_sync_lsn), header_lsn) <=
@@ -2448,6 +2450,7 @@ static void xlog_state_set_callback(struct xlog *log,
 		return;
 
 	atomic64_set(&log->l_last_sync_lsn, header_lsn);
+	// cil in core log 写入磁盘后，就插入 ail 列表，同时调用 wake_up_process 唤醒 xfsalid 内核线程
 	xlog_grant_push_ail(log, 0);
 }
 
@@ -2627,6 +2630,7 @@ STATIC void xlog_state_done_syncing(struct xlog_in_core *iclog)
 	 * no iclogs should ever be attempted to be written to disk again.
 	 */
 	if (!XLOG_FORCED_SHUTDOWN(log)) {
+		// xfs 没有被强制 shutdonw，且状态是 XLOG_STATE_SYNCING，修改状态为 XLOG_STATE_DONE_SYNC
 		ASSERT(iclog->ic_state == XLOG_STATE_SYNCING);
 		iclog->ic_state = XLOG_STATE_DONE_SYNC;
 	}

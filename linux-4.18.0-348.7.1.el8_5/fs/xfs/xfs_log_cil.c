@@ -353,6 +353,7 @@ static void xlog_cil_insert_format_items(struct xlog *log, struct xfs_trans *tp,
 		ASSERT(IS_ALIGNED((unsigned long)lv->lv_buf, sizeof(uint64_t)));
 		lip->li_ops->iop_format(lip, lv);
 	insert:
+		// 在这里会给事务 xfs_log_item 的 lsn 赋值
 		xfs_cil_prepare_item(log, lv, old_lv, diff_len, diff_iovecs);
 	}
 }
@@ -626,6 +627,7 @@ static void xlog_cil_push_work(struct work_struct *work)
 	new_ctx->ticket = xlog_cil_ticket_alloc(log);
 
 	down_write(&cil->xc_ctx_lock);
+	// 拿到 cil 的上下文
 	ctx = cil->xc_ctx;
 
 	spin_lock(&cil->xc_push_lock);
@@ -713,6 +715,7 @@ static void xlog_cil_push_work(struct work_struct *work)
 	 */
 	INIT_LIST_HEAD(&new_ctx->committing);
 	INIT_LIST_HEAD(&new_ctx->busy_extents);
+	// **lsn 在这里递增，也就是提交到 cil 后 lsn 会递增
 	new_ctx->sequence = ctx->sequence + 1;
 	new_ctx->cil = cil;
 	cil->xc_ctx = new_ctx;
@@ -997,6 +1000,7 @@ void xfs_log_commit_cil(struct xfs_mount *mp, struct xfs_trans *tp,
 	// 将 tp 的 items 插入到 cil 中，xfs_trans->t_item is used to collect all metadata items
 	xlog_cil_insert_items(log, tp);
 
+	// 通过 cil 的上下文获得提交的 lsn
 	xc_commit_lsn = cil->xc_ctx->sequence;
 	if (commit_lsn)
 		*commit_lsn = xc_commit_lsn;
@@ -1030,6 +1034,7 @@ void xfs_log_commit_cil(struct xfs_mount *mp, struct xfs_trans *tp,
 	}
 
 	/* xlog_cil_push_background() releases cil->xc_ctx_lock */
+	// 触发 cil 后台任务
 	xlog_cil_push_background(log);
 }
 
