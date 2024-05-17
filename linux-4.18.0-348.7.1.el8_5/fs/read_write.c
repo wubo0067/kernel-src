@@ -375,7 +375,7 @@ int rw_verify_area(int read_write, struct file *file, const loff_t *ppos,
 	struct inode *inode;
 	loff_t pos;
 	int retval = -EINVAL;
-	// 得到inode
+	// 得到 inode
 	inode = file_inode(file);
 	if (unlikely((ssize_t)count < 0))
 		return retval;
@@ -393,12 +393,12 @@ int rw_verify_area(int read_write, struct file *file, const loff_t *ppos,
 	if (unlikely(inode->i_flctx && mandatory_lock(inode))) {
 		retval = locks_mandatory_area(inode, file, pos, pos + count - 1,
 					      read_write == READ ? F_RDLCK :
-								   F_WRLCK);
+									 F_WRLCK);
 		if (retval < 0)
 			return retval;
 	}
 	return security_file_permission(file, read_write == READ ? MAY_READ :
-								   MAY_WRITE);
+									 MAY_WRITE);
 }
 
 static ssize_t new_sync_read(struct file *filp, char __user *buf, size_t len,
@@ -427,7 +427,7 @@ ssize_t __vfs_read(struct file *file, char __user *buf, size_t count,
 	if (file->f_op->read)
 		return file->f_op->read(file, buf, count, pos);
 	else if (file->f_op->read_iter)
-		// 对于xfs，.read_iter	= xfs_file_read_iter,
+		// 对于 xfs，.read_iter	= xfs_file_read_iter,
 		return new_sync_read(file, buf, count, pos);
 	else
 		return -EINVAL;
@@ -593,7 +593,7 @@ ssize_t ksys_read(unsigned int fd, char __user *buf, size_t count)
 		loff_t pos = file_pos_read(f.file);
 		ret = vfs_read(f.file, buf, count, &pos);
 		if (ret >= 0)
-			// 读取成功，修改f_pos
+			// 读取成功，修改 f_pos
 			file_pos_write(f.file, pos);
 		fdput_pos(f);
 	}

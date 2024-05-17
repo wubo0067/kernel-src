@@ -1419,7 +1419,7 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list,
 		 */
 		if (nr_budgets)
 			nr_budgets--;
-		// 这里调用硬件驱动的操作，.queue_rq	= scsi_queue_rq,
+		// !! 这里调用硬件驱动的操作，.queue_rq	= scsi_queue_rq,
 		ret = q->mq_ops->queue_rq(hctx, &bd);
 		switch (ret) {
 		case BLK_STS_OK:
@@ -1618,24 +1618,20 @@ static void __blk_mq_delay_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async,
 		return;
 
 	if (!async && !(hctx->flags & BLK_MQ_F_BLOCKING)) {
-<<<<<<< HEAD
+		// 如果是同步派发
 		// 获得当前运行的 cpu 编号
-		== == == =
->>>>>>> d415b875e94d0e8ae2831e166c7258a7f21fcfce
-				 int cpu = get_cpu();
+		int cpu = get_cpu();
+		// 它的作用是测试指定的 CPU 是否包含在给定的 CPU 掩码中
 		if (cpumask_test_cpu(cpu, hctx->cpumask)) {
-<<<<<<< HEAD
 			// 判断硬件队列是否在改 cpu 上运行
-			== == == =
->>>>>>> d415b875e94d0e8ae2831e166c7258a7f21fcfce
-					 __blk_mq_run_hw_queue(hctx);
+			__blk_mq_run_hw_queue(hctx);
 			put_cpu();
 			return;
 		}
 
 		put_cpu();
 	}
-
+	// 如果是异步派发
 	kblockd_mod_delayed_work_on(blk_mq_hctx_next_cpu(hctx), &hctx->run_work,
 				    msecs_to_jiffies(msecs));
 }
@@ -1697,6 +1693,7 @@ static struct blk_mq_hw_ctx *blk_mq_get_sq_hctx(struct request_queue *q)
  * Check if the request queue is not in a quiesced state and if there are
  * pending requests to be sent. If this is true, run the queue to send requests
  * to hardware.
+ * 检查请求队列是否不处于静止状态，并且是否有待发送的请求。如果这是真的，那么运行队列以将请求发送到硬件
  */
 void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
 {
@@ -1735,7 +1732,9 @@ void blk_mq_run_hw_queues(struct request_queue *q, bool async)
 	if (blk_mq_has_sqsched(q))
 		sq_hctx = blk_mq_get_sq_hctx(q);
 	queue_for_each_hw_ctx (q, hctx, i) {
+		// 循环得到每个硬件队列
 		if (blk_mq_hctx_stopped(hctx))
+			// 如果硬件队列已经停止，则跳过
 			continue;
 		/*
 		 * Dispatch from this hctx either if there's no hctx preferred

@@ -577,7 +577,7 @@ static inline int mapping_writably_mapped(struct address_space *mapping)
 static inline int mapping_map_writable(struct address_space *mapping)
 {
 	return atomic_inc_unless_negative(&mapping->i_mmap_writable) ? 0 :
-								       -EPERM;
+									     -EPERM;
 }
 
 static inline void mapping_unmap_writable(struct address_space *mapping)
@@ -588,7 +588,7 @@ static inline void mapping_unmap_writable(struct address_space *mapping)
 static inline int mapping_deny_writable(struct address_space *mapping)
 {
 	return atomic_dec_unless_positive(&mapping->i_mmap_writable) ? 0 :
-								       -EBUSY;
+									     -EBUSY;
 }
 
 static inline void mapping_allow_writable(struct address_space *mapping)
@@ -650,7 +650,7 @@ struct inode {
 
 	const struct inode_operations *i_op;
 	struct super_block *i_sb;
-	struct address_space *i_mapping; // 如果是文件，其指向自己的i_data字段
+	struct address_space *i_mapping; // 如果是文件，其指向自己的 i_data 字段
 
 #ifdef CONFIG_SECURITY
 	void *i_security;
@@ -1935,7 +1935,7 @@ struct inode_operations {
 static inline ssize_t call_read_iter(struct file *file, struct kiocb *kio,
 				     struct iov_iter *iter)
 {
-	//对于xfs，.read_iter = xfs_file_read_iter,
+	//对于 xfs，.read_iter = xfs_file_read_iter,
 	return file->f_op->read_iter(kio, iter);
 }
 

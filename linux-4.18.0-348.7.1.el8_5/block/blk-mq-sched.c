@@ -145,12 +145,8 @@ static int __blk_mq_do_dispatch_sched(struct blk_mq_hw_ctx *hctx)
 		budget_token = blk_mq_get_dispatch_budget(q);
 		if (budget_token < 0)
 			break;
-<<<<<<< HEAD
 		// 在这里从 io 调度中获取一个 rq，dispatch_request = dd_dispatch_request
-		== == == =
-
->>>>>>> d415b875e94d0e8ae2831e166c7258a7f21fcfce
-				 rq = e->type->ops.dispatch_request(hctx);
+		rq = e->type->ops.dispatch_request(hctx);
 		if (!rq) {
 			blk_mq_put_dispatch_budget(q, budget_token);
 			/*
@@ -329,6 +325,7 @@ static int __blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 	 */
 	if (!list_empty(&rq_list)) {
 		blk_mq_sched_mark_restart_hctx(hctx);
+		// 如果硬件队列中的 request 不为空，那么就直接调度硬件队列
 		if (blk_mq_dispatch_rq_list(hctx, &rq_list, 0)) {
 			if (has_sched_dispatch)
 				ret = blk_mq_do_dispatch_sched(hctx);
