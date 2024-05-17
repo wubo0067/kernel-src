@@ -834,6 +834,7 @@ restart:
 	 */
 	spin_lock(&cil->xc_push_lock);
 	ctx->commit_lsn = commit_lsn;
+	// iclog 写入磁盘了，唤醒等待在 xc_commit_wait 上的写入 task
 	wake_up_all(&cil->xc_commit_wait);
 	spin_unlock(&cil->xc_push_lock);
 

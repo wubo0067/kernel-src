@@ -794,6 +794,7 @@ int xfs_alloc_file_space(struct xfs_inode *ip, xfs_off_t offset, xfs_off_t len,
 					allocatesize_fsb, alloc_type, 0, imapp,
 					&nimaps);
 		if (error)
+			// 在这里报错了
 			goto error0;
 
 		/*

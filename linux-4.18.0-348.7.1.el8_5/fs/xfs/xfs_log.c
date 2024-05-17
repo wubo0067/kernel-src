@@ -3022,7 +3022,7 @@ static int __xfs_log_force_lsn(struct xfs_mount *mp, xfs_lsn_t lsn, uint flags,
 		    (iclog->ic_prev->ic_state == XLOG_STATE_WANT_SYNC ||
 		     iclog->ic_prev->ic_state == XLOG_STATE_SYNCING)) {
 			XFS_STATS_INC(mp, xs_log_force_sleep);
-
+			// 当核心日志处于 XLOG_STATE_WANT_SYNC 或 XLOG_STATE_SYNCING 状态时，新的写入请求会被阻塞在 ic_write_wait 等待队列上。
 			xlog_wait(&iclog->ic_prev->ic_write_wait,
 				  &log->l_icloglock);
 			return -EAGAIN;
