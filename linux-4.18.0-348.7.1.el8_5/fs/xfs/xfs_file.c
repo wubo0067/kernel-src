@@ -56,6 +56,7 @@ static bool xfs_is_falloc_aligned(struct xfs_inode *ip, loff_t pos,
 		}
 		mask = XFS_FSB_TO_B(mp, mp->m_sb.sb_rextsize) - 1;
 	} else {
+		// sb_blocksize = 4096
 		mask = mp->m_sb.sb_blocksize - 1;
 	}
 

@@ -1896,8 +1896,10 @@ static inline void __blk_mq_insert_req_list(struct blk_mq_hw_ctx *hctx,
 	trace_block_rq_insert(hctx->queue, rq);
 
 	if (at_head)
+		// 将 queuelist 插入到 rq_lists[type] 链表的头部
 		list_add(&rq->queuelist, &ctx->rq_lists[type]);
 	else
+		// 将 queuelist 插入到 rq_lists[type] 链表的尾部
 		list_add_tail(&rq->queuelist, &ctx->rq_lists[type]);
 }
 
@@ -2882,6 +2884,7 @@ static void blk_mq_init_cpu_queues(struct request_queue *q,
 	unsigned int i, j;
 
 	for_each_possible_cpu (i) {
+		// 软件队列
 		struct blk_mq_ctx *__ctx = per_cpu_ptr(q->queue_ctx, i);
 		struct blk_mq_hw_ctx *hctx;
 		int k;
@@ -2900,6 +2903,7 @@ static void blk_mq_init_cpu_queues(struct request_queue *q,
 		for (j = 0; j < set->nr_maps; j++) {
 			hctx = blk_mq_map_queue_type(q, j, i);
 			if (nr_hw_queues > 1 && hctx->numa_node == NUMA_NO_NODE)
+				// 传入 cpu id 返回与该 cpu 关联的 numa 节点 id
 				hctx->numa_node = cpu_to_node(i);
 		}
 	}
@@ -3117,16 +3121,19 @@ static int blk_mq_alloc_ctxs(struct request_queue *q)
 	if (!ctxs)
 		return -ENOMEM;
 
+	// 根据 cpu 数量分配一个 struct blk_mq_ctx 数组
 	ctxs->queue_ctx = alloc_percpu(struct blk_mq_ctx);
 	if (!ctxs->queue_ctx)
 		goto fail;
 
 	for_each_possible_cpu (cpu) {
+		// 得到每个 cpu 的软件队列
 		struct blk_mq_ctx *ctx = per_cpu_ptr(ctxs->queue_ctx, cpu);
 		ctx->ctxs = ctxs;
 	}
 
 	q->mq_kobj = &ctxs->kobj;
+	// 初始化 request_queue 的软件队列
 	q->queue_ctx = ctxs->queue_ctx;
 
 	return 0;

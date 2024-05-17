@@ -291,12 +291,14 @@ static void xlog_cil_insert_format_items(struct xlog *log, struct xfs_trans *tp,
 	}
 
 	list_for_each_entry (lip, &tp->t_items, li_trans) {
+		// 循环 tran 中所有的 t_item is used to collect all metadata items
 		struct xfs_log_vec *lv;
 		struct xfs_log_vec *old_lv = NULL;
 		struct xfs_log_vec *shadow;
 		bool ordered = false;
 
 		/* Skip items which aren't dirty in this transaction. */
+		// 判断在 tran 中的 xfs_log_item 是否是 dirty 的
 		if (!test_bit(XFS_LI_DIRTY, &lip->li_flags))
 			continue;
 
@@ -351,6 +353,7 @@ static void xlog_cil_insert_format_items(struct xlog *log, struct xfs_trans *tp,
 		ASSERT(IS_ALIGNED((unsigned long)lv->lv_buf, sizeof(uint64_t)));
 		lip->li_ops->iop_format(lip, lv);
 	insert:
+		// 在这里会给事务 xfs_log_item 的 lsn 赋值
 		xfs_cil_prepare_item(log, lv, old_lv, diff_len, diff_iovecs);
 	}
 }
@@ -624,6 +627,7 @@ static void xlog_cil_push_work(struct work_struct *work)
 	new_ctx->ticket = xlog_cil_ticket_alloc(log);
 
 	down_write(&cil->xc_ctx_lock);
+	// 拿到 cil 的上下文
 	ctx = cil->xc_ctx;
 
 	spin_lock(&cil->xc_push_lock);
@@ -711,6 +715,7 @@ static void xlog_cil_push_work(struct work_struct *work)
 	 */
 	INIT_LIST_HEAD(&new_ctx->committing);
 	INIT_LIST_HEAD(&new_ctx->busy_extents);
+	// **lsn 在这里递增，也就是提交到 cil 后 lsn 会递增
 	new_ctx->sequence = ctx->sequence + 1;
 	new_ctx->cil = cil;
 	cil->xc_ctx = new_ctx;
@@ -829,6 +834,7 @@ restart:
 	 */
 	spin_lock(&cil->xc_push_lock);
 	ctx->commit_lsn = commit_lsn;
+	// iclog 写入磁盘了，唤醒等待在 xc_commit_wait 上的写入 task
 	wake_up_all(&cil->xc_commit_wait);
 	spin_unlock(&cil->xc_push_lock);
 
@@ -889,6 +895,7 @@ static void xlog_cil_push_background(struct xlog *log)
 	spin_lock(&cil->xc_push_lock);
 	if (cil->xc_push_seq < cil->xc_current_sequence) {
 		cil->xc_push_seq = cil->xc_current_sequence;
+		// 在工作队列 m_cil_workqueue 上调度一个工作，这个工作会调用 xlog_cil_push_work 函数
 		queue_work(log->l_mp->m_cil_workqueue, &cil->xc_push_work);
 	}
 
@@ -991,9 +998,10 @@ void xfs_log_commit_cil(struct xfs_mount *mp, struct xfs_trans *tp,
 	/* lock out background commit */
 	// 获取 CIL 上下文锁
 	down_read(&cil->xc_ctx_lock);
-	// 将 tp 的 items 插入到 cil 中
+	// 将 tp 的 items 插入到 cil 中，xfs_trans->t_item is used to collect all metadata items
 	xlog_cil_insert_items(log, tp);
 
+	// 通过 cil 的上下文获得提交的 lsn
 	xc_commit_lsn = cil->xc_ctx->sequence;
 	if (commit_lsn)
 		*commit_lsn = xc_commit_lsn;
@@ -1027,6 +1035,7 @@ void xfs_log_commit_cil(struct xfs_mount *mp, struct xfs_trans *tp,
 	}
 
 	/* xlog_cil_push_background() releases cil->xc_ctx_lock */
+	// 触发 cil 后台任务
 	xlog_cil_push_background(log);
 }
 

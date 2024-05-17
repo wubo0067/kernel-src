@@ -120,7 +120,7 @@ static inline bool xfs_bmap_needs_btree(struct xfs_inode *ip, int whichfork)
 
 	return whichfork != XFS_COW_FORK &&
 	       ifp->if_format == XFS_DINODE_FMT_EXTENTS &&
-	       // 如果 inode 的 extent 数量超过了最大值,
+	       // 如果 inode 的 extent 数量超过了最大值，
 	       // xfs_db, inode xxx, core.nextents
 	       ifp->if_nextents > XFS_IFORK_MAXEXT(ip, whichfork);
 }
@@ -4015,6 +4015,13 @@ static int xfs_bmapi_allocate(struct xfs_bmalloca *bma)
 		bma->minlen = 1;
 
 	if (bma->flags & XFS_BMAPI_METADATA)
+		// 在这里会调用如下堆栈
+		/*
+		 	=> xfs_alloc_read_agfl
+ 			=> xfs_alloc_fix_freelist
+ 			=> xfs_alloc_vextent
+ 			=> xfs_bmap_btalloc
+		*/
 		error = xfs_bmap_btalloc(bma);
 	else
 		error = xfs_bmap_alloc_userdata(bma);
