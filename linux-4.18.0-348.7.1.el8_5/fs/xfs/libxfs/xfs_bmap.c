@@ -1058,7 +1058,7 @@ int /* error code */
 	error = xfs_trans_reserve_quota_nblks(
 		tp, ip, blks, 0,
 		rsvd ? XFS_QMOPT_RES_REGBLKS | XFS_QMOPT_FORCE_RES :
-		       XFS_QMOPT_RES_REGBLKS);
+			     XFS_QMOPT_RES_REGBLKS);
 	if (error)
 		goto trans_cancel;
 	if (XFS_IFORK_Q(ip))
@@ -3082,7 +3082,7 @@ void xfs_bmap_adjacent(struct xfs_bmalloca *ap) /* bmap alloc argument struct */
 
 #define ISVALID(x, y)                                                          \
 	(rt ? (x) < mp->m_sb.sb_rblocks :                                      \
-	      XFS_FSB_TO_AGNO(mp, x) == XFS_FSB_TO_AGNO(mp, y) &&              \
+		    XFS_FSB_TO_AGNO(mp, x) == XFS_FSB_TO_AGNO(mp, y) &&              \
 			 XFS_FSB_TO_AGNO(mp, x) < mp->m_sb.sb_agcount &&       \
 			 XFS_FSB_TO_AGBNO(mp, x) < mp->m_sb.sb_agblocks)
 
@@ -3091,7 +3091,7 @@ void xfs_bmap_adjacent(struct xfs_bmalloca *ap) /* bmap alloc argument struct */
 	rt = XFS_IS_REALTIME_INODE(ap->ip) &&
 	     (ap->datatype & XFS_ALLOC_USERDATA);
 	fb_agno = nullfb ? NULLAGNUMBER :
-			   XFS_FSB_TO_AGNO(mp, ap->tp->t_firstblock);
+				 XFS_FSB_TO_AGNO(mp, ap->tp->t_firstblock);
 	/*
 	 * If allocating at eof, and there's a previous real block,
 	 * try to use its last block as our starting point.
@@ -3390,7 +3390,7 @@ static void xfs_bmap_btalloc_accounting(struct xfs_bmalloca *ap,
 	}
 	xfs_trans_mod_dquot_byino(ap->tp, ap->ip,
 				  ap->wasdel ? XFS_TRANS_DQ_DELBCOUNT :
-					       XFS_TRANS_DQ_BCOUNT,
+						     XFS_TRANS_DQ_BCOUNT,
 				  args->len);
 }
 
@@ -3440,7 +3440,7 @@ STATIC int xfs_bmap_btalloc(
 
 	nullfb = ap->tp->t_firstblock == NULLFSBLOCK;
 	fb_agno = nullfb ? NULLAGNUMBER :
-			   XFS_FSB_TO_AGNO(mp, ap->tp->t_firstblock);
+				 XFS_FSB_TO_AGNO(mp, ap->tp->t_firstblock);
 	if (nullfb) {
 		if ((ap->datatype & XFS_ALLOC_USERDATA) &&
 		    xfs_inode_is_filestream(ap->ip)) {
@@ -3569,7 +3569,14 @@ STATIC int xfs_bmap_btalloc(
 	args.wasdel = ap->wasdel;
 	args.resv = XFS_AG_RESV_NONE;
 	args.datatype = ap->datatype;
-
+	// 函数用于分配一个或多个虚拟扩展（extent），这是 XFS 文件系统中块分配的核心函数之一。
+	// 该函数根据指定的分配参数（如目标 AG、所需块数等）尝试分配实际的磁盘块。
+	/*
+	初始化分配环境：初始化分配请求的参数和环境，包括目标 AG、所需块数、分配策略等。
+	搜索空闲块：在指定的 AG 中搜索满足条件的空闲块。
+	执行块分配：根据搜索结果执行块分配操作，并更新相关的元数据结构。
+	返回结果：返回分配结果，包括分配的块号和状态。
+	*/
 	error = xfs_alloc_vextent(&args);
 	if (error)
 		return error;
@@ -4022,8 +4029,10 @@ static int xfs_bmapi_allocate(struct xfs_bmalloca *bma)
  			=> xfs_alloc_vextent
  			=> xfs_bmap_btalloc
 		*/
+		// xfs_bmap_btalloc 函数用于分配元数据块，元数据块包括文件系统的内部结构，如目录、索引节点、超级块等。
 		error = xfs_bmap_btalloc(bma);
 	else
+		// 则用于分配用户数据块，这些块用于存储实际文件的内容。
 		error = xfs_bmap_alloc_userdata(bma);
 	if (error || bma->blkno == NULLFSBLOCK)
 		return error;
@@ -4110,7 +4119,7 @@ STATIC int xfs_bmapi_convert_unwritten(struct xfs_bmalloca *bma,
 	}
 	mval->br_state = (mval->br_state == XFS_EXT_UNWRITTEN) ?
 				 XFS_EXT_NORM :
-				 XFS_EXT_UNWRITTEN;
+				       XFS_EXT_UNWRITTEN;
 
 	/*
 	 * Before insertion into the bmbt, zero the range being converted
@@ -5293,7 +5302,7 @@ int /* error */
 				ASSERT(end >= mod);
 				end -= mod > del.br_blockcount ?
 					       del.br_blockcount :
-					       mod;
+						     mod;
 				if (end < got.br_startoff &&
 				    !xfs_iext_prev_extent(ifp, &icur, &got)) {
 					done = true;

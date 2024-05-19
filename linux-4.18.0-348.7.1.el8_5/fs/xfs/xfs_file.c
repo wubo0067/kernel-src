@@ -268,8 +268,15 @@ STATIC ssize_t xfs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 		return -EIO;
 	// 判断 inode 是否是 DAX 模式
 	if (IS_DAX(inode))
+		// xfs_file_dax_read
+		// 这个函数用于直接访问 (Direct Access,DAX) 模式下的读取操作。
+		// DAX 模式是一种旁路页面缓存，直接从持久内存或存储设备读取数据的方式，可以提供更高的读取性能。
+		// 如果传入的 inode 标志为 DAX 模式 (通过 IS_DAX 宏检测),则调用此函数执行 DAX 读操作。
 		ret = xfs_file_dax_read(iocb, to);
 	else if (iocb->ki_flags & IOCB_DIRECT)
+		// 这个函数用于直接 I/O(Direct I/O) 模式下的异步读取。
+		// 直接 I/O 绕过了 Linux 的页面缓存，直接在用户缓冲区与存储设备之间传输数据。
+		// 如果传入的 iocb 结构体 (包含 I/O 控制块信息) 标志位设置了 IOCB_DIRECT(表示进行直接 I/O),则调用此函数执行直接 I/O 异步读操作
 		ret = xfs_file_dio_aio_read(iocb, to);
 	else
 		ret = xfs_file_buffered_aio_read(iocb, to);

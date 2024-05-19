@@ -2413,6 +2413,7 @@ int /* error */
 	ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
 
 	if (!pag->pagf_init) {
+		// radix_tree 中 pag 肯定是存在的，文件系统挂载时就会插入到 radix_tree 中
 		error = xfs_alloc_read_agf(mp, tp, args->agno, flags, &agbp);
 		if (error) {
 			/* Couldn't lock the AGF so skip this AG. */
@@ -2999,9 +3000,9 @@ int /* error */
 	}
 
 	switch (type) {
-	case XFS_ALLOCTYPE_THIS_AG:
-	case XFS_ALLOCTYPE_NEAR_BNO:
-	case XFS_ALLOCTYPE_THIS_BNO:
+	case XFS_ALLOCTYPE_THIS_AG: // 此分配类型表示分配应发生在当前分配组中
+	case XFS_ALLOCTYPE_NEAR_BNO: // 此分配类型表示分配应发生在指定块号附近
+	case XFS_ALLOCTYPE_THIS_BNO: // 此分配类型表示分配应发生在指定的块号处
 		/*
 		 * These three force us into a single a.g.
 		 */
