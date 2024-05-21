@@ -1605,7 +1605,7 @@ STATIC void xlog_write_iclog(struct xlog *log, struct xlog_in_core *iclog,
 		/* restart at logical offset zero for the remainder */
 		iclog->ic_bio.bi_iter.bi_sector = log->l_logBBstart;
 	}
-
+	// 这里将 xfslog 写入了磁盘
 	submit_bio(&iclog->ic_bio);
 }
 

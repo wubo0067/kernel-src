@@ -624,6 +624,8 @@ static void xlog_cil_push_work(struct work_struct *work)
 	xfs_lsn_t push_seq;
 
 	new_ctx = kmem_zalloc(sizeof(*new_ctx), KM_NOFS);
+	// 配一个日志票（ticket）用于 CIL（Committed Item List）的操作
+	// 该函数为即将进行的日志操作预留必要的日志空间，并初始化相关的数据结构。
 	new_ctx->ticket = xlog_cil_ticket_alloc(log);
 
 	down_write(&cil->xc_ctx_lock);
@@ -761,6 +763,7 @@ static void xlog_cil_push_work(struct work_struct *work)
 	 */
 	tic = ctx->ticket;
 	thdr.th_magic = XFS_TRANS_HEADER_MAGIC;
+	// 生成一个 checkpoint 事务
 	thdr.th_type = XFS_TRANS_CHECKPOINT;
 	thdr.th_tid = tic->t_tid;
 	thdr.th_num_items = num_iovecs;
