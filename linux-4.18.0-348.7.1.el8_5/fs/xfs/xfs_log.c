@@ -383,7 +383,7 @@ int xfs_log_reserve(struct xfs_mount *mp, int unit_bytes, int cnt,
 	*ticp = tic;
 
 	xlog_grant_push_ail(log, tic->t_cnt ? tic->t_unit_res * tic->t_cnt :
-					      tic->t_unit_res);
+						    tic->t_unit_res);
 
 	trace_xfs_log_reserve(log, tic);
 
@@ -1139,6 +1139,7 @@ STATIC void xlog_get_iclog_buffer_size(struct xfs_mount *mp, struct xlog *log)
 void xfs_log_work_queue(struct xfs_mount *mp)
 {
 	//激活一次延迟任务，l_work 每次都要 kzalloc
+	// fs.xfs.xfssyncd_centisecs = 3000，难道这里 30 秒才同步一次？
 	queue_delayed_work(mp->m_sync_workqueue, &mp->m_log->l_work,
 			   msecs_to_jiffies(xfs_syncd_centisecs * 10));
 }
@@ -1174,7 +1175,7 @@ static void xfs_log_worker(struct work_struct *work)
 	/* start pushing all the metadata that is currently dirty */
 	xfs_ail_push_all(mp->m_ail);
 
-	/* queue us up again */
+	/* queue us up again 再次触发延迟任务 */
 	xfs_log_work_queue(mp);
 }
 
@@ -1607,7 +1608,7 @@ STATIC void xlog_write_iclog(struct xlog *log, struct xlog_in_core *iclog,
 		/* restart at logical offset zero for the remainder */
 		iclog->ic_bio.bi_iter.bi_sector = log->l_logBBstart;
 	}
-
+	// 这里将 xfslog 写入了磁盘
 	submit_bio(&iclog->ic_bio);
 }
 
@@ -1864,7 +1865,7 @@ void xlog_print_tic_res(struct xfs_mount *mp, struct xlog_ticket *ticket)
 		xfs_warn(mp, "region[%u]: %s - %u bytes", i,
 			 ((r_type <= 0 || r_type > XLOG_REG_TYPE_MAX) ?
 				  "bad-rtype" :
-				  res_type_str[r_type]),
+					res_type_str[r_type]),
 			 ticket->t_res_arr[i].r_len);
 	}
 }
