@@ -31,11 +31,12 @@ STATIC struct xfs_buf *xfs_trans_buf_item_match(struct xfs_trans *tp,
 
 	for (i = 0; i < nmaps; i++)
 		len += map[i].bm_len;
-
+	// 遍历事务中的所有日志项
 	list_for_each_entry (lip, &tp->t_items, li_trans) {
 		blip = (struct xfs_buf_log_item *)lip;
 		if (blip->bli_item.li_type == XFS_LI_BUF &&
 		    blip->bli_buf->b_target == target &&
+		    // 块号是否相同
 		    XFS_BUF_ADDR(blip->bli_buf) == map[0].bm_bn &&
 		    blip->bli_buf->b_length == len) {
 			ASSERT(blip->bli_buf->b_map_count == nmaps);
@@ -67,7 +68,9 @@ STATIC void _xfs_trans_bjoin(struct xfs_trans *tp, struct xfs_buf *bp,
 	 * it doesn't have one yet, then allocate one and initialize it.
 	 * The checks to see if one is there are in xfs_buf_item_init().
 	 */
+	// 给这个 xfs_buf 初始化一个 log_item，日志项
 	xfs_buf_item_init(bp, tp->t_mountp);
+	// xfs_buf 的日志项
 	bip = bp->b_log_item;
 	ASSERT(!(bip->bli_flags & XFS_BLI_STALE));
 	ASSERT(!(bip->__bli_format.blf_flags & XFS_BLF_CANCEL));
@@ -83,6 +86,7 @@ STATIC void _xfs_trans_bjoin(struct xfs_trans *tp, struct xfs_buf *bp,
 	/*
 	 * Attach the item to the transaction so we can find it in
 	 * xfs_trans_get_buf() and friends.
+	 * // 将日志项加入到事务中
 	 */
 	xfs_trans_add_item(tp, &bip->bli_item);
 	bp->b_transp = tp;
@@ -210,6 +214,8 @@ int xfs_trans_read_buf_map(struct xfs_mount *mp, struct xfs_trans *tp,
 	 * the lock recursion count, and return it to the caller.
 	 */
 	if (tp)
+		// 从 tran 的日志项中找到 xfs_buf
+		// xfs_buf_map 并不是保存所有 xfs_buf 对象的容器。相反，它是描述单个 xfs_buf 对象在磁盘上的位置和长度的辅助结构
 		bp = xfs_trans_buf_item_match(tp, target, map, nmaps);
 	if (bp) {
 		ASSERT(xfs_buf_islocked(bp));
@@ -263,7 +269,7 @@ int xfs_trans_read_buf_map(struct xfs_mount *mp, struct xfs_trans *tp,
 		*bpp = bp;
 		return 0;
 	}
-	// 从磁盘或缓存读取
+	// 如果 agf 的 xfs_buf 不在事务中
 	error = xfs_buf_read_map(target, map, nmaps, flags, &bp, ops,
 				 __return_address);
 	switch (error) {
@@ -286,6 +292,7 @@ int xfs_trans_read_buf_map(struct xfs_mount *mp, struct xfs_trans *tp,
 	}
 
 	if (tp) {
+		// 将这个 xfs_buff 加入到事务中
 		_xfs_trans_bjoin(tp, bp, 1);
 		trace_xfs_trans_read_buf(bp->b_log_item);
 	}
@@ -421,7 +428,7 @@ void xfs_trans_dirty_buf(struct xfs_trans *tp, struct xfs_buf *bp)
 	 * to disk.
 	 */
 	bp->b_flags |= XBF_DONE;
-
+	// 增加计数
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
 
 	/*
@@ -439,6 +446,7 @@ void xfs_trans_dirty_buf(struct xfs_trans *tp, struct xfs_buf *bp)
 	bip->bli_flags |= XFS_BLI_DIRTY | XFS_BLI_LOGGED;
 
 	tp->t_flags |= XFS_TRANS_DIRTY;
+	// 设置这个 log_item 的 flag 为 dirty
 	set_bit(XFS_LI_DIRTY, &bip->bli_item.li_flags);
 }
 
@@ -458,7 +466,7 @@ void xfs_trans_log_buf(struct xfs_trans *tp, struct xfs_buf *bp, uint first,
 
 	ASSERT(first <= last && last < BBTOB(bp->b_length));
 	ASSERT(!(bip->bli_flags & XFS_BLI_ORDERED));
-
+	// 标识这个 xfs_buf 对应的 xfs_buf_log_item 的 flag 标志位 dirty
 	xfs_trans_dirty_buf(tp, bp);
 
 	trace_xfs_trans_log_buf(bip);

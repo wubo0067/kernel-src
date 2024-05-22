@@ -573,7 +573,7 @@ static xfs_failaddr_t xfs_agfl_verify(struct xfs_buf *bp)
 	 */
 	if (!xfs_sb_version_hascrc(&mp->m_sb))
 		return NULL;
-
+	// 校验魔术字
 	if (!xfs_verify_magic(bp, agfl->agfl_magicnum))
 		return __this_address;
 	if (!uuid_equal(&agfl->agfl_uuid, &mp->m_sb.sb_meta_uuid))
@@ -611,12 +611,13 @@ static void xfs_agfl_read_verify(struct xfs_buf *bp)
 	 */
 	if (!xfs_sb_version_hascrc(&mp->m_sb))
 		return;
-
+	// 判断校验值是否一样
 	if (!xfs_buf_verify_cksum(bp, XFS_AGFL_CRC_OFF))
 		xfs_verifier_error(bp, -EFSBADCRC, __this_address);
 	else {
 		fa = xfs_agfl_verify(bp);
 		if (fa)
+			// 返回的是失败的地址
 			xfs_verifier_error(bp, -EFSCORRUPTED, fa);
 	}
 }
@@ -653,7 +654,7 @@ const struct xfs_buf_ops xfs_agfl_buf_ops = {
 };
 
 /*
- * Read in the allocation group free block array.
+ * Read in the allocation group free block array. ag 的 freelist 结构信息
  */
 int /* error */
 	xfs_alloc_read_agfl(
@@ -681,8 +682,9 @@ STATIC int xfs_alloc_update_counters(struct xfs_trans *tp, struct xfs_buf *agbp,
 				     long len)
 {
 	struct xfs_agf *agf = agbp->b_addr;
-
+	// 修改内存中的，这是结构 xfs_perag
 	agbp->b_pag->pagf_freeblks += len;
+	// 修改磁盘上存储格式的 agf 空闲块数量
 	be32_add_cpu(&agf->agf_freeblks, len);
 
 	xfs_trans_agblocks_delta(tp, len);
@@ -2414,6 +2416,7 @@ int /* error */
 
 	if (!pag->pagf_init) {
 		// radix_tree 中 pag 肯定是存在的，文件系统挂载时就会插入到 radix_tree 中
+		// 如果 xfs_perag 没有初始化，读取磁盘上 agf 数据，初始化 xfs_perag
 		error = xfs_alloc_read_agf(mp, tp, args->agno, flags, &agbp);
 		if (error) {
 			/* Couldn't lock the AGF so skip this AG. */
@@ -2508,12 +2511,14 @@ int /* error */
 	targs.alignment = targs.minlen = targs.prod = 1;
 	targs.type = XFS_ALLOCTYPE_THIS_AG;
 	targs.pag = pag;
+	// 读取 ag 的 freelist 信息
 	error = xfs_alloc_read_agfl(mp, tp, targs.agno, &agflbp);
 	if (error)
 		goto out_agbp_relse;
 
 	/* Make the freelist longer if it's too short. */
 	while (pag->pagf_flcount < need) {
+		// 如果 ag 中的空闲 block 小于需要的空闲 need 数量
 		targs.agbno = 0;
 		targs.maxlen = need - pag->pagf_flcount;
 		targs.resv = XFS_AG_RESV_AGFL;
@@ -2651,12 +2656,13 @@ void xfs_alloc_log_agf(
 		/* needed so that we don't log the whole rest of the structure: */
 		offsetof(xfs_agf_t, agf_spare64), sizeof(xfs_agf_t)
 	};
-
+	// 这个 tracepoint 可以拿到 agf 更新后的内容
 	trace_xfs_agf(tp->t_mountp, bp->b_addr, fields, _RET_IP_);
-
+	// 用于标识特定类型的缓冲区日志格式。在这里，“BLFT”代表“Buffer Log Format Type”，“AGF”代表“Allocation Group Footer”
 	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_AGF_BUF);
 
 	xfs_btree_offsets(fields, offsets, XFS_AGF_NUM_BITS, &first, &last);
+	// 修改已经在 tran 事务的 log item 链表中的 item 为 dity
 	xfs_trans_log_buf(tp, bp, (uint)first, (uint)last);
 }
 
@@ -2868,10 +2874,13 @@ int /* error */
 	trace_xfs_read_agf(mp, agno);
 
 	ASSERT(agno != NULLAGNUMBER);
-	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
-				   XFS_AG_DADDR(mp, agno, XFS_AGF_DADDR(mp)),
-				   XFS_FSS_TO_BB(mp, 1), flags, bpp,
-				   &xfs_agf_buf_ops);
+	error = xfs_trans_read_buf(
+		mp, tp, mp->m_ddev_targp,
+		XFS_AG_DADDR(
+			mp, agno,
+			XFS_AGF_DADDR(
+				mp)), // AG 内的地址转换为整个文件系统范围内的块地址
+		XFS_FSS_TO_BB(mp, 1), flags, bpp, &xfs_agf_buf_ops);
 	if (error)
 		return error;
 
@@ -2908,7 +2917,7 @@ int /* error */
 	if (error)
 		return error;
 	ASSERT(!(*bpp)->b_error);
-
+	// 从 xfs_buf 获得磁盘上 agf 格式数据
 	agf = (*bpp)->b_addr;
 	pag = (*bpp)->b_pag;
 	if (!pag->pagf_init) {

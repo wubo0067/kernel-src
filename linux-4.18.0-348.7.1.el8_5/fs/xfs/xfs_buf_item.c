@@ -764,7 +764,7 @@ xfs_buf_item_init(
 					BBTOB(bp->b_maps[i].bm_len));
 			return -EFSCORRUPTED;
 		}
-
+		// 如果是 agf，这里是 map_size = 1
 		bip->bli_formats[i].blf_type = XFS_LI_BUF;
 		bip->bli_formats[i].blf_blkno = bp->b_maps[i].bm_bn;
 		bip->bli_formats[i].blf_len = bp->b_maps[i].bm_len;

@@ -665,6 +665,7 @@ int xfs_log_mount_finish(struct xfs_mount *mp)
 	mp->m_super->s_flags |= SB_ACTIVE;
 	error = xlog_recover_finish(mp->m_log);
 	if (!error)
+		// 没有错误的话，开始后台日志工作
 		xfs_log_work_queue(mp);
 	mp->m_super->s_flags &= ~SB_ACTIVE;
 	evict_inodes(mp->m_super);
@@ -1539,6 +1540,7 @@ static int xlog_map_iclog_data(struct bio *bio, void *data, size_t count)
 	return 0;
 }
 
+// xfs in core log 写入磁盘
 STATIC void xlog_write_iclog(struct xlog *log, struct xlog_in_core *iclog,
 			     uint64_t bno, unsigned int count, bool need_flush)
 {
@@ -2161,23 +2163,25 @@ int xlog_write(struct xlog *log, struct xfs_log_vec *log_vector,
 		xlog_print_tic_res(log->l_mp, ticket);
 		xfs_force_shutdown(log->l_mp, SHUTDOWN_LOG_IO_ERROR);
 	}
-
+	// 计算日志向量所需的潜在空间
 	len = xlog_write_calc_vec_length(ticket, log_vector, need_start_rec);
 	*start_lsn = 0;
 	while (lv && (!lv->lv_niovecs || index < lv->lv_niovecs)) {
 		void *ptr;
 		int log_offset;
-
+		// 获得 iclog
 		error = xlog_state_get_iclog_space(log, len, &iclog, ticket,
 						   &contwr, &log_offset);
 		if (error)
 			return error;
 
 		ASSERT(log_offset <= iclog->ic_size - 1);
+		// 写入的地址，这个 iclog 空间 + 偏移
 		ptr = iclog->ic_datap + log_offset;
 
 		/* start_lsn is the first lsn written to. That's all we need. */
 		if (!*start_lsn)
+			// 第一次计算 start_lsn，后续都是这个 start_lsn 了
 			*start_lsn = be64_to_cpu(iclog->ic_header.h_lsn);
 
 		/*
@@ -2208,6 +2212,7 @@ int xlog_write(struct xlog *log, struct xfs_log_vec *log_vector,
 			 * iclog we write to.
 			 */
 			if (need_start_rec) {
+				// XLOG_START_TRANS
 				xlog_write_start_rec(ptr, ticket);
 				xlog_write_adv_cnt(
 					&ptr, &len, &log_offset,
@@ -2248,6 +2253,7 @@ int xlog_write(struct xlog *log, struct xfs_log_vec *log_vector,
 				record_cnt++;
 				need_start_rec = false;
 			}
+			// 如果可写，contwr 等于 1
 			data_cnt += contwr ? copy_len : 0;
 
 			error = xlog_write_copy_finish(
@@ -2678,12 +2684,13 @@ restart:
 		spin_unlock(&log->l_icloglock);
 		return -EIO;
 	}
-
+	// 得到 iclog
 	iclog = log->l_iclog;
 	if (iclog->ic_state != XLOG_STATE_ACTIVE) {
+		// 如果当前的 iclog 不是正在写入的状态，说明该 iclog 正在写入磁盘过程或者回调中
 		XFS_STATS_INC(log->l_mp, xs_log_noiclogs);
 
-		/* Wait for log writes to have flushed */
+		/* Wait for log writes to have flushed，等待该 log 刷新完成 */
 		xlog_wait(&log->l_flush_wait, &log->l_icloglock);
 		goto restart;
 	}
@@ -2699,10 +2706,13 @@ restart:
 	 * must be written.
 	 */
 	if (log_offset == 0) {
+		// 如果当前 iclog 没有写入的数据
 		ticket->t_curr_res -= log->l_iclog_hsize;
 		xlog_tic_add_region(ticket, log->l_iclog_hsize,
 				    XLOG_REG_TYPE_LRHEADER);
 		head->h_cycle = cpu_to_be32(log->l_curr_cycle);
+		/* The above code appears to be a comment section in the C programming language. It is not performing
+		any specific operation or functionality in the code. */
 		head->h_lsn = cpu_to_be64(
 			xlog_assign_lsn(log->l_curr_cycle, log->l_curr_block));
 		ASSERT(log->l_curr_block >= 0);
@@ -2716,10 +2726,13 @@ restart:
 	 *
 	 * xlog_write() algorithm assumes that at least 2 xlog_op_header_t's
 	 * can fit into remaining data section.
+	 * xlog_write() 算法假定至少可以容纳 2 个 xlog_op_header_t 的空间在剩余的数据段中
 	 */
 	if (iclog->ic_size - iclog->ic_offset < 2 * sizeof(xlog_op_header_t)) {
 		int error = 0;
+		// 当剩余空间小于两个 xlog_op_header_t 时才会直接触发 xlog_state_release_iclog
 
+		// iclog 的状态改为 XLOG_STATE_WANT_SYNC
 		xlog_state_switch_iclogs(log, iclog, iclog->ic_size);
 
 		/*
@@ -2729,7 +2742,9 @@ restart:
 		 * xlog_state_release_iclog() when there is more than one
 		 * reference to the iclog.
 		 */
+		// 如果 ic_refcnt == 1，就执行 -1，这边变为 0
 		if (!atomic_add_unless(&iclog->ic_refcnt, -1, 1))
+			// 当这个 iclog 的引用计数为 0 时就执行 xlog_state_release_iclog
 			error = xlog_state_release_iclog(log, iclog);
 		spin_unlock(&log->l_icloglock);
 		if (error)
@@ -2744,10 +2759,12 @@ restart:
 	 * to disk in xlog_write().
 	 */
 	if (len <= iclog->ic_size - iclog->ic_offset) {
+		// 判断这个 iclog 的空间是否满足 len，如果满足就设置为 0，否则状态改为不可写入
 		*continued_write = 0;
 		iclog->ic_offset += len;
 	} else {
 		*continued_write = 1;
+		// 不可写入，切换到 next iclog
 		xlog_state_switch_iclogs(log, iclog, iclog->ic_size);
 	}
 	*iclogp = iclog;
@@ -2851,6 +2868,7 @@ STATIC void xlog_state_switch_iclogs(struct xlog *log,
 
 	if (!eventual_size)
 		eventual_size = iclog->ic_offset;
+	// iclog 的状态改为，想要同步改 iclog，这个 iclog 不在写入日志了
 	iclog->ic_state = XLOG_STATE_WANT_SYNC;
 	iclog->ic_header.h_prev_block = cpu_to_be32(log->l_prev_block);
 	log->l_prev_block = log->l_curr_block;
@@ -2882,6 +2900,7 @@ STATIC void xlog_state_switch_iclogs(struct xlog *log,
 			log->l_curr_cycle++;
 	}
 	ASSERT(iclog == log->l_iclog);
+	// 切换到下一个 iclog 了
 	log->l_iclog = iclog->ic_next;
 }
 
@@ -3198,7 +3217,7 @@ struct xlog_ticket *xlog_ticket_alloc(struct xlog *log, int unit_bytes, int cnt,
 	int unit_res;
 
 	tic = kmem_cache_zalloc(xfs_log_ticket_zone, GFP_NOFS | __GFP_NOFAIL);
-
+	// 计算一个日志票据所需的总日志空间单位
 	unit_res = xfs_log_calc_unit_res(log->l_mp, unit_bytes);
 
 	atomic_set(&tic->t_ref, 1);

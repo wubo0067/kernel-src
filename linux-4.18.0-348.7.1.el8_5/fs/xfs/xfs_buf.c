@@ -707,8 +707,9 @@ int _xfs_buf_read(xfs_buf_t *bp, xfs_buf_flags_t flags)
 {
 	ASSERT(!(flags & XBF_WRITE));
 	ASSERT(bp->b_maps[0].bm_bn != XFS_BUF_DADDR_NULL);
-
+	// 将 b_flags 中 XBF_WRITE，XBF_ASYNC，XBF_READ_AHEAD，XBF_DONE 清零
 	bp->b_flags &= ~(XBF_WRITE | XBF_ASYNC | XBF_READ_AHEAD | XBF_DONE);
+	// 只保留 flags 中 XBF_READ，XBF_ASYNC，XBF_READ_AHEAD 位的实际值
 	bp->b_flags |= flags & (XBF_READ | XBF_ASYNC | XBF_READ_AHEAD);
 
 	return xfs_buf_submit(bp);
@@ -763,10 +764,12 @@ int xfs_buf_read_map(struct xfs_buftarg *target, struct xfs_buf_map *map,
 	trace_xfs_buf_read(bp, flags, _RET_IP_);
 
 	if (!(bp->b_flags & XBF_DONE)) {
+		//
 		/* Initiate the buffer read and wait. */
 		XFS_STATS_INC(target->bt_mount, xb_get_read);
 		bp->b_ops = ops;
-		// 读取磁盘上的具体 block 数据
+		// 读取磁盘上的具体 block 数据，会有一个等待队列:b_waiters，等待读取完成
+		// flags = 0，是同步读
 		error = _xfs_buf_read(bp, flags);
 
 		/* Readahead iodone already dropped the buffer, so exit. */
@@ -1073,7 +1076,7 @@ STATIC void xfs_buf_wait_unpin(xfs_buf_t *bp)
 
 	if (atomic_read(&bp->b_pin_count) == 0)
 		return;
-
+	// 等待 io 返回，被唤醒
 	add_wait_queue(&bp->b_waiters, &wait);
 	for (;;) {
 		set_current_state(TASK_UNINTERRUPTIBLE);
@@ -1476,6 +1479,7 @@ STATIC void _xfs_buf_ioapply(struct xfs_buf *bp)
 	}
 
 	/* we only use the buffer cache for meta-data */
+	// 请求的是元数据
 	op |= REQ_META;
 
 	/*
@@ -1506,6 +1510,7 @@ static int xfs_buf_iowait(struct xfs_buf *bp)
 	ASSERT(!(bp->b_flags & XBF_ASYNC));
 
 	trace_xfs_buf_iowait(bp, _RET_IP_);
+	// 等待 io 结束，从磁盘读取
 	wait_for_completion(&bp->b_iowait);
 	trace_xfs_buf_iowait_done(bp, _RET_IP_);
 
@@ -1540,6 +1545,7 @@ static int __xfs_buf_submit(struct xfs_buf *bp, bool wait)
 	xfs_buf_hold(bp);
 
 	if (bp->b_flags & XBF_WRITE)
+		// 如果这个 xfs_buf 正在使用，就需要等待
 		xfs_buf_wait_unpin(bp);
 
 	/* clear the internal error state to avoid spurious errors */
@@ -1553,6 +1559,7 @@ static int __xfs_buf_submit(struct xfs_buf *bp, bool wait)
 	atomic_set(&bp->b_io_remaining, 1);
 	if (bp->b_flags & XBF_ASYNC)
 		xfs_buf_ioacct_inc(bp);
+	// 提交 i/o
 	_xfs_buf_ioapply(bp);
 
 	/*
@@ -1568,6 +1575,7 @@ static int __xfs_buf_submit(struct xfs_buf *bp, bool wait)
 	}
 
 	if (wait)
+		// 如果是读，等待读完成
 		error = xfs_buf_iowait(bp);
 
 	/*

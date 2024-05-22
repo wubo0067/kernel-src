@@ -42,13 +42,13 @@ static inline uint xlog_get_client_id(__be32 i)
  * In core log state
  */
 enum xlog_iclog_state {
-	XLOG_STATE_ACTIVE, /* Current IC log being written to */
-	XLOG_STATE_WANT_SYNC, /* Want to sync this iclog; no more writes */
-	XLOG_STATE_SYNCING, /* This IC log is syncing */
-	XLOG_STATE_DONE_SYNC, /* Done syncing to disk */
-	XLOG_STATE_CALLBACK, /* Callback functions now */
-	XLOG_STATE_DIRTY, /* Dirty IC log, not ready for ACTIVE status */
-	XLOG_STATE_IOERROR, /* IO error happened in sync'ing log */
+	XLOG_STATE_ACTIVE, /* Current IC log being written to 当前正在写入的IC日志*/
+	XLOG_STATE_WANT_SYNC, /* Want to sync this iclog; no more writes 想要同步此iclog；不再写入 */
+	XLOG_STATE_SYNCING, /* This IC log is syncing 此IC日志正在同步*/
+	XLOG_STATE_DONE_SYNC, /* Done syncing to disk 同步到磁盘完成 */
+	XLOG_STATE_CALLBACK, /* Callback functions now  现在回调函数*/
+	XLOG_STATE_DIRTY, /* Dirty IC log, not ready for ACTIVE status 脏IC日志，未准备好激活状态*/
+	XLOG_STATE_IOERROR, /* IO error happened in sync'ing log 在同步日志时发生了IO错误*/
 };
 
 /*
@@ -154,7 +154,7 @@ typedef struct xlog_ticket {
 	struct task_struct *t_task; /* task that owns this ticket */
 	xlog_tid_t t_tid; /* transaction identifier	 : 4  */
 	atomic_t t_ref; /* ticket reference count       : 4  */
-	int t_curr_res; /* current reservation in bytes : 4  */
+	int t_curr_res; /* current reservation in bytes : 4  当前剩余的预留空间（以字节为单位），初始化时为0*/
 	int t_unit_res; /* unit reservation in bytes    : 4  */
 	char t_ocnt; /* original count		 : 1  */
 	char t_cnt; /* current count		 : 1  */
@@ -198,22 +198,22 @@ typedef struct xlog_ticket {
 typedef struct xlog_in_core {
 	wait_queue_head_t ic_force_wait;
 	wait_queue_head_t ic_write_wait;
-	struct xlog_in_core *ic_next;
+	struct xlog_in_core *ic_next; // 是指向环形缓冲区中下一个 iclog 的指针
 	struct xlog_in_core *ic_prev;
-	struct xlog *ic_log;
-	u32 ic_size;
-	u32 ic_offset;
+	struct xlog *ic_log; // 指向全局日志结构的指针
+	u32 ic_size; // 日志缓冲区的完整大小，减去循环头部
+	u32 ic_offset; // 是当前写入到这个 iclog 的字节数。
 	enum xlog_iclog_state ic_state;
-	char *ic_datap; /* pointer to iclog data */
+	char *ic_datap; /* pointer to iclog data 日志记录在写入磁盘之前会先写入这个缓冲区 */
 
 	/* Callback structures need their own cacheline */
 	spinlock_t ic_callback_lock ____cacheline_aligned_in_smp;
 	struct list_head ic_callbacks;
 
 	/* reference counts need their own cacheline */
-	atomic_t ic_refcnt ____cacheline_aligned_in_smp;
+	atomic_t ic_refcnt ____cacheline_aligned_in_smp; // 有人写入日志时会增加
 	xlog_in_core_2_t *ic_data;
-#define ic_header ic_data->hic_header
+#define ic_header ic_data->hic_header // 这里写个宏定义，还能直接用->来引用该宏
 #ifdef DEBUG
 	bool ic_fail_crc : 1;
 #endif
@@ -410,10 +410,16 @@ struct xlog {
 						 * log entries" */
 	xlog_in_core_t *l_iclog; /* head log queue	*/
 	spinlock_t l_icloglock; /* grab to change iclog state */
-	int l_curr_cycle; /* Cycle number of log writes */
+	int l_curr_cycle; /* Cycle number of log writes 表示当前日志周期编号，
+	日志周期用于防止日志空间重用时的混淆。当日志空间被循环使用时，周期编号会递增，以区分不同周期内的日志记录。这样可以确保即使日志空间被覆盖，也能区分新旧日志记录
+	每次日志记录写满当前日志空间并回到开头开始新一轮写入时 */
 	int l_prev_cycle; /* Cycle number before last
 						 * block increment */
-	int l_curr_block; /* current logical log block */
+	int l_curr_block; /* current logical log block 表示当前日志写入位置的块编号
+	并不直接代表磁盘上的物理块号码，而是表示在日志区域（Log Area）中的逻辑块编号
+	在 XFS 文件系统中，日志区域是一个循环缓冲区，用于存储文件系统的事务日志记录。该区域被划分为若干个固定大小的块，这些块以逻辑顺序编号
+	假设日志区域包含 1024 个块，当前 l_curr_block 为 100。当写入新的日志记录时
+	*/
 	int l_prev_block; /* previous logical log block */
 
 	/*
@@ -422,9 +428,10 @@ struct xlog {
 	 * contending with other hot objects, place each of them on a separate
 	 * cacheline.
 	 */
-	/* lsn of last LR on disk */
+	/* lsn of last LR on disk  表示最后一次同步到磁盘的日志记录的 LSN*/
 	atomic64_t l_last_sync_lsn ____cacheline_aligned_in_smp;
-	/* lsn of 1st LR with unflushed * buffers */
+	/* lsn of 1st LR with unflushed * buffers l_tail_lsn 表示当前日志中最早的未处理或未完成事务的 LSN。
+作用：它用于标识日志中最早的活动事务的位置。这个 LSN 之前的所有日志记录都已经被处理完毕，可以被安全地丢弃或覆盖*/
 	atomic64_t l_tail_lsn ____cacheline_aligned_in_smp;
 
 	struct xlog_grant_head l_reserve_head;

@@ -130,6 +130,8 @@ static void xlog_cil_alloc_shadow_bufs(struct xlog *log, struct xfs_trans *tp)
 			continue;
 
 		/* get number of vecs and size of data to be stored */
+		// 计算一个 xfs_log_item 要格式化成 log 的空间大小，例如 agf 的 bli_format_count = 1, 那就是一个块
+		// niovecs = 1,
 		lip->li_ops->iop_size(lip, &niovecs, &nbytes);
 
 		/*
@@ -177,7 +179,7 @@ static void xlog_cil_alloc_shadow_bufs(struct xlog *log, struct xfs_trans *tp)
 
 			lv = kmem_alloc_large(buf_size, KM_NOFS);
 			memset(lv, 0, xlog_cil_iovec_space(niovecs));
-
+			// 设置日志向量的归属 xfs_log_item
 			lv->lv_item = lip;
 			lv->lv_size = buf_size;
 			if (ordered)
@@ -197,6 +199,7 @@ static void xlog_cil_alloc_shadow_bufs(struct xlog *log, struct xfs_trans *tp)
 		}
 
 		/* Ensure the lv is set up according to ->iop_size */
+		//
 		lv->lv_niovecs = niovecs;
 
 		/* The allocated data region lies beyond the iovec region */
@@ -291,15 +294,16 @@ static void xlog_cil_insert_format_items(struct xlog *log, struct xfs_trans *tp,
 	}
 
 	list_for_each_entry (lip, &tp->t_items, li_trans) {
-		// 循环 tran 中所有的 t_item is used to collect all metadata items
+		// 循环 tran 中所有的 xfs_log_item
 		struct xfs_log_vec *lv;
 		struct xfs_log_vec *old_lv = NULL;
 		struct xfs_log_vec *shadow;
 		bool ordered = false;
 
 		/* Skip items which aren't dirty in this transaction. */
-		// 判断在 tran 中的 xfs_log_item 是否是 dirty 的
+		// 判断在 tran 中的 xfs_log_item 是否是 dirty 的，例如 agf 被修改的时候会被标记为 dirty
 		if (!test_bit(XFS_LI_DIRTY, &lip->li_flags))
+			// 过滤掉不为 dirty 的 log_item
 			continue;
 
 		/*
@@ -351,6 +355,7 @@ static void xlog_cil_insert_format_items(struct xlog *log, struct xfs_trans *tp,
 		}
 
 		ASSERT(IS_ALIGNED((unsigned long)lv->lv_buf, sizeof(uint64_t)));
+		// 格式化 agf 对应的 xfs_log_item
 		lip->li_ops->iop_format(lip, lv);
 	insert:
 		// 在这里会给事务 xfs_log_item 的 lsn 赋值
@@ -453,7 +458,8 @@ static void xlog_cil_insert_items(struct xlog *log, struct xfs_trans *tp)
 		 * an item that is already the only item in the CIL.
 		 */
 		if (!list_is_last(&lip->li_cil, &cil->xc_cil))
-			// 在这里将 tran 中的 items 移到 cil 中
+			// xfs_log_item 不在 cil 链表的尾部
+			// 在这里将 tran 中的 items 移到 cil 中，其实一个 xfs_log_item 在 tran 链表中，也会加入到 cil 链表中，在 xfs_log_item 被格式化之后
 			list_move_tail(&lip->li_cil, &cil->xc_cil);
 	}
 
@@ -586,6 +592,7 @@ void xlog_cil_process_committed(struct list_head *list)
 
 	while ((ctx = list_first_entry_or_null(list, struct xfs_cil_ctx,
 					       iclog_entry))) {
+		// 从链表中删除
 		list_del(&ctx->iclog_entry);
 		xlog_cil_committed(ctx);
 	}
@@ -614,6 +621,7 @@ static void xlog_cil_push_work(struct work_struct *work)
 	struct xfs_cil_ctx *ctx;
 	struct xfs_cil_ctx *new_ctx;
 	struct xlog_in_core *commit_iclog;
+	// in core 日志空间
 	struct xlog_ticket *tic;
 	int num_iovecs;
 	int error = 0;
@@ -761,6 +769,7 @@ static void xlog_cil_push_work(struct work_struct *work)
 	 */
 	tic = ctx->ticket;
 	thdr.th_magic = XFS_TRANS_HEADER_MAGIC;
+	// 这是一个 chkpt 事务
 	thdr.th_type = XFS_TRANS_CHECKPOINT;
 	thdr.th_tid = tic->t_tid;
 	thdr.th_num_items = num_iovecs;
@@ -773,6 +782,7 @@ static void xlog_cil_push_work(struct work_struct *work)
 	lvhdr.lv_iovecp = &lhdr;
 	lvhdr.lv_next = ctx->lv_chain;
 
+	// 日志向量链表的数据写入 XFS 的日志
 	error = xlog_write(log, &lvhdr, tic, &ctx->start_lsn, NULL, 0, true);
 	if (error)
 		goto out_abort_free_ticket;
@@ -810,7 +820,8 @@ restart:
 		}
 	}
 	spin_unlock(&cil->xc_push_lock);
-
+	// 一个提交记录（commit record），标识一个事务已经完成。提交记录包含事务的 LSN（Log Sequence Number）以及其他元数据
+	// 提交记录也是一种日志记录，需要通过 xlog_write 函数将其格式化并写入到日志文件中
 	error = xlog_commit_record(log, tic, &commit_iclog, &commit_lsn);
 	if (error)
 		goto out_abort_free_ticket;
@@ -1035,7 +1046,7 @@ void xfs_log_commit_cil(struct xfs_mount *mp, struct xfs_trans *tp,
 	}
 
 	/* xlog_cil_push_background() releases cil->xc_ctx_lock */
-	// 触发 cil 后台任务
+	// 当事务的 xfs_log_item 被加入到 cil 链表后，触发 cil 后台任务
 	xlog_cil_push_background(log);
 }
 
