@@ -761,6 +761,7 @@ int xfs_buf_read_map(struct xfs_buftarg *target, struct xfs_buf_map *map,
 	if (error)
 		return error;
 
+	// tracepoint 读取一个 agf 的 xfs_buf
 	trace_xfs_buf_read(bp, flags, _RET_IP_);
 
 	if (!(bp->b_flags & XBF_DONE)) {
@@ -1258,7 +1259,7 @@ static void xfs_buf_ioend(struct xfs_buf *bp)
 		else if (bp->b_flags & _XBF_DQUOTS)
 			xfs_buf_dquot_iodone(bp);
 	}
-
+	// 去掉这些标志位
 	bp->b_flags &=
 		~(XBF_READ | XBF_WRITE | XBF_READ_AHEAD | _XBF_LOGRECOVERY);
 

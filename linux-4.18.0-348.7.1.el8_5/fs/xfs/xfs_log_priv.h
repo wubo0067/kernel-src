@@ -230,10 +230,10 @@ typedef struct xlog_in_core {
  * next set of transactions to be aggregated into a checkpoint.
  */
 struct xfs_cil;
-
+// 它包含了与一次 CIL 提交相关的所有信息
 struct xfs_cil_ctx {
 	struct xfs_cil *cil;
-	xfs_lsn_t sequence; /* chkpt sequence # */
+	xfs_lsn_t sequence; /* chkpt sequence # 在 CIL 提交过程中，sequenced 会被设置为提交时的 xc_push_seq。这确保了该提交上下文与特定的 CIL 提交操作相关联。*/
 	xfs_lsn_t start_lsn; /* first LSN of chkpt commit */
 	xfs_lsn_t commit_lsn; /* chkpt commit record lsn */
 	struct xlog_ticket *ticket; /* chkpt ticket */
@@ -262,6 +262,7 @@ struct xfs_cil_ctx {
  * the commit LSN to be determined as well. This should make synchronous
  * operations almost as efficient as the old logging methods.
  */
+// 用于管理和协调已提交但尚未写入磁盘的日志项。
 struct xfs_cil {
 	struct xlog *xc_log;
 	struct list_head xc_cil; // Commit Intent List
@@ -271,10 +272,10 @@ struct xfs_cil {
 	struct xfs_cil_ctx *xc_ctx;
 
 	spinlock_t xc_push_lock ____cacheline_aligned_in_smp;
-	xfs_lsn_t xc_push_seq;
+	xfs_lsn_t xc_push_seq; // 用于跟踪 CIL 的提交顺序，当前推送序列号。
 	struct list_head xc_committing;
 	wait_queue_head_t xc_commit_wait;
-	xfs_lsn_t xc_current_sequence;
+	xfs_lsn_t xc_current_sequence; // 用于标识当前正在处理的事务序列号
 	struct work_struct xc_push_work;
 	wait_queue_head_t xc_push_wait; /* background push throttle */
 } ____cacheline_aligned_in_smp;

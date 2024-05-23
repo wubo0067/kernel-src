@@ -358,7 +358,6 @@ static void xlog_cil_insert_format_items(struct xlog *log, struct xfs_trans *tp,
 		// 格式化 agf 对应的 xfs_log_item
 		lip->li_ops->iop_format(lip, lv);
 	insert:
-		// 在这里会给事务 xfs_log_item 的 lsn 赋值
 		xfs_cil_prepare_item(log, lv, old_lv, diff_len, diff_iovecs);
 	}
 }
@@ -460,6 +459,7 @@ static void xlog_cil_insert_items(struct xlog *log, struct xfs_trans *tp)
 		if (!list_is_last(&lip->li_cil, &cil->xc_cil))
 			// xfs_log_item 不在 cil 链表的尾部
 			// 在这里将 tran 中的 items 移到 cil 中，其实一个 xfs_log_item 在 tran 链表中，也会加入到 cil 链表中，在 xfs_log_item 被格式化之后
+			// 不过后面 tran 被释放了
 			list_move_tail(&lip->li_cil, &cil->xc_cil);
 	}
 
@@ -641,6 +641,7 @@ static void xlog_cil_push_work(struct work_struct *work)
 	ctx = cil->xc_ctx;
 
 	spin_lock(&cil->xc_push_lock);
+	// xc_push_seq 是 struct xfs_cil 的一个成员，它表示了当前正在被推送到日志的序列号
 	push_seq = cil->xc_push_seq;
 	ASSERT(push_seq <= ctx->sequence);
 
@@ -656,12 +657,15 @@ static void xlog_cil_push_work(struct work_struct *work)
 	 * this sequence again later.
 	 */
 	if (list_empty(&cil->xc_cil)) {
-		cil->xc_push_seq = 0;
+		// cli 的 xc_cil（xfs_log_item）链表为空，说明没有需要提交的日志
+		cil->xc_push_seq = 0; // 为空时设置为 0
 		spin_unlock(&cil->xc_push_lock);
 		goto out_skip;
 	}
 
 	/* check for a previously pushed sequence */
+	// 如果是 queue_work(log->l_mp->m_cil_workqueue, &cil->xc_push_work);触发的，
+	// xc_push_seq 应该等于 xc_current_sequence
 	if (push_seq < cil->xc_ctx->sequence) {
 		spin_unlock(&cil->xc_push_lock);
 		goto out_skip;
@@ -1015,7 +1019,7 @@ void xfs_log_commit_cil(struct xfs_mount *mp, struct xfs_trans *tp,
 	xlog_cil_insert_items(log, tp);
 
 	// 通过 cil 的上下文获得提交的 lsn
-	xc_commit_lsn = cil->xc_ctx->sequence;
+	xc_commit_lsn = cil->xc_ctx->sequence; // xfs checkpoint 事务
 	if (commit_lsn)
 		*commit_lsn = xc_commit_lsn;
 
@@ -1042,8 +1046,10 @@ void xfs_log_commit_cil(struct xfs_mount *mp, struct xfs_trans *tp,
 	 */
 	trace_xfs_trans_commit_items(tp, _RET_IP_);
 	list_for_each_entry_safe (lip, next, &tp->t_items, li_trans) {
+		// 将 xfs_log_item 从 tran 链表中删除
 		xfs_trans_del_item(lip);
 		if (lip->li_ops->iop_committing)
+			// 设置 xfs_log_item 在 cil 中序号
 			lip->li_ops->iop_committing(lip, xc_commit_lsn);
 	}
 
