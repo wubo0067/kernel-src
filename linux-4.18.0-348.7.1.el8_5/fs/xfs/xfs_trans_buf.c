@@ -470,6 +470,7 @@ void xfs_trans_log_buf(struct xfs_trans *tp, struct xfs_buf *bp, uint first,
 	xfs_trans_dirty_buf(tp, bp);
 
 	trace_xfs_trans_log_buf(bip);
+	// 负责将缓冲区 xfs_buf 的更改记录到日志中
 	xfs_buf_item_log(bip, first, last);
 }
 

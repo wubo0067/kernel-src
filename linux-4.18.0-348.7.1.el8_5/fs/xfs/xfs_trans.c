@@ -642,6 +642,7 @@ static void xfs_trans_free_items(struct xfs_trans *tp, bool abort)
 	trace_xfs_trans_free_items(tp, _RET_IP_);
 
 	list_for_each_entry_safe (lip, next, &tp->t_items, li_trans) {
+		// 将 xfs_log_item 从 tran 的链表中删除
 		xfs_trans_del_item(lip);
 		if (abort)
 			set_bit(XFS_LI_ABORTED, &lip->li_flags);

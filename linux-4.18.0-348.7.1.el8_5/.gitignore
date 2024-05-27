@@ -93,6 +93,7 @@ include/config
 include/generated
 include/ksym
 arch/*/include/generated
+.vscode*
 
 # stgit generated dirs
 patches-*
