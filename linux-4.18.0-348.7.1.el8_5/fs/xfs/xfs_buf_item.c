@@ -375,6 +375,7 @@ xfs_buf_item_format(
  * is held while the item is pinned in memory. This means that we can
  * unconditionally drop the reference count a transaction holds when the
  * transaction is completed.
+   函数用于将一个缓冲区项固定，防止它在日志提交完成之前被回收
  */
 STATIC void
 xfs_buf_item_pin(
@@ -420,10 +421,11 @@ xfs_buf_item_unpin(
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
 
 	trace_xfs_buf_item_unpin(bip);
-
+	// 减少引用次数，判断是否 freed
 	freed = atomic_dec_and_test(&bip->bli_refcount);
 
 	if (atomic_dec_and_test(&bp->b_pin_count))
+		// 如果 b_pin_count = 0，返回 true，唤醒所有等待
 		wake_up_all(&bp->b_waiters);
 
 	if (freed && stale) {

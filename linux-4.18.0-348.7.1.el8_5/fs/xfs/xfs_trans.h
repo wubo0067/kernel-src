@@ -153,7 +153,7 @@ typedef struct xfs_trans {
 	int64_t t_rextents_delta; /* superblocks rextents chg */
 	int64_t t_rextslog_delta; /* superblocks rextslog chg */
 	struct list_head
-		t_items; /* log item descriptors 这是日志项，记录元数据的改动*/
+		t_items; /* log item descriptors 这是日志项xfs_log_item，记录元数据的改动*/
 	struct list_head t_busy; /* list of busy extents */
 	struct list_head t_dfops; /* deferred operations */
 	unsigned long t_pflags; /* saved process flags state */

@@ -807,7 +807,7 @@ xfs_trans_ail_update_bulk(
 			trace_xfs_ail_insert(lip, 0, lsn);
 		}
 		lip->li_lsn = lsn;
-		// 将 xfs_log_item 加入 tmp 链表中
+		// 将 xfs_log_item 的 ail 链表节点 加入 tmp 链表中
 		list_add(&lip->li_ail, &tmp);
 	}
 

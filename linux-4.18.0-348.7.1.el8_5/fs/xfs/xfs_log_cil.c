@@ -119,6 +119,7 @@ static void xlog_cil_alloc_shadow_bufs(struct xlog *log, struct xfs_trans *tp)
 	struct xfs_log_item *lip;
 
 	list_for_each_entry (lip, &tp->t_items, li_trans) {
+		// 循环 tran 中所有的 xfs_log_item
 		struct xfs_log_vec *lv;
 		int niovecs = 0;
 		int nbytes = 0;
@@ -127,6 +128,7 @@ static void xlog_cil_alloc_shadow_bufs(struct xlog *log, struct xfs_trans *tp)
 
 		/* Skip items which aren't dirty in this transaction. */
 		if (!test_bit(XFS_LI_DIRTY, &lip->li_flags))
+			// 如果这个 lip 对象没有被修改过，就跳过
 			continue;
 
 		/* get number of vecs and size of data to be stored */
@@ -231,6 +233,7 @@ STATIC void xfs_cil_prepare_item(struct xlog *log, struct xfs_log_vec *lv,
 	 */
 	if (!old_lv) {
 		if (lv->lv_item->li_ops->iop_pin)
+			// 如果新的日志项是首次出现，需要将其固定（pin），以确保在日志提交完成前不会被回收。
 			lv->lv_item->li_ops->iop_pin(lv->lv_item);
 		lv->lv_item->li_lv_shadow = NULL;
 	} else if (old_lv != lv) {
@@ -358,6 +361,8 @@ static void xlog_cil_insert_format_items(struct xlog *log, struct xfs_trans *tp,
 		// 格式化 agf 对应的 xfs_log_item
 		lip->li_ops->iop_format(lip, lv);
 	insert:
+		// 用于在将日志项插入 CIL（Commit Item List）之前进行准备。它计算日志项在日志空间和向量（vector）中消耗的差异，
+		// 并在必要时固定（pin）新的日志项
 		xfs_cil_prepare_item(log, lv, old_lv, diff_len, diff_iovecs);
 	}
 }
@@ -458,8 +463,7 @@ static void xlog_cil_insert_items(struct xlog *log, struct xfs_trans *tp)
 		 */
 		if (!list_is_last(&lip->li_cil, &cil->xc_cil))
 			// xfs_log_item 不在 cil 链表的尾部
-			// 在这里将 tran 中的 items 移到 cil 中，其实一个 xfs_log_item 在 tran 链表中，也会加入到 cil 链表中，在 xfs_log_item 被格式化之后
-			// 不过后面 tran 被释放了
+			// 在这里将 tran 中的 items 移到 cil 的 xc_cil 链表中
 			list_move_tail(&lip->li_cil, &cil->xc_cil);
 	}
 
@@ -575,9 +579,10 @@ static void xlog_cil_committed(struct xfs_cil_ctx *ctx)
 			      (mp->m_flags & XFS_MOUNT_DISCARD) && !abort);
 
 	spin_lock(&ctx->cil->xc_push_lock);
+	// 将自己从 committing 链表中删除
 	list_del(&ctx->committing);
 	spin_unlock(&ctx->cil->xc_push_lock);
-
+	// 释放日志向量
 	xlog_cil_free_logvec(ctx->lv_chain);
 
 	if (!list_empty(&ctx->busy_extents))
@@ -631,6 +636,7 @@ static void xlog_cil_push_work(struct work_struct *work)
 	xfs_lsn_t commit_lsn;
 	xfs_lsn_t push_seq;
 
+	// 每次 push 都会构造一个新的 ctx 取代当前的 ctx
 	new_ctx = kmem_zalloc(sizeof(*new_ctx), KM_NOFS);
 	// 配一个日志票（ticket）用于 CIL（Committed Item List）的操作
 	// 该函数为即将进行的日志操作预留必要的日志空间，并初始化相关的数据结构。
@@ -695,6 +701,7 @@ static void xlog_cil_push_work(struct work_struct *work)
 	 * sequence may fully commit between the attempts the wait makes to wait
 	 * on the commit sequence.
 	 */
+	// 把这个 ctx 加入到 xc_committing 链表中，这个链表是不是在 xfs_log_worker 中操作？
 	list_add(&ctx->committing, &cil->xc_committing);
 	spin_unlock(&cil->xc_push_lock);
 
@@ -707,17 +714,23 @@ static void xlog_cil_push_work(struct work_struct *work)
 	lv = NULL;
 	num_iovecs = 0;
 	while (!list_empty(&cil->xc_cil)) {
+		// 如果 cil 的提交链表不为空，
 		struct xfs_log_item *item;
-
+		// 获得 xc_cil 链表中第一个 item
 		item = list_first_entry(&cil->xc_cil, struct xfs_log_item,
 					li_cil);
+		// 从 xc_cil 链表中删除，将 item 的 li_cli 的 prev 和 next 指向自己
 		list_del_init(&item->li_cil);
+		// 将 xfs_log_item 中的 xfs_log_vec 加入到 cil ctx 的 lv_chain 链表中
 		if (!ctx->lv_chain)
 			ctx->lv_chain = item->li_lv;
 		else
 			lv->lv_next = item->li_lv;
 		lv = item->li_lv;
+		// 为什么 item 的 li_lv 设置为 null 了，这不是脱钩了，这时这个 item 去哪里了，item 还存在那个链表中？
+		// 没事 li_lv 个成员 lv_item 指向 xfs_log_item
 		item->li_lv = NULL;
+		// 统计日志向量的数量
 		num_iovecs += lv->lv_niovecs;
 	}
 
@@ -784,11 +797,13 @@ static void xlog_cil_push_work(struct work_struct *work)
 	lhdr.i_type = XLOG_REG_TYPE_TRANSHDR;
 	tic->t_curr_res -= lhdr.i_len + sizeof(xlog_op_header_t);
 
+	// 把 chk 事务放到前面
 	lvhdr.lv_niovecs = 1;
 	lvhdr.lv_iovecp = &lhdr;
+	// 将当前 ctx 的日志向量列表链表放到 hdr 后面
 	lvhdr.lv_next = ctx->lv_chain;
 
-	// 日志向量链表的数据写入 XFS 的日志
+	// 日志向量链表的数据写入 XFS 的日志，得到该 ctx 的 start_lsn
 	error = xlog_write(log, &lvhdr, tic, &ctx->start_lsn, NULL, 0, true);
 	if (error)
 		goto out_abort_free_ticket;
@@ -799,6 +814,7 @@ static void xlog_cil_push_work(struct work_struct *work)
 	 */
 restart:
 	spin_lock(&cil->xc_push_lock);
+	// 循环 cil 的提交链表
 	list_for_each_entry (new_ctx, &cil->xc_committing, committing) {
 		/*
 		 * Avoid getting stuck in this loop because we were woken by the
@@ -828,6 +844,7 @@ restart:
 	spin_unlock(&cil->xc_push_lock);
 	// 一个提交记录（commit record），标识一个事务已经完成。提交记录包含事务的 LSN（Log Sequence Number）以及其他元数据
 	// 提交记录也是一种日志记录，需要通过 xlog_write 函数将其格式化并写入到日志文件中
+	// 获得提交 lsn，同时获得真正的 xlog_in_core
 	error = xlog_commit_record(log, tic, &commit_iclog, &commit_lsn);
 	if (error)
 		goto out_abort_free_ticket;
@@ -841,6 +858,8 @@ restart:
 	}
 	ASSERT_ALWAYS(commit_iclog->ic_state == XLOG_STATE_ACTIVE ||
 		      commit_iclog->ic_state == XLOG_STATE_WANT_SYNC);
+	// 把当前这个 ctx 加入到 ic_callbacks 链表中
+	// commit_iclog 写入磁盘后，回调会循环这个链表找到 ctx，通过 ctx 可以拿到 lv_chain，在从日志向量中获得 xfs_log_item
 	list_add_tail(&ctx->iclog_entry, &commit_iclog->ic_callbacks);
 	spin_unlock(&commit_iclog->ic_callback_lock);
 
@@ -850,7 +869,7 @@ restart:
 	 * and wake up anyone who is waiting for the commit to complete.
 	 */
 	spin_lock(&cil->xc_push_lock);
-	ctx->commit_lsn = commit_lsn;
+	ctx->commit_lsn = commit_lsn; //
 	// iclog 写入磁盘了，唤醒等待在 xc_commit_wait 上的写入 task
 	wake_up_all(&cil->xc_commit_wait);
 	spin_unlock(&cil->xc_push_lock);
@@ -995,6 +1014,7 @@ bool xlog_cil_empty(struct xlog *log)
  * Called with the context lock already held in read mode to lock out
  * background commit, returns without it held once background commits are
  * allowed again.
+	xc_commit_lsn:42, regrant:0
  */
 void xfs_log_commit_cil(struct xfs_mount *mp, struct xfs_trans *tp,
 			xfs_lsn_t *commit_lsn, // 提交的 lsn
@@ -1010,6 +1030,7 @@ void xfs_log_commit_cil(struct xfs_mount *mp, struct xfs_trans *tp,
 	 * This ensures the allocation does not deadlock with a CIL
 	 * push in memory reclaim (e.g. from kswapd).
 	 */
+	// 函数负责为提交日志（CIL，Committed Item List）分配影子缓冲区（shadow buffers）。这些影子缓冲区用于在日志提交过程中临时存储日志项的数据
 	xlog_cil_alloc_shadow_bufs(log, tp);
 
 	/* lock out background commit */
@@ -1018,17 +1039,20 @@ void xfs_log_commit_cil(struct xfs_mount *mp, struct xfs_trans *tp,
 	// 将 tp 的 items 插入到 cil 中，xfs_trans->t_item is used to collect all metadata items
 	xlog_cil_insert_items(log, tp);
 
-	// 通过 cil 的上下文获得提交的 lsn
+	// 通过 cil 的上下文获得提交的 lsn，xc_commit_lsn:38
 	xc_commit_lsn = cil->xc_ctx->sequence; // xfs checkpoint 事务
 	if (commit_lsn)
 		*commit_lsn = xc_commit_lsn;
 
+	// 日志空间操作
 	if (regrant && !XLOG_FORCED_SHUTDOWN(log))
+		// 重新授权日志票据
 		xfs_log_ticket_regrant(log, tp->t_ticket);
 	else
 		// xfs_log_ticket_ungrant 函数在 XFS 文件系统的日志管理中发挥作用。
 		// 它主要负责处理日志票据（log tickets），这些票据代表了对日志空间的预留。
 		// 当一个事务完成并且其日志已经被提交到磁盘后，xfs_log_ticket_ungrant 函数会被调用来释放该事务所占用的日志空间
+		// 取消日志票据的授权
 		xfs_log_ticket_ungrant(log, tp->t_ticket);
 	tp->t_ticket = NULL;
 	xfs_trans_unreserve_and_mod_sb(tp);
@@ -1046,7 +1070,7 @@ void xfs_log_commit_cil(struct xfs_mount *mp, struct xfs_trans *tp,
 	 */
 	trace_xfs_trans_commit_items(tp, _RET_IP_);
 	list_for_each_entry_safe (lip, next, &tp->t_items, li_trans) {
-		// 将 xfs_log_item 从 tran 链表中删除
+		// 将不是 dirty 的 xfs_log_item 从 tran 链表中删除
 		xfs_trans_del_item(lip);
 		if (lip->li_ops->iop_committing)
 			// 设置 xfs_log_item 在 cil 中序号

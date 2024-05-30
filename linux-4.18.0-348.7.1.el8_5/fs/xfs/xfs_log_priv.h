@@ -273,7 +273,8 @@ struct xfs_cil {
 
 	spinlock_t xc_push_lock ____cacheline_aligned_in_smp;
 	xfs_lsn_t xc_push_seq; // 用于跟踪 CIL 的提交顺序，当前推送序列号。
-	struct list_head xc_committing;
+	struct list_head
+		xc_committing; // 当一个提交事务（transaction）被提交时，其中的 xfs_log_item 实例会被添加到 xc_committing 链表中
 	wait_queue_head_t xc_commit_wait;
 	xfs_lsn_t xc_current_sequence; // 用于标识当前正在处理的事务序列号
 	struct work_struct xc_push_work;

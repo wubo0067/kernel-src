@@ -443,6 +443,7 @@ static int xlog_state_release_iclog(struct xlog *log,
 
 	if (atomic_dec_and_test(&iclog->ic_refcnt) &&
 	    __xlog_state_release_iclog(log, iclog)) {
+		// 判断 ic_refcnt 递减后是否为 0，也就是没有用引用
 		spin_unlock(&log->l_icloglock);
 		xlog_sync(log, iclog);
 		spin_lock(&log->l_icloglock);
@@ -461,7 +462,7 @@ void xfs_log_release_iclog(struct xlog_in_core *iclog)
 			sync = __xlog_state_release_iclog(log, iclog);
 		spin_unlock(&log->l_icloglock);
 	}
-
+	// 这里就设置好了当前这个 in_core 的 start_lsn 和 tail_lsn
 	if (sync)
 		xlog_sync(log, iclog);
 }
@@ -2068,6 +2069,7 @@ static int xlog_write_copy_finish(struct xlog *log, struct xlog_in_core *iclog,
 
 	if (iclog->ic_size - log_offset <= sizeof(xlog_op_header_t)) {
 		/* no more space in this iclog - push it. */
+		// 如果 in_core 日志的空间不够了，就开始推送到磁盘了
 		spin_lock(&log->l_icloglock);
 		xlog_state_finish_copy(log, iclog, *record_cnt, *data_cnt);
 		*record_cnt = 0;
@@ -2170,7 +2172,7 @@ int xlog_write(struct xlog *log, struct xfs_log_vec *log_vector,
 	while (lv && (!lv->lv_niovecs || index < lv->lv_niovecs)) {
 		void *ptr;
 		int log_offset;
-		// 获得 iclog
+		// 获得 iclog 的写入空间
 		error = xlog_state_get_iclog_space(log, len, &iclog, ticket,
 						   &contwr, &log_offset);
 		if (error)
@@ -2182,7 +2184,7 @@ int xlog_write(struct xlog *log, struct xfs_log_vec *log_vector,
 
 		/* start_lsn is the first lsn written to. That's all we need. */
 		if (!*start_lsn)
-			// 第一次计算 start_lsn，后续都是这个 start_lsn 了
+			// 得到这个 record 的 start lsn
 			*start_lsn = be64_to_cpu(iclog->ic_header.h_lsn);
 
 		/*
@@ -2243,6 +2245,7 @@ int xlog_write(struct xlog *log, struct xfs_log_vec *log_vector,
 			 */
 			ASSERT(copy_len >= 0);
 			if (copy_len > 0) {
+				// 把 xfs_log_vec 中每一个 xfs_log_iovecd 的内容拷贝到 xlog_in_core 中
 				memcpy(ptr, reg->i_addr + copy_off, copy_len);
 				xlog_write_adv_cnt(&ptr, &len, &log_offset,
 						   copy_len);
@@ -2302,7 +2305,7 @@ int xlog_write(struct xlog *log, struct xfs_log_vec *log_vector,
 		ASSERT(flags & XLOG_COMMIT_TRANS);
 		*commit_iclog = iclog;
 	} else {
-		// 这里会将 xfslog 写入磁盘，调用 submit_bio
+		// 不需要立即提交当前 in_core log
 		error = xlog_state_release_iclog(log, iclog);
 	}
 	spin_unlock(&log->l_icloglock);
