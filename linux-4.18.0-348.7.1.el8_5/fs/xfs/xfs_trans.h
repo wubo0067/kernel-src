@@ -106,7 +106,8 @@ void xfs_log_item_init(struct xfs_mount *mp, struct xfs_log_item *item,
 /*
  * Return values for the iop_push() routines.
  */
-#define XFS_ITEM_SUCCESS 0
+#define XFS_ITEM_SUCCESS                                                       \
+	0 // 表示日志项目已成功被推送到日志中，或者已经在处理过程中，正在被写入
 #define XFS_ITEM_PINNED 1
 #define XFS_ITEM_LOCKED 2
 #define XFS_ITEM_FLUSHING 3

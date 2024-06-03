@@ -1173,7 +1173,7 @@ static void xfs_log_worker(struct work_struct *work)
 	} else
 		xfs_log_force(mp, 0);
 
-	/* start pushing all the metadata that is currently dirty */
+	/* start pushing all the metadata that is currently dirty, 不断的唤醒 xfsaild 线程 */
 	xfs_ail_push_all(mp->m_ail);
 
 	/* queue us up again 再次触发延迟任务 */
@@ -2532,10 +2532,11 @@ static void xlog_state_do_iclog_callbacks(struct xlog *log,
 	spin_lock(&iclog->ic_callback_lock);
 	while (!list_empty(&iclog->ic_callbacks)) {
 		LIST_HEAD(tmp);
-
+		// 将 iclog->ic_callbacks 链表插入到 tmp 中，这是一个 ctx 链表
 		list_splice_init(&iclog->ic_callbacks, &tmp);
 
 		spin_unlock(&iclog->ic_callback_lock);
+		// 开始处理 ic_callbacks 中的 ctx
 		xlog_cil_process_committed(&tmp);
 		spin_lock(&iclog->ic_callback_lock);
 	}
@@ -2594,6 +2595,7 @@ STATIC void xlog_state_do_callback(struct xlog *log)
 			if (XLOG_FORCED_SHUTDOWN(log))
 				wake_up_all(&iclog->ic_force_wait);
 			else
+				// 然后清理 xlog_in_core 对象
 				xlog_state_clean_iclog(log, iclog);
 			iclog = iclog->ic_next;
 		} while (first_iclog != iclog);

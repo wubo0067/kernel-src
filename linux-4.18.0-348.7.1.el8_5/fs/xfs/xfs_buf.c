@@ -55,7 +55,8 @@ static kmem_zone_t *xfs_buf_zone;
 static int __xfs_buf_submit(struct xfs_buf *bp, bool wait);
 
 static inline int xfs_buf_submit(struct xfs_buf *bp)
-{
+{ // bp->b_flags & 10000 = 0 同步，否则是异步
+	// 读取 agf 是同步的
 	return __xfs_buf_submit(bp, !(bp->b_flags & XBF_ASYNC));
 }
 
@@ -710,6 +711,7 @@ int _xfs_buf_read(xfs_buf_t *bp, xfs_buf_flags_t flags)
 	// 将 b_flags 中 XBF_WRITE，XBF_ASYNC，XBF_READ_AHEAD，XBF_DONE 清零
 	bp->b_flags &= ~(XBF_WRITE | XBF_ASYNC | XBF_READ_AHEAD | XBF_DONE);
 	// 只保留 flags 中 XBF_READ，XBF_ASYNC，XBF_READ_AHEAD 位的实际值
+	// XBF_ASYNC 标志表示异步操作。设置了这个标志的缓冲区操作将以异步方式进行
 	bp->b_flags |= flags & (XBF_READ | XBF_ASYNC | XBF_READ_AHEAD);
 
 	return xfs_buf_submit(bp);
@@ -782,7 +784,7 @@ int xfs_buf_read_map(struct xfs_buftarg *target, struct xfs_buf_map *map,
 
 		/* Readahead already finished; drop the buffer and exit. */
 		if (flags & XBF_ASYNC) {
-			// 释放磁盘块对应的缓冲区
+			// 如果是异步的，这里的 bp 就不需要了，等回调在分配，所以先把这个释放掉
 			xfs_buf_relse(bp);
 			return 0;
 		}
@@ -1252,6 +1254,7 @@ static void xfs_buf_ioend(struct xfs_buf *bp)
 		 * item must remain optional.
 		 */
 		if (bp->b_log_item)
+			// 在这里会从 ail 链表中删除
 			xfs_buf_item_done(bp);
 
 		if (bp->b_flags & _XBF_INODES)
@@ -1264,6 +1267,7 @@ static void xfs_buf_ioend(struct xfs_buf *bp)
 		~(XBF_READ | XBF_WRITE | XBF_READ_AHEAD | _XBF_LOGRECOVERY);
 
 	if (bp->b_flags & XBF_ASYNC)
+		// 如果是异步的
 		xfs_buf_relse(bp);
 	else
 		complete(&bp->b_iowait);
@@ -1511,7 +1515,7 @@ static int xfs_buf_iowait(struct xfs_buf *bp)
 	ASSERT(!(bp->b_flags & XBF_ASYNC));
 
 	trace_xfs_buf_iowait(bp, _RET_IP_);
-	// 等待 io 结束，从磁盘读取
+	// 等待 io 结束，从磁盘读取，唤醒：xfs_buf_ioend 读取回来回来调用 complete(&bp->b_iowait);
 	wait_for_completion(&bp->b_iowait);
 	trace_xfs_buf_iowait_done(bp, _RET_IP_);
 
@@ -1546,7 +1550,7 @@ static int __xfs_buf_submit(struct xfs_buf *bp, bool wait)
 	xfs_buf_hold(bp);
 
 	if (bp->b_flags & XBF_WRITE)
-		// 如果这个 xfs_buf 正在使用，就需要等待
+		// 如果是将这个 xfs_buf 写入磁盘，该 xfs_buf 不能锁定，如果锁定就必须 unpin
 		xfs_buf_wait_unpin(bp);
 
 	/* clear the internal error state to avoid spurious errors */
@@ -1936,7 +1940,7 @@ bool xfs_buf_delwri_queue(struct xfs_buf *bp, struct list_head *list)
 		trace_xfs_buf_delwri_queued(bp, _RET_IP_);
 		return false;
 	}
-
+	// 将 xfs_buf 加入 delay write queue
 	trace_xfs_buf_delwri_queue(bp, _RET_IP_);
 
 	/*
@@ -2031,6 +2035,7 @@ static int xfs_buf_delwri_submit_buffers(struct list_head *buffer_list,
 			list_move_tail(&bp->b_list, wait_list);
 		} else {
 			bp->b_flags |= XBF_ASYNC;
+			// 将 xfs_buf 从 delay write queue 中删除
 			list_del_init(&bp->b_list);
 		}
 		__xfs_buf_submit(bp, false);

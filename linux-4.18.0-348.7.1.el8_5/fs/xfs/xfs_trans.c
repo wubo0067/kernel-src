@@ -666,6 +666,7 @@ static inline void xfs_log_item_batch_insert(struct xfs_ail *ailp,
 		struct xfs_log_item *lip = log_items[i];
 
 		if (lip->li_ops->iop_unpin)
+			// 在插入 ali 链表后，xfs_log_item 就可以 unpin 了
 			lip->li_ops->iop_unpin(lip, 0);
 	}
 }
@@ -706,6 +707,7 @@ void xfs_trans_committed_bulk(struct xfs_ail *ailp,
 
 	/* unpin all the log items */
 	for (lv = log_vector; lv; lv = lv->lv_next) {
+		// 循环 ctx 中所有的日志向量，找到每个日志向量对应的 xfs_log_item
 		struct xfs_log_item *lip = lv->lv_item;
 		xfs_lsn_t item_lsn;
 
@@ -718,6 +720,7 @@ void xfs_trans_committed_bulk(struct xfs_ail *ailp,
 		}
 
 		if (lip->li_ops->iop_committed)
+			//
 			item_lsn = lip->li_ops->iop_committed(lip, commit_lsn);
 		else
 			item_lsn = commit_lsn;
@@ -758,6 +761,7 @@ void xfs_trans_committed_bulk(struct xfs_ail *ailp,
 		/* Item is a candidate for bulk AIL insert.  */
 		log_items[i++] = lv->lv_item;
 		if (i >= LOG_ITEM_BATCH_SIZE) {
+			// 批次插入
 			xfs_log_item_batch_insert(ailp, &cur, log_items,
 						  LOG_ITEM_BATCH_SIZE,
 						  commit_lsn);
@@ -767,6 +771,7 @@ void xfs_trans_committed_bulk(struct xfs_ail *ailp,
 
 	/* make sure we insert the remainder! */
 	if (i)
+		// 含有剩余的 xfs_log_item，插入 ail 链表
 		xfs_log_item_batch_insert(ailp, &cur, log_items, i, commit_lsn);
 
 	spin_lock(&ailp->ail_lock);

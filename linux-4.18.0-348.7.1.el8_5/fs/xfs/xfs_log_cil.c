@@ -570,7 +570,7 @@ static void xlog_cil_committed(struct xfs_cil_ctx *ctx)
 		wake_up_all(&ctx->cil->xc_commit_wait);
 		spin_unlock(&ctx->cil->xc_push_lock);
 	}
-
+	// start_lsn 这个 lsn 已经写入磁盘
 	xfs_trans_committed_bulk(ctx->cil->xc_log->l_ailp, ctx->lv_chain,
 				 ctx->start_lsn, abort);
 

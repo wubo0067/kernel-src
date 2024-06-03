@@ -493,6 +493,7 @@ xfs_buf_item_push(
 	uint			rval = XFS_ITEM_SUCCESS;
 
 	if (xfs_buf_ispinned(bp))
+		// 判断 b_pin_count 计数，如果不为 0，标识被占用
 		return XFS_ITEM_PINNED;
 	if (!xfs_buf_trylock(bp)) {
 		/*

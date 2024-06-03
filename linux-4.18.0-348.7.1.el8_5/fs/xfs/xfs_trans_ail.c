@@ -243,6 +243,7 @@ xfs_trans_ail_cursor_first(
 
 	list_for_each_entry(lip, &ailp->ail_head, li_ail) {
 		if (XFS_LSN_CMP(lip->li_lsn, lsn) >= 0)
+			// 如果 lip->li_lsn 小于 lsn 就返回 -999，大于返回 999
 			goto out;
 	}
 	return NULL;
@@ -648,7 +649,7 @@ xfsaild(
 		__set_current_state(TASK_RUNNING);
 
 		try_to_freeze();
-
+		// 推送 ailp 队列
 		tout = xfsaild_push(ailp);
 	}
 
@@ -720,6 +721,7 @@ xfs_ail_push_all_sync(
 	while ((lip = xfs_ail_max(ailp)) != NULL) {
 		prepare_to_wait(&ailp->ail_empty, &wait, TASK_UNINTERRUPTIBLE);
 		ailp->ail_target = lip->li_lsn;
+		// 唤醒 xfsaild 内核线程
 		wake_up_process(ailp->ail_task);
 		spin_unlock(&ailp->ail_lock);
 		schedule();
@@ -792,20 +794,22 @@ xfs_trans_ail_update_bulk(
 
 	for (i = 0; i < nr_items; i++) {
 		struct xfs_log_item *lip = log_items[i];
+		// 对 XFS_LI_IN_AIL 位进行设置（将其置为 1）,并返回 XFS_LI_IN_AIL 的值
 		if (test_and_set_bit(XFS_LI_IN_AIL, &lip->li_flags)) {
 			/* check if we really need to move the item */
 			if (XFS_LSN_CMP(lsn, lip->li_lsn) <= 0)
 				continue;
-
+			// 如果 lip 已经在 ail 中了，将其 lsn 移到新 lsn
 			trace_xfs_ail_move(lip, lip->li_lsn, lsn);
 			if (mlip == lip && !tail_lsn)
 				tail_lsn = lip->li_lsn;
-
+			// 后面要插入，先删除从 ali 链表中
 			xfs_ail_delete(ailp, lip);
 		} else {
 			// 这个 lip 是插入
 			trace_xfs_ail_insert(lip, 0, lsn);
 		}
+		// 在这里给 xfs_log_item 设置了日志写入的 lsn，这个 lsn 是日志写入的 lsn
 		lip->li_lsn = lsn;
 		// 将 xfs_log_item 的 ail 链表节点 加入 tmp 链表中
 		list_add(&lip->li_ail, &tmp);
