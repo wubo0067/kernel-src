@@ -2458,7 +2458,8 @@ static void xlog_state_set_callback(struct xlog *log,
 
 	if (list_empty_careful(&iclog->ic_callbacks))
 		return;
-
+	// 将 xlog_in_core 的 h_lsn 写入 l_last_sync_lsn，这就是 log 写入磁盘的 lsn
+	// 这就是日志系统的最后的落盘 lsn
 	atomic64_set(&log->l_last_sync_lsn, header_lsn);
 	// cil in core log 写入磁盘后，就插入 ail 列表，同时调用 wake_up_process 唤醒 xfsalid 内核线程
 	xlog_grant_push_ail(log, 0);
@@ -2531,6 +2532,7 @@ static void xlog_state_do_iclog_callbacks(struct xlog *log,
 	spin_unlock(&log->l_icloglock);
 	spin_lock(&iclog->ic_callback_lock);
 	while (!list_empty(&iclog->ic_callbacks)) {
+		// ic_callbacks 是 xfs_cil_ctx
 		LIST_HEAD(tmp);
 		// 将 iclog->ic_callbacks 链表插入到 tmp 中，这是一个 ctx 链表
 		list_splice_init(&iclog->ic_callbacks, &tmp);

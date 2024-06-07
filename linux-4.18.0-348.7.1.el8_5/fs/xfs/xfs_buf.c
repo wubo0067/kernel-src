@@ -1564,7 +1564,7 @@ static int __xfs_buf_submit(struct xfs_buf *bp, bool wait)
 	atomic_set(&bp->b_io_remaining, 1);
 	if (bp->b_flags & XBF_ASYNC)
 		xfs_buf_ioacct_inc(bp);
-	// 提交 i/o
+	// 提交 i/o，设置 xfs_buf 写入磁盘后的回调 xfs_buf_bio_end_io
 	_xfs_buf_ioapply(bp);
 
 	/*

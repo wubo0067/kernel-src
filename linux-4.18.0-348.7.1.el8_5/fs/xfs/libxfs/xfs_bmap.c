@@ -696,6 +696,7 @@ STATIC int /* error */
 		goto out_root_realloc;
 
 	if (WARN_ON_ONCE(args.fsbno == NULLFSBLOCK)) {
+		// 就在这里导致文件系统 shutdown
 		error = -ENOSPC;
 		goto out_root_realloc;
 	}
@@ -4065,8 +4066,10 @@ static int xfs_bmapi_allocate(struct xfs_bmalloca *bma)
 		bma->got.br_state = XFS_EXT_UNWRITTEN;
 
 	if (bma->wasdel)
+	// 处理延迟分配的情况。这种情况指的是文件系统延迟实际分配块，直到真正需要时才进行实际分配。这样可以优化磁盘空间的使用，并减少碎片化
 		error = xfs_bmap_add_extent_delay_real(bma, whichfork);
 	else
+	// 处理文件系统中的“洞”情形。洞是指文件中未分配实际磁盘块的区域，通常用来表示稀疏文件的一部分。这些区域在读取时返回零，但不占用实际的磁盘空间
 		error = xfs_bmap_add_extent_hole_real(
 			bma->tp, bma->ip, whichfork, &bma->icur, &bma->cur,
 			&bma->got, &bma->logflags, bma->flags);

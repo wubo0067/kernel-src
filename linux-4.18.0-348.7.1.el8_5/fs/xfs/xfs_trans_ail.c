@@ -465,6 +465,7 @@ xfsaild_push(
 		 * rely on the AIL cursor implementation to be able to deal with
 		 * the dropped lock.
 		 */
+		// 将 lip 写入 delay write queue 中
 		lock_result = xfsaild_push_item(ailp, lip);
 		switch (lock_result) {
 		case XFS_ITEM_SUCCESS:
@@ -690,7 +691,7 @@ xfs_ail_push(
 	smp_wmb();
 	xfs_trans_ail_copy_lsn(ailp, &ailp->ail_target, &threshold_lsn);
 	smp_wmb();
-
+	// 唤醒 xfsaild 线程
 	wake_up_process(ailp->ail_task);
 }
 
@@ -741,11 +742,13 @@ xfs_ail_update_finish(
 
 	/* if the tail lsn hasn't changed, don't do updates or wakeups. */
 	if (!old_lsn || old_lsn == __xfs_ail_min_lsn(ailp)) {
+		// old_lsn 就是最小，日志已经写入磁盘的，释放锁
 		spin_unlock(&ailp->ail_lock);
 		return;
 	}
 
 	if (!XFS_FORCED_SHUTDOWN(mp))
+		// 没有 shutdown
 		xlog_assign_tail_lsn_locked(mp);
 
 	if (list_empty(&ailp->ail_head))
@@ -798,10 +801,12 @@ xfs_trans_ail_update_bulk(
 		if (test_and_set_bit(XFS_LI_IN_AIL, &lip->li_flags)) {
 			/* check if we really need to move the item */
 			if (XFS_LSN_CMP(lsn, lip->li_lsn) <= 0)
+				// 如果 lsn 小于 xfs_log_item 的 lsn，说明这个 xfs_log_item 的日志还没写入磁盘，还不能加入 ail 链表
 				continue;
 			// 如果 lip 已经在 ail 中了，将其 lsn 移到新 lsn
 			trace_xfs_ail_move(lip, lip->li_lsn, lsn);
 			if (mlip == lip && !tail_lsn)
+				// 该 xfs_log_item 已经在 ail 链表中，且 自己的 lsn 小于，说明这个 xfs_log_item 的日志已经写入磁盘了，记录 tail_lsn
 				tail_lsn = lip->li_lsn;
 			// 后面要插入，先删除从 ali 链表中
 			xfs_ail_delete(ailp, lip);
@@ -845,15 +850,17 @@ xfs_ail_delete_one(
 	struct xfs_ail		*ailp,
 	struct xfs_log_item	*lip)
 {
-	struct xfs_log_item	*mlip = xfs_ail_min(ailp);
+	struct xfs_log_item	*mlip = xfs_ail_min(ailp); // 第一个就是最老，日志写入磁盘但是没有元数据没有写入磁盘的
 	xfs_lsn_t		lsn = lip->li_lsn;
 
 	trace_xfs_ail_delete(lip, mlip->li_lsn, lip->li_lsn);
 	xfs_ail_delete(ailp, lip);
 	clear_bit(XFS_LI_IN_AIL, &lip->li_flags);
+	// 只有从 ail 链表中删除时，该 lip 的 lsn 才会被设置为 0
 	lip->li_lsn = 0;
 
 	if (mlip == lip)
+		// 那么这个 lsn 是表示元数据写入了磁盘
 		return lsn;
 	return 0;
 }
@@ -881,6 +888,7 @@ xfs_trans_ail_delete(
 
 	/* xfs_ail_update_finish() drops the AIL lock */
 	xfs_clear_li_failed(lip);
+	// ail 链表中删除 xfs_log_item
 	tail_lsn = xfs_ail_delete_one(ailp, lip);
 	xfs_ail_update_finish(ailp, tail_lsn);
 }

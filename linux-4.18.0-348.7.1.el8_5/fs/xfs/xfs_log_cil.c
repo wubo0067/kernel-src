@@ -454,6 +454,7 @@ static void xlog_cil_insert_items(struct xlog *log, struct xfs_trans *tp)
 	list_for_each_entry (lip, &tp->t_items, li_trans) {
 		/* Skip items which aren't dirty in this transaction. */
 		if (!test_bit(XFS_LI_DIRTY, &lip->li_flags))
+			// 不是 dirty 的 xfs_log_item 跳过
 			continue;
 
 		/*
@@ -462,8 +463,8 @@ static void xlog_cil_insert_items(struct xlog *log, struct xfs_trans *tp)
 		 * an item that is already the only item in the CIL.
 		 */
 		if (!list_is_last(&lip->li_cil, &cil->xc_cil))
-			// xfs_log_item 不在 cil 链表的尾部
-			// 在这里将 tran 中的 items 移到 cil 的 xc_cil 链表中
+			// xfs_log_item 不在 cil 链表的尾部，也就是 lip 已经存在 cil 或不在 cil 中的情况，都会移动到 cil 末尾
+			// 将 lip 移动到 cil 链表的尾部
 			list_move_tail(&lip->li_cil, &cil->xc_cil);
 	}
 
@@ -1070,7 +1071,7 @@ void xfs_log_commit_cil(struct xfs_mount *mp, struct xfs_trans *tp,
 	 */
 	trace_xfs_trans_commit_items(tp, _RET_IP_);
 	list_for_each_entry_safe (lip, next, &tp->t_items, li_trans) {
-		// 将不是 dirty 的 xfs_log_item 从 tran 链表中删除
+		// 将 xfs_log_item 从 tran 链表中删除
 		xfs_trans_del_item(lip);
 		if (lip->li_ops->iop_committing)
 			// 设置 xfs_log_item 在 cil 中序号

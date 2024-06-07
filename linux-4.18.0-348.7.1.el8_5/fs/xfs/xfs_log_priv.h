@@ -430,10 +430,9 @@ struct xlog {
 	 * contending with other hot objects, place each of them on a separate
 	 * cacheline.
 	 */
-	/* lsn of last LR on disk  表示最后一次同步到磁盘的日志记录的 LSN*/
+	/* lsn of last LR on disk  xlog_in_core写入磁盘回调的lsn*/
 	atomic64_t l_last_sync_lsn ____cacheline_aligned_in_smp;
-	/* lsn of 1st LR with unflushed * buffers l_tail_lsn 表示当前日志中最早的未处理或未完成事务的 LSN。
-作用：它用于标识日志中最早的活动事务的位置。这个 LSN 之前的所有日志记录都已经被处理完毕，可以被安全地丢弃或覆盖*/
+	/* xfs_log_item对应的元数据写入磁盘回调，从ail链表删除的lsn，明显比前面更全面*/
 	atomic64_t l_tail_lsn ____cacheline_aligned_in_smp;
 
 	struct xlog_grant_head l_reserve_head;

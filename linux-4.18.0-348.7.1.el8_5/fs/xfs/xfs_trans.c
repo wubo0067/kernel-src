@@ -690,6 +690,7 @@ static inline void xfs_log_item_batch_insert(struct xfs_ail *ailp,
  * call. This saves a lot of needless list walking and is a net win, even
  * though it slightly increases that amount of AIL lock traffic to set it up
  * and tear it down.
+ commit_lsn 是写入磁盘的 lsn
  */
 void xfs_trans_committed_bulk(struct xfs_ail *ailp,
 			      struct xfs_log_vec *log_vector,
@@ -702,6 +703,7 @@ void xfs_trans_committed_bulk(struct xfs_ail *ailp,
 	int i = 0;
 
 	spin_lock(&ailp->ail_lock);
+	// 反向查找 ail 链表，找打最后一个小于 commit_lsn 的 xfs_log_item 对象
 	xfs_trans_ail_cursor_last(ailp, &cur, commit_lsn);
 	spin_unlock(&ailp->ail_lock);
 
@@ -720,7 +722,10 @@ void xfs_trans_committed_bulk(struct xfs_ail *ailp,
 		}
 
 		if (lip->li_ops->iop_committed)
-			//
+		/*
+			xfs_buf_item_committed, lip_lsn:(1,4109), commit_lsn:(1,4103), return_lsn:(1,4109)
+			xfs_buf_item_committed, lip_lsn:(1,4197), commit_lsn:(1,4109), return_lsn:(1,4197)
+		*/
 			item_lsn = lip->li_ops->iop_committed(lip, commit_lsn);
 		else
 			item_lsn = commit_lsn;
@@ -750,6 +755,7 @@ void xfs_trans_committed_bulk(struct xfs_ail *ailp,
 			 */
 			spin_lock(&ailp->ail_lock);
 			if (XFS_LSN_CMP(item_lsn, lip->li_lsn) > 0)
+				// 如果 commit_lsn 大于 lip 的 lsn，就加入 ail 链表
 				xfs_trans_ail_update(ailp, lip, item_lsn);
 			else
 				spin_unlock(&ailp->ail_lock);
@@ -761,7 +767,7 @@ void xfs_trans_committed_bulk(struct xfs_ail *ailp,
 		/* Item is a candidate for bulk AIL insert.  */
 		log_items[i++] = lv->lv_item;
 		if (i >= LOG_ITEM_BATCH_SIZE) {
-			// 批次插入
+			// 批次插入 ail 链表
 			xfs_log_item_batch_insert(ailp, &cur, log_items,
 						  LOG_ITEM_BATCH_SIZE,
 						  commit_lsn);

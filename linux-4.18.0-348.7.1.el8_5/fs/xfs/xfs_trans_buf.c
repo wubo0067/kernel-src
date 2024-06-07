@@ -60,7 +60,7 @@ STATIC void _xfs_trans_bjoin(struct xfs_trans *tp, struct xfs_buf *bp,
 			     int reset_recur)
 {
 	struct xfs_buf_log_item *bip;
-
+	// bp 之前不能已经加入到 tran 中
 	ASSERT(bp->b_transp == NULL);
 
 	/*
@@ -367,7 +367,7 @@ void xfs_trans_brelse(struct xfs_trans *tp, struct xfs_buf *bp)
 
 	/* drop the reference to the bli */
 	xfs_buf_item_put(bip);
-
+	// 在事务释放时，bp 对应的 tran 指针被制空
 	bp->b_transp = NULL;
 	xfs_buf_relse(bp);
 }

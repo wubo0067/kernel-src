@@ -541,6 +541,7 @@ xfs_buf_item_put(
 	bool			dirty;
 
 	/* drop the bli ref and return if it wasn't the last one */
+	// 减一不为 0，返回 false
 	if (!atomic_dec_and_test(&bip->bli_refcount))
 		return false;
 
@@ -733,12 +734,15 @@ xfs_buf_item_init(
 	 */
 	ASSERT(bp->b_mount == mp);
 	if (bip) {
+		// 如果已经存在，判断 xfs_buf_log_item 的类型
 		ASSERT(bip->bli_item.li_type == XFS_LI_BUF);
+		// 这个 buf 不在事务中，说明如果 xfs_buf 已经在 tran 中了，就不会走到这一步
 		ASSERT(!bp->b_transp);
 		ASSERT(bip->bli_buf == bp);
+		// 返回 0
 		return 0;
 	}
-
+	// 动态分配一个 xfs_buf_log_item 对象空间
 	bip = kmem_cache_zalloc(xfs_buf_item_zone, GFP_KERNEL | __GFP_NOFAIL);
 	xfs_log_item_init(mp, &bip->bli_item, XFS_LI_BUF, &xfs_buf_item_ops);
 	bip->bli_buf = bp;
