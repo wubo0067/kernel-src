@@ -6,14 +6,13 @@
 /*
  * Common definitions for all gcc versions go here.
  */
-#define GCC_VERSION (__GNUC__ * 10000		\
-		     + __GNUC_MINOR__ * 100	\
-		     + __GNUC_PATCHLEVEL__)
+#define GCC_VERSION                                                            \
+	(__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
 
 /* Optimization barrier */
 
 /* The "volatile" is due to gcc bugs */
-#define barrier() __asm__ __volatile__("": : :"memory")
+#define barrier() __asm__ __volatile__("" : : : "memory")
 /*
  * This version is i.e. to prevent dead stores elimination on @ptr
  * where gcc and llvm may behave differently when otherwise using
@@ -27,7 +26,7 @@
  * the compiler that the inline asm absolutely may see the contents
  * of @ptr. See also: https://llvm.org/bugs/show_bug.cgi?id=15495
  */
-#define barrier_data(ptr) __asm__ __volatile__("": :"r"(ptr) :"memory")
+#define barrier_data(ptr) __asm__ __volatile__("" : : "r"(ptr) : "memory")
 
 /*
  * This macro obfuscates arithmetic on a variable address so that gcc
@@ -47,22 +46,21 @@
  * the inline assembly constraint from =g to =r, in this particular
  * case either is valid.
  */
-#define RELOC_HIDE(ptr, off)						\
-({									\
-	unsigned long __ptr;						\
-	__asm__ ("" : "=r"(__ptr) : "0"(ptr));				\
-	(typeof(ptr)) (__ptr + (off));					\
-})
+#define RELOC_HIDE(ptr, off)                                                   \
+	({                                                                     \
+		unsigned long __ptr;                                           \
+		__asm__("" : "=r"(__ptr) : "0"(ptr));                          \
+		(typeof(ptr))(__ptr + (off));                                  \
+	})
 
 /* Make the optimizer believe the variable can be manipulated arbitrarily. */
-#define OPTIMIZER_HIDE_VAR(var)						\
-	__asm__ ("" : "=r" (var) : "0" (var))
+#define OPTIMIZER_HIDE_VAR(var) __asm__("" : "=r"(var) : "0"(var))
 
 #ifdef __CHECKER__
-#define __must_be_array(a)	0
+#define __must_be_array(a) 0
 #else
 /* &a[0] degrades to a pointer: a different type from an array */
-#define __must_be_array(a)	BUILD_BUG_ON_ZERO(__same_type((a), &(a)[0]))
+#define __must_be_array(a) BUILD_BUG_ON_ZERO(__same_type((a), &(a)[0]))
 #endif
 
 /*
@@ -72,9 +70,9 @@
  * defined so the gnu89 semantics are the default.
  */
 #ifdef __GNUC_STDC_INLINE__
-# define __gnu_inline	__attribute__((gnu_inline))
+#define __gnu_inline __attribute__((gnu_inline))
 #else
-# define __gnu_inline
+#define __gnu_inline
 #endif
 
 /*
@@ -90,23 +88,23 @@
  * of extern inline functions at link time.
  * A lot of inline functions can cause havoc with function tracing.
  */
-#if !defined(CONFIG_ARCH_SUPPORTS_OPTIMIZED_INLINING) ||		\
-    !defined(CONFIG_OPTIMIZE_INLINING) || (__GNUC__ < 4)
-#define inline \
+#if !defined(CONFIG_ARCH_SUPPORTS_OPTIMIZED_INLINING) ||                       \
+	!defined(CONFIG_OPTIMIZE_INLINING) || (__GNUC__ < 4)
+#define inline                                                                 \
 	inline __attribute__((always_inline, unused)) notrace __gnu_inline
 #else
-#define inline inline		__attribute__((unused)) notrace __gnu_inline
+#define inline inline __attribute__((unused)) notrace __gnu_inline
 #endif
 
 #define __inline__ inline
 #define __inline inline
-#define __always_inline	inline __attribute__((always_inline))
-#define  noinline	__attribute__((noinline))
+#define __always_inline inline __attribute__((always_inline))
+#define noinline __attribute__((noinline))
 
-#define __deprecated	__attribute__((deprecated))
-#define __packed	__attribute__((packed))
-#define __weak		__attribute__((weak))
-#define __alias(symbol)	__attribute__((alias(#symbol)))
+#define __deprecated __attribute__((deprecated))
+#define __packed __attribute__((packed))
+#define __weak __attribute__((weak))
+#define __alias(symbol) __attribute__((alias(#symbol)))
 
 #ifdef RETPOLINE
 #define __noretpoline __attribute__((indirect_branch("keep")))
@@ -124,9 +122,9 @@
  * GCC 4.[56] currently fail to enforce this, so we must do so ourselves.
  * See GCC PR44290.
  */
-#define __naked		__attribute__((naked)) noinline __noclone notrace
+#define __naked __attribute__((naked)) noinline __noclone notrace
 
-#define __noreturn	__attribute__((noreturn))
+#define __noreturn __attribute__((noreturn))
 
 /*
  * From the GCC manual:
@@ -138,54 +136,53 @@
  * would be.
  * [...]
  */
-#define __pure			__attribute__((pure))
-#define __aligned(x)		__attribute__((aligned(x)))
-#define __aligned_largest	__attribute__((aligned))
-#define __printf(a, b)		__attribute__((format(printf, a, b)))
-#define __scanf(a, b)		__attribute__((format(scanf, a, b)))
-#define __attribute_const__	__attribute__((__const__))
-#define __maybe_unused		__attribute__((unused))
-#define __always_unused		__attribute__((unused))
-#define __mode(x)               __attribute__((mode(x)))
+#define __pure __attribute__((pure))
+#define __aligned(x) __attribute__((aligned(x)))
+#define __aligned_largest __attribute__((aligned))
+#define __printf(a, b) __attribute__((format(printf, a, b)))
+#define __scanf(a, b) __attribute__((format(scanf, a, b)))
+#define __attribute_const__ __attribute__((__const__))
+#define __maybe_unused __attribute__((unused))
+#define __always_unused __attribute__((unused))
+#define __mode(x) __attribute__((mode(x)))
 
 /* gcc version specific checks */
 
 #if GCC_VERSION < 30200
-# error Sorry, your compiler is too old - please upgrade it.
+#error Sorry, your compiler is too old - please upgrade it.
 #endif
 
 #if GCC_VERSION < 30300
-# define __used			__attribute__((__unused__))
+#define __used __attribute__((__unused__))
 #else
-# define __used			__attribute__((__used__))
+#define __used __attribute__((__used__))
 #endif
 
 #ifdef CONFIG_GCOV_KERNEL
-# if GCC_VERSION < 30400
-#   error "GCOV profiling support for gcc versions below 3.4 not included"
-# endif /* __GNUC_MINOR__ */
+#if GCC_VERSION < 30400
+#error "GCOV profiling support for gcc versions below 3.4 not included"
+#endif /* __GNUC_MINOR__ */
 #endif /* CONFIG_GCOV_KERNEL */
 
 #if GCC_VERSION >= 30400
-#define __must_check		__attribute__((warn_unused_result))
-#define __malloc		__attribute__((__malloc__))
+#define __must_check __attribute__((warn_unused_result))
+#define __malloc __attribute__((__malloc__))
 #endif
 
 #if GCC_VERSION >= 40000
 
 /* GCC 4.1.[01] miscompiles __weak */
 #ifdef __KERNEL__
-# if GCC_VERSION >= 40100 &&  GCC_VERSION <= 40101
-#  error Your version of gcc miscompiles the __weak directive
-# endif
+#if GCC_VERSION >= 40100 && GCC_VERSION <= 40101
+#error Your version of gcc miscompiles the __weak directive
+#endif
 #endif
 
-#define __used			__attribute__((__used__))
-#define __compiler_offsetof(a, b)					\
-	__builtin_offsetof(a, b)
+#define __used __attribute__((__used__))
+#define __compiler_offsetof(a, b) __builtin_offsetof(a, b)
 
 #if GCC_VERSION >= 40100
-# define __compiletime_object_size(obj) __builtin_object_size(obj, 0)
+#define __compiletime_object_size(obj) __builtin_object_size(obj, 0)
 #endif
 
 #if GCC_VERSION >= 40300
@@ -203,19 +200,19 @@
  * a special section, but I don't see any sense in this right now in
  * the kernel context
  */
-#define __cold			__attribute__((__cold__))
+#define __cold __attribute__((__cold__))
 
 #define __UNIQUE_ID(prefix) __PASTE(__PASTE(__UNIQUE_ID_, prefix), __COUNTER__)
 
 #ifndef __CHECKER__
-# define __compiletime_warning(message) __attribute__((warning(message)))
-# define __compiletime_error(message) __attribute__((error(message)))
+#define __compiletime_warning(message) __attribute__((warning(message)))
+#define __compiletime_error(message) __attribute__((error(message)))
 #endif /* __CHECKER__ */
 #endif /* GCC_VERSION >= 40300 */
 
 #if GCC_VERSION >= 40400
-#define __optimize(level)	__attribute__((__optimize__(level)))
-#define __nostackprotector	__optimize("no-stack-protector")
+#define __optimize(level) __attribute__((__optimize__(level)))
+#define __nostackprotector __optimize("no-stack-protector")
 #endif /* GCC_VERSION >= 40400 */
 
 #if GCC_VERSION >= 40500
@@ -244,22 +241,24 @@
  * this in the preprocessor, but we can live with this because they're
  * unreleased.  Really, we need to have autoconf for the kernel.
  */
-#define unreachable() \
-	do {					\
-		annotate_unreachable();		\
-		barrier_before_unreachable();	\
-		__builtin_unreachable();	\
+#define unreachable()                                                          \
+	do {                                                                   \
+		annotate_unreachable();                                        \
+		barrier_before_unreachable();                                  \
+		__builtin_unreachable();                                       \
 	} while (0)
 
 /* Mark a function definition as prohibited from being cloned. */
-#define __noclone	__attribute__((__noclone__, __optimize__("no-tracer")))
+#define __noclone __attribute__((__noclone__, __optimize__("no-tracer")))
 
 #if defined(RANDSTRUCT_PLUGIN) && !defined(__CHECKER__)
 #define __randomize_layout __attribute__((randomize_layout))
 #define __no_randomize_layout __attribute__((no_randomize_layout))
 /* This anon struct can add padding, so only enable it under randstruct. */
-#define randomized_struct_fields_start	struct {
-#define randomized_struct_fields_end	} __randomize_layout;
+#define randomized_struct_fields_start struct {
+#define randomized_struct_fields_end                                           \
+	}                                                                      \
+	__randomize_layout;
 #endif
 
 #endif /* GCC_VERSION >= 40500 */
@@ -272,10 +271,9 @@
  * optimizer that something else uses this function or variable, thus preventing
  * this.
  */
-#define __visible	__attribute__((externally_visible))
+#define __visible __attribute__((externally_visible))
 
 #endif /* GCC_VERSION >= 40600 */
-
 
 #if GCC_VERSION >= 40900 && !defined(__CHECKER__)
 /*
@@ -290,7 +288,8 @@
  * compiler should see some alignment anyway, when the return value is
  * massaged by 'flags = ptr & 3; ptr &= ~3;').
  */
-#define __assume_aligned(a, ...) __attribute__((__assume_aligned__(a, ## __VA_ARGS__)))
+#define __assume_aligned(a, ...)                                               \
+	__attribute__((__assume_aligned__(a, ##__VA_ARGS__)))
 #endif
 
 /*
@@ -302,7 +301,11 @@
  *
  * (asm goto is automatically volatile - the naming reflects this.)
  */
-#define asm_volatile_goto(x...)	do { asm goto(x); asm (""); } while (0)
+#define asm_volatile_goto(x...)                                                \
+	do {                                                                   \
+		asm goto(x);                                                   \
+		asm("");                                                       \
+	} while (0)
 
 /*
  * sparse (__CHECKER__) pretends to be gcc, but can't do constant
@@ -347,10 +350,10 @@
 #define __designated_init __attribute__((designated_init))
 #endif
 
-#endif	/* gcc version >= 40000 specific checks */
+#endif /* gcc version >= 40000 specific checks */
 
 #if !defined(__noclone)
-#define __noclone	/* not needed */
+#define __noclone /* not needed */
 #endif
 
 #if !defined(__no_sanitize_address)
@@ -371,23 +374,23 @@
  * Turn individual warnings and errors on and off locally, depending
  * on version.
  */
-#define __diag_GCC(version, severity, s) \
-	__diag_GCC_ ## version(__diag_GCC_ ## severity s)
+#define __diag_GCC(version, severity, s)                                       \
+	__diag_GCC_##version(__diag_GCC_##severity s)
 
 /* Severity used in pragma directives */
-#define __diag_GCC_ignore	ignored
-#define __diag_GCC_warn		warning
-#define __diag_GCC_error	error
+#define __diag_GCC_ignore ignored
+#define __diag_GCC_warn warning
+#define __diag_GCC_error error
 
 /* Compilers before gcc-4.6 do not understand "#pragma GCC diagnostic push" */
 #if GCC_VERSION >= 40600
-#define __diag_str1(s)		#s
-#define __diag_str(s)		__diag_str1(s)
-#define __diag(s)		_Pragma(__diag_str(GCC diagnostic s))
+#define __diag_str1(s) #s
+#define __diag_str(s) __diag_str1(s)
+#define __diag(s) _Pragma(__diag_str(GCC diagnostic s))
 #endif
 
 #if GCC_VERSION >= 80000
-#define __diag_GCC_8(s)		__diag(s)
+#define __diag_GCC_8(s) __diag(s)
 #else
 #define __diag_GCC_8(s)
 #endif
@@ -403,7 +406,9 @@
  *  gcc: https://gcc.gnu.org/onlinedocs/gcc/Statement-Attributes.html#Statement-Attributes
  */
 #if __has_attribute(__fallthrough__)
-# define fallthrough			__attribute__((__fallthrough__))
+#define fallthrough __attribute__((__fallthrough__))
 #else
-# define fallthrough			do {} while (0)  /* fallthrough */
+#define fallthrough                                                            \
+	do {                                                                   \
+	} while (0) /* fallthrough */
 #endif

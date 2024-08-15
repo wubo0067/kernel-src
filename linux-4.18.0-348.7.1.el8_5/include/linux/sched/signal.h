@@ -10,29 +10,29 @@
 #include <linux/cred.h>
 #include <linux/rh_kabi.h>
 #include <linux/posix-timers.h>
-#include RH_KABI_HIDE_INCLUDE(<linux / mm_types.h>)
-#include RH_KABI_HIDE_INCLUDE(<asm / ptrace.h>)
+#include RH_KABI_HIDE_INCLUDE(<linux/mm_types.h>)
+#include RH_KABI_HIDE_INCLUDE(<asm/ptrace.h>)
 
 /*
  * Types defining task->signal and task->sighand and APIs using them:
  */
 
 struct sighand_struct {
-	atomic_t count;
-	struct k_sigaction action[_NSIG];
-	spinlock_t siglock;
-	wait_queue_head_t signalfd_wqh;
+	atomic_t		count;
+	struct k_sigaction	action[_NSIG];
+	spinlock_t		siglock;
+	wait_queue_head_t	signalfd_wqh;
 };
 
 /*
  * Per-process accounting stats:
  */
 struct pacct_struct {
-	int ac_flag;
-	long ac_exitcode;
-	unsigned long ac_mem;
-	u64 ac_utime, ac_stime;
-	unsigned long ac_minflt, ac_majflt;
+	int			ac_flag;
+	long			ac_exitcode;
+	unsigned long		ac_mem;
+	u64			ac_utime, ac_stime;
+	unsigned long		ac_minflt, ac_majflt;
 };
 
 struct cpu_itimer {
@@ -50,11 +50,11 @@ struct task_cputime_atomic {
 	atomic64_t sum_exec_runtime;
 };
 
-#define INIT_CPUTIME_ATOMIC                                                    \
-	(struct task_cputime_atomic)                                           \
-	{                                                                      \
-		.utime = ATOMIC64_INIT(0), .stime = ATOMIC64_INIT(0),          \
-		.sum_exec_runtime = ATOMIC64_INIT(0),                          \
+#define INIT_CPUTIME_ATOMIC \
+	(struct task_cputime_atomic) {				\
+		.utime = ATOMIC64_INIT(0),			\
+		.stime = ATOMIC64_INIT(0),			\
+		.sum_exec_runtime = ATOMIC64_INIT(0),		\
 	}
 /**
  * struct thread_group_cputimer - thread group interval timer counts
@@ -82,35 +82,32 @@ struct multiprocess_signals {
  * the locking of signal_struct.
  */
 struct signal_struct {
-	atomic_t sigcnt;
-	atomic_t live;
-	int nr_threads;
-	struct list_head
-		thread_head; // 是一个链表头，它被用来链接同一个进程中的所有线程。
-	// 在 Linux 内核中，一个进程可以包含多个线程，这些线程共享同一个 signal_struct 结构体。
-	// thread_head 成员的作用就是将这些线程链接在一起，形成一个线程链表。
+	atomic_t		sigcnt;
+	atomic_t		live;
+	int			nr_threads;
+	struct list_head	thread_head;
 
-	wait_queue_head_t wait_chldexit; /* for wait4() */
+	wait_queue_head_t	wait_chldexit;	/* for wait4() */
 
 	/* current thread group signal load-balancing target: */
-	struct task_struct *curr_target;
+	struct task_struct	*curr_target;
 
 	/* shared signal handling: */
-	struct sigpending shared_pending;
+	struct sigpending	shared_pending;
 
 	/* thread group exit support */
-	int group_exit_code;
+	int			group_exit_code;
 	/* overloaded:
 	 * - notify group_exit_task when ->count is equal to notify_count
 	 * - everyone except group_exit_task is stopped during signal delivery
 	 *   of fatal signals, group_exit_task processes the signal.
 	 */
-	int notify_count;
-	struct task_struct *group_exit_task;
+	int			notify_count;
+	struct task_struct	*group_exit_task;
 
 	/* thread group stop support, overloads group_exit_code too */
-	int group_stop_count;
-	unsigned int flags; /* see SIGNAL_* flags below */
+	int			group_stop_count;
+	unsigned int		flags; /* see SIGNAL_* flags below */
 
 	/*
 	 * PR_SET_CHILD_SUBREAPER marks a process, like a service
@@ -121,14 +118,14 @@ struct signal_struct {
 	 * process will inherit a flag if they should look for a
 	 * child_subreaper process at exit.
 	 */
-	unsigned int is_child_subreaper : 1;
-	unsigned int has_child_subreaper : 1;
+	unsigned int		is_child_subreaper:1;
+	unsigned int		has_child_subreaper:1;
 
 #ifdef CONFIG_POSIX_TIMERS
 
 	/* POSIX.1b Interval Timers */
-	int posix_timer_id;
-	struct list_head posix_timers;
+	int			posix_timer_id;
+	struct list_head	posix_timers;
 
 	/* ITIMER_REAL timer for the process */
 	struct hrtimer real_timer;
@@ -208,7 +205,7 @@ struct signal_struct {
 	struct rlimit rlim[RLIM_NLIMITS];
 
 #ifdef CONFIG_BSD_PROCESS_ACCT
-	struct pacct_struct pacct; /* per-process accounting information */
+	struct pacct_struct pacct;	/* per-process accounting information */
 #endif
 #ifdef CONFIG_TASKSTATS
 	struct taskstats *stats;
@@ -223,13 +220,13 @@ struct signal_struct {
 	 * oom
 	 */
 	bool oom_flag_origin;
-	short oom_score_adj; /* OOM kill score adjustment */
-	short oom_score_adj_min; /* OOM kill score adjustment min value.
+	short oom_score_adj;		/* OOM kill score adjustment */
+	short oom_score_adj_min;	/* OOM kill score adjustment min value.
 					 * Only settable by CAP_SYS_RESOURCE. */
-	struct mm_struct *oom_mm; /* recorded mm when the thread group got
+	struct mm_struct *oom_mm;	/* recorded mm when the thread group got
 					 * killed by the oom killer */
 
-	struct mutex cred_guard_mutex; /* guard against foreign influences on
+	struct mutex cred_guard_mutex;	/* guard against foreign influences on
 					 * credential calculations
 					 * (notably. ptrace) */
 
@@ -253,41 +250,40 @@ struct signal_struct {
 /*
  * Bits in flags field of signal_struct.
  */
-#define SIGNAL_STOP_STOPPED 0x00000001 /* job control stop in effect */
-#define SIGNAL_STOP_CONTINUED 0x00000002 /* SIGCONT since WCONTINUED reap */
-#define SIGNAL_GROUP_EXIT 0x00000004 /* group exit in progress */
-#define SIGNAL_GROUP_COREDUMP 0x00000008 /* coredump in progress */
+#define SIGNAL_STOP_STOPPED	0x00000001 /* job control stop in effect */
+#define SIGNAL_STOP_CONTINUED	0x00000002 /* SIGCONT since WCONTINUED reap */
+#define SIGNAL_GROUP_EXIT	0x00000004 /* group exit in progress */
+#define SIGNAL_GROUP_COREDUMP	0x00000008 /* coredump in progress */
 /*
  * Pending notifications to parent.
  */
-#define SIGNAL_CLD_STOPPED 0x00000010
-#define SIGNAL_CLD_CONTINUED 0x00000020
-#define SIGNAL_CLD_MASK (SIGNAL_CLD_STOPPED | SIGNAL_CLD_CONTINUED)
+#define SIGNAL_CLD_STOPPED	0x00000010
+#define SIGNAL_CLD_CONTINUED	0x00000020
+#define SIGNAL_CLD_MASK		(SIGNAL_CLD_STOPPED|SIGNAL_CLD_CONTINUED)
 
-#define SIGNAL_UNKILLABLE 0x00000040 /* for init: ignore fatal signals */
+#define SIGNAL_UNKILLABLE	0x00000040 /* for init: ignore fatal signals */
 
-#define SIGNAL_STOP_MASK                                                       \
-	(SIGNAL_CLD_MASK | SIGNAL_STOP_STOPPED | SIGNAL_STOP_CONTINUED)
+#define SIGNAL_STOP_MASK (SIGNAL_CLD_MASK | SIGNAL_STOP_STOPPED | \
+			  SIGNAL_STOP_CONTINUED)
 
 static inline void signal_set_stop_flags(struct signal_struct *sig,
 					 unsigned int flags)
 {
-	WARN_ON(sig->flags & (SIGNAL_GROUP_EXIT | SIGNAL_GROUP_COREDUMP));
+	WARN_ON(sig->flags & (SIGNAL_GROUP_EXIT|SIGNAL_GROUP_COREDUMP));
 	sig->flags = (sig->flags & ~SIGNAL_STOP_MASK) | flags;
 }
 
 /* If true, all threads except ->group_exit_task have pending SIGKILL */
 static inline int signal_group_exit(const struct signal_struct *sig)
 {
-	return (sig->flags & SIGNAL_GROUP_EXIT) ||
-	       (sig->group_exit_task != NULL);
+	return	(sig->flags & SIGNAL_GROUP_EXIT) ||
+		(sig->group_exit_task != NULL);
 }
 
 extern void flush_signals(struct task_struct *);
 extern void ignore_signals(struct task_struct *);
 extern void flush_signal_handlers(struct task_struct *, int force_default);
-extern int dequeue_signal(struct task_struct *tsk, sigset_t *mask,
-			  kernel_siginfo_t *info);
+extern int dequeue_signal(struct task_struct *tsk, sigset_t *mask, kernel_siginfo_t *info);
 
 static inline int kernel_dequeue_signal(void)
 {
@@ -312,26 +308,24 @@ static inline void kernel_signal_stop(void)
 	schedule();
 }
 #ifdef __ARCH_SI_TRAPNO
-#define ___ARCH_SI_TRAPNO(_a1) , _a1
+# define ___ARCH_SI_TRAPNO(_a1) , _a1
 #else
-#define ___ARCH_SI_TRAPNO(_a1)
+# define ___ARCH_SI_TRAPNO(_a1)
 #endif
 #ifdef __ia64__
-#define ___ARCH_SI_IA64(_a1, _a2, _a3) , _a1, _a2, _a3
+# define ___ARCH_SI_IA64(_a1, _a2, _a3) , _a1, _a2, _a3
 #else
-#define ___ARCH_SI_IA64(_a1, _a2, _a3)
+# define ___ARCH_SI_IA64(_a1, _a2, _a3)
 #endif
 
-int force_sig_fault(int sig, int code,
-		    void __user *addr ___ARCH_SI_TRAPNO(int trapno)
-			    ___ARCH_SI_IA64(int imm, unsigned int flags,
-					    unsigned long isr),
-		    struct task_struct *t);
-int send_sig_fault(int sig, int code,
-		   void __user *addr ___ARCH_SI_TRAPNO(int trapno)
-			   ___ARCH_SI_IA64(int imm, unsigned int flags,
-					   unsigned long isr),
-		   struct task_struct *t);
+int force_sig_fault(int sig, int code, void __user *addr
+	___ARCH_SI_TRAPNO(int trapno)
+	___ARCH_SI_IA64(int imm, unsigned int flags, unsigned long isr)
+	, struct task_struct *t);
+int send_sig_fault(int sig, int code, void __user *addr
+	___ARCH_SI_TRAPNO(int trapno)
+	___ARCH_SI_IA64(int imm, unsigned int flags, unsigned long isr)
+	, struct task_struct *t);
 
 int force_sig_mceerr(int code, void __user *, short, struct task_struct *);
 int send_sig_mceerr(int code, void __user *, short, struct task_struct *);
@@ -344,8 +338,7 @@ int force_sig_ptrace_errno_trap(int errno, void __user *addr);
 extern int send_sig_info(int, struct kernel_siginfo *, struct task_struct *);
 extern void force_sigsegv(int sig, struct task_struct *p);
 extern int force_sig_info(int, struct kernel_siginfo *, struct task_struct *);
-extern int __kill_pgrp_info(int sig, struct kernel_siginfo *info,
-			    struct pid *pgrp);
+extern int __kill_pgrp_info(int sig, struct kernel_siginfo *info, struct pid *pgrp);
 extern int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid);
 extern int kill_pid_usb_asyncio(int sig, int errno, sigval_t addr, struct pid *,
 				const struct cred *);
@@ -369,7 +362,7 @@ static inline int restart_syscall(void)
 
 static inline int signal_pending(struct task_struct *p)
 {
-	return unlikely(test_tsk_thread_flag(p, TIF_SIGPENDING));
+	return unlikely(test_tsk_thread_flag(p,TIF_SIGPENDING));
 }
 
 static inline int __fatal_signal_pending(struct task_struct *p)
@@ -379,7 +372,6 @@ static inline int __fatal_signal_pending(struct task_struct *p)
 
 static inline int fatal_signal_pending(struct task_struct *p)
 {
-	// 判断当前进程是否有未处理的信号 & 判断是否有致命信号要处理
 	return signal_pending(p) && __fatal_signal_pending(p);
 }
 
@@ -465,7 +457,7 @@ static inline bool test_and_clear_restore_sigmask(void)
 	return test_and_clear_thread_flag(TIF_RESTORE_SIGMASK);
 }
 
-#else /* TIF_RESTORE_SIGMASK */
+#else	/* TIF_RESTORE_SIGMASK */
 
 /* Higher-quality implementation, used if TIF_RESTORE_SIGMASK doesn't exist. */
 static inline void set_restore_sigmask(void)
@@ -510,8 +502,8 @@ static inline int kill_cad_pid(int sig, int priv)
 }
 
 /* These can be the second arg to send_sig_info/send_group_sig_info.  */
-#define SEND_SIG_NOINFO ((struct kernel_siginfo *)0)
-#define SEND_SIG_PRIV ((struct kernel_siginfo *)1)
+#define SEND_SIG_NOINFO ((struct kernel_siginfo *) 0)
+#define SEND_SIG_PRIV	((struct kernel_siginfo *) 1)
 
 /*
  * True if we are on the alternate signal stack.
@@ -532,10 +524,10 @@ static inline int on_sig_stack(unsigned long sp)
 
 #ifdef CONFIG_STACK_GROWSUP
 	return sp >= current->sas_ss_sp &&
-	       sp - current->sas_ss_sp < current->sas_ss_size;
+		sp - current->sas_ss_sp < current->sas_ss_size;
 #else
 	return sp > current->sas_ss_sp &&
-	       sp - current->sas_ss_sp <= current->sas_ss_size;
+		sp - current->sas_ss_sp <= current->sas_ss_size;
 #endif
 }
 
@@ -556,7 +548,7 @@ static inline void sas_ss_reset(struct task_struct *p)
 
 static inline unsigned long sigsp(unsigned long sp, struct ksignal *ksig)
 {
-	if (unlikely((ksig->ka.sa.sa_flags & SA_ONSTACK)) && !sas_ss_flags(sp))
+	if (unlikely((ksig->ka.sa.sa_flags & SA_ONSTACK)) && ! sas_ss_flags(sp))
 #ifdef CONFIG_STACK_GROWSUP
 		return current->sas_ss_sp;
 #else
@@ -568,12 +560,14 @@ static inline unsigned long sigsp(unsigned long sp, struct ksignal *ksig)
 extern void __cleanup_sighand(struct sighand_struct *);
 extern void flush_itimer_signals(void);
 
-#define tasklist_empty() list_empty(&init_task.tasks)
+#define tasklist_empty() \
+	list_empty(&init_task.tasks)
 
-#define next_task(p) list_entry_rcu((p)->tasks.next, struct task_struct, tasks)
+#define next_task(p) \
+	list_entry_rcu((p)->tasks.next, struct task_struct, tasks)
 
-#define for_each_process(p)                                                    \
-	for (p = &init_task; (p = next_task(p)) != &init_task;)
+#define for_each_process(p) \
+	for (p = &init_task ; (p = next_task(p)) != &init_task ; )
 
 extern bool current_is_single_threaded(void);
 
@@ -581,27 +575,27 @@ extern bool current_is_single_threaded(void);
  * Careful: do_each_thread/while_each_thread is a double loop so
  *          'break' will not work as expected - use goto instead.
  */
-#define do_each_thread(g, t)                                                   \
-	for (g = t = &init_task; (g = t = next_task(g)) != &init_task;)        \
-		do
+#define do_each_thread(g, t) \
+	for (g = t = &init_task ; (g = t = next_task(g)) != &init_task ; ) do
 
-#define while_each_thread(g, t) while ((t = next_thread(t)) != g)
+#define while_each_thread(g, t) \
+	while ((t = next_thread(t)) != g)
 
-#define __for_each_thread(signal, t)                                           \
-	list_for_each_entry_rcu (t, &(signal)->thread_head, thread_node)
+#define __for_each_thread(signal, t)	\
+	list_for_each_entry_rcu(t, &(signal)->thread_head, thread_node)
 
-#define for_each_thread(p, t) __for_each_thread ((p)->signal, t)
+#define for_each_thread(p, t)		\
+	__for_each_thread((p)->signal, t)
 
 /* Careful: this is a double loop, 'break' won't work as expected. */
-#define for_each_process_thread(p, t)                                          \
-	for_each_process (p)                                                   \
-		for_each_thread (p, t)
+#define for_each_process_thread(p, t)	\
+	for_each_process(p) for_each_thread(p, t)
 
 typedef int (*proc_visitor)(struct task_struct *p, void *data);
 void walk_process_tree(struct task_struct *top, proc_visitor, void *);
 
-static inline struct pid *task_pid_type(struct task_struct *task,
-					enum pid_type type)
+static inline
+struct pid *task_pid_type(struct task_struct *task, enum pid_type type)
 {
 	struct pid *pid;
 	if (type == PIDTYPE_PID)
@@ -652,16 +646,16 @@ static inline bool has_group_leader_pid(struct task_struct *p)
 	return task_pid(p) == task_tgid(p);
 }
 
-static inline bool same_thread_group(struct task_struct *p1,
-				     struct task_struct *p2)
+static inline
+bool same_thread_group(struct task_struct *p1, struct task_struct *p2)
 {
 	return p1->signal == p2->signal;
 }
 
 static inline struct task_struct *next_thread(const struct task_struct *p)
 {
-	return list_entry_rcu(p->thread_group.next, struct task_struct,
-			      thread_group);
+	return list_entry_rcu(p->thread_group.next,
+			      struct task_struct, thread_group);
 }
 
 static inline int thread_group_empty(struct task_struct *p)
@@ -669,12 +663,13 @@ static inline int thread_group_empty(struct task_struct *p)
 	return list_empty(&p->thread_group);
 }
 
-#define delay_group_leader(p) (thread_group_leader(p) && !thread_group_empty(p))
+#define delay_group_leader(p) \
+		(thread_group_leader(p) && !thread_group_empty(p))
 
 extern bool thread_group_exited(struct pid *pid);
 
 extern struct sighand_struct *__lock_task_sighand(struct task_struct *tsk,
-						  unsigned long *flags);
+							unsigned long *flags);
 
 static inline struct sighand_struct *lock_task_sighand(struct task_struct *tsk,
 						       unsigned long *flags)
@@ -687,19 +682,19 @@ static inline struct sighand_struct *lock_task_sighand(struct task_struct *tsk,
 }
 
 static inline void unlock_task_sighand(struct task_struct *tsk,
-				       unsigned long *flags)
+						unsigned long *flags)
 {
 	spin_unlock_irqrestore(&tsk->sighand->siglock, *flags);
 }
 
 static inline unsigned long task_rlimit(const struct task_struct *tsk,
-					unsigned int limit)
+		unsigned int limit)
 {
 	return READ_ONCE(tsk->signal->rlim[limit].rlim_cur);
 }
 
 static inline unsigned long task_rlimit_max(const struct task_struct *tsk,
-					    unsigned int limit)
+		unsigned int limit)
 {
 	return READ_ONCE(tsk->signal->rlim[limit].rlim_max);
 }

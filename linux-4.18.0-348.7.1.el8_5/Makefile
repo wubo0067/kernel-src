@@ -2,8 +2,8 @@
 VERSION = 4
 PATCHLEVEL = 18
 SUBLEVEL = 0
-EXTRAVERSION = -348.7.1.calmwu.x86_64
-NAME = calmwu
+EXTRAVERSION = -348.7.1.cw.x86_64
+NAME = CalmWu Linux
 
 #
 # DRM backport version
