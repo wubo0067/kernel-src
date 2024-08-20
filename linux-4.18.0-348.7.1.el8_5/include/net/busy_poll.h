@@ -56,8 +56,8 @@ static inline bool sk_can_busy_loop(const struct sock *sk)
 bool sk_busy_loop_end(void *p, unsigned long start_time);
 
 void napi_busy_loop(unsigned int napi_id,
-		    bool (*loop_end)(void *, unsigned long),
-		    void *loop_end_arg, bool prefer_busy_poll, u16 budget);
+		    bool (*loop_end)(void *, unsigned long), void *loop_end_arg,
+		    bool prefer_busy_poll, u16 budget);
 
 #else /* CONFIG_NET_RX_BUSY_POLL */
 static inline unsigned long net_busy_loop_on(void)
@@ -121,14 +121,14 @@ static inline void sk_busy_loop(struct sock *sk, int nonblock)
 	if (napi_id >= MIN_NAPI_ID)
 		napi_busy_loop(napi_id, nonblock ? NULL : sk_busy_loop_end, sk,
 			       READ_ONCE(sk->sk_prefer_busy_poll),
-			       READ_ONCE(sk->sk_busy_poll_budget) ?: BUSY_POLL_BUDGET);
+			       READ_ONCE(sk->sk_busy_poll_budget) ?:
+					     BUSY_POLL_BUDGET);
 #endif
 }
 
 static inline void sock_poll_busy_loop(struct socket *sock, __poll_t events)
 {
-	if (sk_can_busy_loop(sock->sk) &&
-	    events && (events & POLL_BUSY_LOOP)) {
+	if (sk_can_busy_loop(sock->sk) && events && (events & POLL_BUSY_LOOP)) {
 		/* once, only if requested by syscall */
 		sk_busy_loop(sock->sk, 1);
 	}
