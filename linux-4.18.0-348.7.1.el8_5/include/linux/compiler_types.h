@@ -4,53 +4,59 @@
 #ifndef __ASSEMBLY__
 
 #ifdef __CHECKER__
-# define __user		__attribute__((noderef, address_space(1)))
-# define __kernel	__attribute__((address_space(0)))
-# define __safe		__attribute__((safe))
-# define __force	__attribute__((force))
-# define __nocast	__attribute__((nocast))
-# define __iomem	__attribute__((noderef, address_space(2)))
-# define __must_hold(x)	__attribute__((context(x,1,1)))
-# define __acquires(x)	__attribute__((context(x,0,1)))
-# define __releases(x)	__attribute__((context(x,1,0)))
-# define __acquire(x)	__context__(x,1)
-# define __release(x)	__context__(x,-1)
-# define __cond_lock(x,c)	((c) ? ({ __acquire(x); 1; }) : 0)
-# define __percpu	__attribute__((noderef, address_space(3)))
-# define __rcu		__attribute__((noderef, address_space(4)))
-# define __private	__attribute__((noderef))
+#define __user __attribute__((noderef, address_space(1)))
+#define __kernel __attribute__((address_space(0)))
+#define __safe __attribute__((safe))
+#define __force __attribute__((force))
+#define __nocast __attribute__((nocast))
+#define __iomem __attribute__((noderef, address_space(2)))
+#define __must_hold(x) __attribute__((context(x, 1, 1)))
+#define __acquires(x) __attribute__((context(x, 0, 1)))
+#define __releases(x) __attribute__((context(x, 1, 0)))
+#define __acquire(x) __context__(x, 1)
+#define __release(x) __context__(x, -1)
+#define __cond_lock(x, c)                                                      \
+	((c) ? ({                                                              \
+		__acquire(x);                                                  \
+		1;                                                             \
+	}) :                                                                   \
+	       0)
+#define __percpu __attribute__((noderef, address_space(3)))
+#define __rcu __attribute__((noderef, address_space(4)))
+#define __private __attribute__((noderef))
 extern void __chk_user_ptr(const volatile void __user *);
 extern void __chk_io_ptr(const volatile void __iomem *);
-# define ACCESS_PRIVATE(p, member) (*((typeof((p)->member) __force *) &(p)->member))
+#define ACCESS_PRIVATE(p, member)                                              \
+	(*((typeof((p)->member) __force *)&(p)->member))
 #else /* __CHECKER__ */
-# ifdef STRUCTLEAK_PLUGIN
-#  define __user __attribute__((user))
-# else
-#  define __user
-# endif
-# define __kernel
-# define __safe
-# define __force
-# define __nocast
-# define __iomem
-# define __chk_user_ptr(x) (void)0
-# define __chk_io_ptr(x) (void)0
-# define __builtin_warning(x, y...) (1)
-# define __must_hold(x)
-# define __acquires(x)
-# define __releases(x)
-# define __acquire(x) (void)0
-# define __release(x) (void)0
-# define __cond_lock(x,c) (c)
-# define __percpu
-# define __rcu
-# define __private
-# define ACCESS_PRIVATE(p, member) ((p)->member)
+#ifdef STRUCTLEAK_PLUGIN
+#define __user __attribute__((user))
+#else
+#define __user
+#endif
+#define __kernel
+#define __safe
+#define __force
+#define __nocast
+#define __iomem
+#define __chk_user_ptr(x) (void)0
+#define __chk_io_ptr(x) (void)0
+#define __builtin_warning(x, y...) (1)
+#define __must_hold(x)
+#define __acquires(x)
+#define __releases(x)
+#define __acquire(x) (void)0
+#define __release(x) (void)0
+#define __cond_lock(x, c) (c)
+#define __percpu
+#define __rcu
+#define __private
+#define ACCESS_PRIVATE(p, member) ((p)->member)
 #endif /* __CHECKER__ */
 
 /* Indirect macros required for expanded argument pasting, eg. __LINE__. */
-#define ___PASTE(a,b) a##b
-#define __PASTE(a,b) ___PASTE(a,b)
+#define ___PASTE(a, b) a##b
+#define __PASTE(a, b) ___PASTE(a, b)
 
 #ifdef __KERNEL__
 
@@ -59,7 +65,7 @@ extern void __chk_io_ptr(const volatile void __iomem *);
 #endif
 
 #if defined(CC_USING_HOTPATCH) && !defined(__CHECKER__)
-#define notrace __attribute__((hotpatch(0,0)))
+#define notrace __attribute__((hotpatch(0, 0)))
 #else
 #define notrace __attribute__((no_instrument_function))
 #endif
@@ -68,7 +74,7 @@ extern void __chk_io_ptr(const volatile void __iomem *);
  * coming from above header files here
  */
 #ifdef __INTEL_COMPILER
-# include <linux/compiler-intel.h>
+#include <linux/compiler-intel.h>
 #endif
 
 /* Clang compiler defines __GNUC__. So we will overwrite implementations
@@ -102,13 +108,12 @@ struct ftrace_branch_data {
 };
 
 struct ftrace_likely_data {
-	struct ftrace_branch_data	data;
-	unsigned long			constant;
+	struct ftrace_branch_data data;
+	unsigned long constant;
 };
 
 /* Section for code which can't be instrumented at all */
-#define noinstr								\
-	noinline notrace __attribute((__section__(".noinstr.text")))
+#define noinstr noinline notrace __attribute((__section__(".noinstr.text")))
 
 #endif /* __KERNEL__ */
 
@@ -122,7 +127,7 @@ struct ftrace_likely_data {
  * 		int __deprecated foo(void)
  */
 #ifndef __deprecated
-# define __deprecated		/* unimplemented */
+#define __deprecated /* unimplemented */
 #endif
 
 #ifdef MODULE
@@ -169,15 +174,15 @@ struct ftrace_likely_data {
  * the code is emitted even though it appears to be unreferenced.
  */
 #ifndef __used
-# define __used			/* unimplemented */
+#define __used /* unimplemented */
 #endif
 
 #ifndef __maybe_unused
-# define __maybe_unused		/* unimplemented */
+#define __maybe_unused /* unimplemented */
 #endif
 
 #ifndef __always_unused
-# define __always_unused	/* unimplemented */
+#define __always_unused /* unimplemented */
 #endif
 
 #ifndef noinline
@@ -211,32 +216,32 @@ struct ftrace_likely_data {
  * `void'.
  */
 #ifndef __attribute_const__
-# define __attribute_const__	/* unimplemented */
+#define __attribute_const__ /* unimplemented */
 #endif
 
 #ifndef __designated_init
-# define __designated_init
+#define __designated_init
 #endif
 
 #ifndef __latent_entropy
-# define __latent_entropy
+#define __latent_entropy
 #endif
 
 #ifndef __randomize_layout
-# define __randomize_layout __designated_init
+#define __randomize_layout __designated_init
 #endif
 
 #ifndef __no_randomize_layout
-# define __no_randomize_layout
+#define __no_randomize_layout
 #endif
 
 #ifndef randomized_struct_fields_start
-# define randomized_struct_fields_start
-# define randomized_struct_fields_end
+#define randomized_struct_fields_start
+#define randomized_struct_fields_end
 #endif
 
 #ifndef __noscs
-# define __noscs
+#define __noscs
 #endif
 
 /*
@@ -250,7 +255,7 @@ struct ftrace_likely_data {
 
 /* Simple shorthand for a section definition */
 #ifndef __section
-# define __section(S) __attribute__ ((__section__(#S)))
+#define __section(S) __attribute__((__section__(#S)))
 #endif
 
 #ifndef __visible
@@ -258,7 +263,7 @@ struct ftrace_likely_data {
 #endif
 
 #ifndef __nostackprotector
-# define __nostackprotector
+#define __nostackprotector
 #endif
 
 /*
@@ -268,15 +273,16 @@ struct ftrace_likely_data {
 #define __assume_aligned(a, ...)
 #endif
 
-
 /* Are two types/vars the same type (ignoring qualifiers)? */
 #ifndef __same_type
-# define __same_type(a, b) __builtin_types_compatible_p(typeof(a), typeof(b))
+#define __same_type(a, b) __builtin_types_compatible_p(typeof(a), typeof(b))
 #endif
 
 /* Is this type a native word size -- useful for atomic operations */
 #ifndef __native_word
-# define __native_word(t) (sizeof(t) == sizeof(char) || sizeof(t) == sizeof(short) || sizeof(t) == sizeof(int) || sizeof(t) == sizeof(long))
+#define __native_word(t)                                                       \
+	(sizeof(t) == sizeof(char) || sizeof(t) == sizeof(short) ||            \
+	 sizeof(t) == sizeof(int) || sizeof(t) == sizeof(long))
 #endif
 
 #ifndef __diag
@@ -287,14 +293,21 @@ struct ftrace_likely_data {
 #define __diag_GCC(version, severity, string)
 #endif
 
-#define __diag_push()	__diag(push)
-#define __diag_pop()	__diag(pop)
+#define __diag_push() __diag(push)
+#define __diag_pop() __diag(pop)
 
-#define __diag_ignore(compiler, version, option, comment) \
-	__diag_ ## compiler(version, ignore, option)
-#define __diag_warn(compiler, version, option, comment) \
-	__diag_ ## compiler(version, warn, option)
-#define __diag_error(compiler, version, option, comment) \
-	__diag_ ## compiler(version, error, option)
+// 这些宏的作用范围是针对编译单元，
+// 这个宏用于忽略特定的诊断信息。你可以指定编译器、版本、选项和注释。例如
+// __diag_ignore(gcc, 4.2, -Wunused-variable, "Unused variable warning suppressed")
+#define __diag_ignore(compiler, version, option, comment)                      \
+	__diag_##compiler(version, ignore, option)
+
+// __diag_warn(armcc, 5.0, -Wconversion, "Conversion warning enabled")
+#define __diag_warn(compiler, version, option, comment)                        \
+	__diag_##compiler(version, warn, option)
+
+// 将特定的诊断信息设置为错误级别 __diag_error(clang, 10.0, -Wuninitialized, "Uninitialized variable error")
+#define __diag_error(compiler, version, option, comment)                       \
+	__diag_##compiler(version, error, option)
 
 #endif /* __LINUX_COMPILER_TYPES_H */

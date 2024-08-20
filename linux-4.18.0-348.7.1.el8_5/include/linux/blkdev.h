@@ -47,8 +47,8 @@ struct rq_qos;
 struct blk_queue_stats;
 struct blk_stat_callback;
 
-#define BLKDEV_MIN_RQ 4
-#define BLKDEV_MAX_RQ 128 /* Default maximum */
+#define BLKDEV_MIN_RQ	4
+#define BLKDEV_MAX_RQ	128	/* Default maximum */
 
 /* Must be consistent with blk_mq_poll_stats_bkt() */
 #define BLK_MQ_POLL_STATS_BKTS 16
@@ -60,68 +60,68 @@ struct blk_stat_callback;
  * Maximum number of blkcg policies allowed to be registered concurrently.
  * Defined here to simplify include dependency.
  */
-#define BLKCG_MAX_POLS 5
+#define BLKCG_MAX_POLS		5
 
-typedef void(rq_end_io_fn)(struct request *, blk_status_t);
+typedef void (rq_end_io_fn)(struct request *, blk_status_t);
 
 /*
  * request flags */
 typedef __u32 __bitwise req_flags_t;
 
 /* elevator knows about this request */
-#define RQF_SORTED ((__force req_flags_t)(1 << 0))
+#define RQF_SORTED		((__force req_flags_t)(1 << 0))
 /* drive already may have started this one */
-#define RQF_STARTED ((__force req_flags_t)(1 << 1))
+#define RQF_STARTED		((__force req_flags_t)(1 << 1))
 /* may not be passed by ioscheduler */
-#define RQF_SOFTBARRIER ((__force req_flags_t)(1 << 3))
+#define RQF_SOFTBARRIER		((__force req_flags_t)(1 << 3))
 /* request for flush sequence */
-#define RQF_FLUSH_SEQ ((__force req_flags_t)(1 << 4))
+#define RQF_FLUSH_SEQ		((__force req_flags_t)(1 << 4))
 /* merge of different types, fail separately */
-#define RQF_MIXED_MERGE ((__force req_flags_t)(1 << 5))
+#define RQF_MIXED_MERGE		((__force req_flags_t)(1 << 5))
 /* track inflight for MQ */
-#define RQF_MQ_INFLIGHT ((__force req_flags_t)(1 << 6))
+#define RQF_MQ_INFLIGHT		((__force req_flags_t)(1 << 6))
 /* don't call prep for this one */
-#define RQF_DONTPREP ((__force req_flags_t)(1 << 7))
+#define RQF_DONTPREP		((__force req_flags_t)(1 << 7))
 /* set for "ide_preempt" requests and also for requests for which the SCSI
    "quiesce" state must be ignored. */
-#define RQF_PREEMPT ((__force req_flags_t)(1 << 8))
+#define RQF_PREEMPT		((__force req_flags_t)(1 << 8))
 /* vaguely specified driver internal error.  Ignored by the block layer */
-#define RQF_FAILED ((__force req_flags_t)(1 << 10))
+#define RQF_FAILED		((__force req_flags_t)(1 << 10))
 /* don't warn about errors */
-#define RQF_QUIET ((__force req_flags_t)(1 << 11))
+#define RQF_QUIET		((__force req_flags_t)(1 << 11))
 /* elevator private data attached */
-#define RQF_ELVPRIV ((__force req_flags_t)(1 << 12))
+#define RQF_ELVPRIV		((__force req_flags_t)(1 << 12))
 /* account I/O stat */
-#define RQF_IO_STAT ((__force req_flags_t)(1 << 13))
+#define RQF_IO_STAT		((__force req_flags_t)(1 << 13))
 /* request came from our alloc pool */
-#define RQF_ALLOCED ((__force req_flags_t)(1 << 14))
+#define RQF_ALLOCED		((__force req_flags_t)(1 << 14))
 /* runtime pm request */
-#define RQF_PM ((__force req_flags_t)(1 << 15))
+#define RQF_PM			((__force req_flags_t)(1 << 15))
 /* on IO scheduler merge hash */
-#define RQF_HASHED ((__force req_flags_t)(1 << 16))
+#define RQF_HASHED		((__force req_flags_t)(1 << 16))
 /* IO stats tracking on */
-#define RQF_STATS ((__force req_flags_t)(1 << 17))
+#define RQF_STATS		((__force req_flags_t)(1 << 17))
 /* Look at ->special_vec for the actual data payload instead of the
    bio chain. */
-#define RQF_SPECIAL_PAYLOAD ((__force req_flags_t)(1 << 18))
+#define RQF_SPECIAL_PAYLOAD	((__force req_flags_t)(1 << 18))
 /* The per-zone write lock is held for this request */
-#define RQF_ZONE_WRITE_LOCKED ((__force req_flags_t)(1 << 19))
+#define RQF_ZONE_WRITE_LOCKED	((__force req_flags_t)(1 << 19))
 /* already slept for hybrid poll */
-#define RQF_MQ_POLL_SLEPT ((__force req_flags_t)(1 << 20))
+#define RQF_MQ_POLL_SLEPT	((__force req_flags_t)(1 << 20))
 /* ->timeout has been called, don't expire again */
-#define RQF_TIMED_OUT ((__force req_flags_t)(1 << 21))
+#define RQF_TIMED_OUT		((__force req_flags_t)(1 << 21))
 
 /* flags that prevent us from merging requests: */
-#define RQF_NOMERGE_FLAGS                                                      \
+#define RQF_NOMERGE_FLAGS \
 	(RQF_STARTED | RQF_SOFTBARRIER | RQF_FLUSH_SEQ | RQF_SPECIAL_PAYLOAD)
 
 /*
  * Request state for blk-mq.
  */
 enum mq_rq_state {
-	MQ_RQ_IDLE = 0,
-	MQ_RQ_IN_FLIGHT = 1,
-	MQ_RQ_COMPLETE = 2,
+	MQ_RQ_IDLE		= 0,
+	MQ_RQ_IN_FLIGHT		= 1,
+	MQ_RQ_COMPLETE		= 2,
 };
 
 struct request_aux {
@@ -136,24 +136,24 @@ struct request_aux {
  * especially blk_mq_rq_ctx_init() to take care of the added fields.
  */
 struct request {
-	struct request_queue *q; // 归属的 request_queue
-	struct blk_mq_ctx *mq_ctx; // 这个请求放到的软件队列
-	struct blk_mq_hw_ctx *mq_hctx; // 这个请求发送到的硬件队列
+	struct request_queue *q;
+	struct blk_mq_ctx *mq_ctx;
+	struct blk_mq_hw_ctx *mq_hctx;
 
-	unsigned int cmd_flags; /* op and common flags */
+	unsigned int cmd_flags;		/* op and common flags */
 	req_flags_t rq_flags;
 
 	int internal_tag;
 
 	/* the following two fields are internal, NEVER access directly */
-	unsigned int __data_len; /* total data len */ // 当前 request 读取或写入到块设备的字节大小
+	unsigned int __data_len;	/* total data len */
 	int tag;
-	sector_t __sector; /* sector cursor */ // 当前 request 读取或写入到块设备的起始扇区，每个扇区 512 字节
+	sector_t __sector;		/* sector cursor */
 
-	struct bio *bio; // 组成这个 request 的 bio 链表
-	struct bio *biotail; // 这个链表的最后一个 bio
+	struct bio *bio;
+	struct bio *biotail;
 
-	struct list_head queuelist; // 双向链表，用于挂载到 request_queue 的 request_list 链表上
+	struct list_head queuelist;
 
 	/*
 	 * The hash is used inside the scheduler, and killed once the
@@ -163,7 +163,7 @@ struct request {
 	 * the dispatch list).
 	 */
 	union {
-		struct hlist_node hash; /* merge hash */
+		struct hlist_node hash;	/* merge hash */
 		struct list_head ipi_list;
 	};
 
@@ -173,7 +173,7 @@ struct request {
 	 * completion_data share space with the rb_node.
 	 */
 	union {
-		struct rb_node rb_node; /* sort/lookup */
+		struct rb_node rb_node;	/* sort/lookup */
 		struct bio_vec special_vec;
 		void *completion_data;
 		int error_count; /* for legacy drivers, don't use */
@@ -187,14 +187,14 @@ struct request {
 	 */
 	union {
 		struct {
-			struct io_cq *icq;
-			void *priv[2];
+			struct io_cq		*icq;
+			void			*priv[2];
 		} elv;
 
 		struct {
-			unsigned int seq;
-			struct list_head list;
-			rq_end_io_fn *saved_end_io;
+			unsigned int		seq;
+			struct list_head	list;
+			rq_end_io_fn		*saved_end_io;
 		} flush;
 	};
 
@@ -224,10 +224,9 @@ struct request {
 	unsigned short write_hint;
 	unsigned short ioprio;
 
-	RH_KABI_DEPRECATE(void *,
-			  special) /* opaque pointer available for LLD use */
+	RH_KABI_DEPRECATE(void *, special)          /* opaque pointer available for LLD use */
 
-	unsigned int extra_len; /* length of alignment and padding */
+	unsigned int extra_len;	/* length of alignment and padding */
 
 	enum mq_rq_state state;
 	refcount_t ref;
@@ -293,14 +292,14 @@ static inline unsigned short req_get_ioprio(struct request *req)
 
 struct blk_queue_ctx;
 
-typedef blk_qc_t(make_request_fn)(struct request_queue *q, struct bio *bio);
+typedef blk_qc_t (make_request_fn) (struct request_queue *q, struct bio *bio);
 
 struct bio_vec;
-typedef int(dma_drain_needed_fn)(struct request *);
+typedef int (dma_drain_needed_fn)(struct request *);
 
 enum blk_eh_timer_return {
-	BLK_EH_DONE, /* drivers has completed the command */
-	BLK_EH_RESET_TIMER, /* reset timer and try again */
+	BLK_EH_DONE,		/* drivers has completed the command */
+	BLK_EH_RESET_TIMER,	/* reset timer and try again */
 };
 
 enum blk_queue_state {
@@ -311,51 +310,51 @@ enum blk_queue_state {
 #define BLK_TAG_ALLOC_FIFO 0 /* allocate starting from 0 */
 #define BLK_TAG_ALLOC_RR 1 /* allocate starting from last allocated tag */
 
-#define BLK_SCSI_MAX_CMDS (256)
-#define BLK_SCSI_CMD_PER_LONG (BLK_SCSI_MAX_CMDS / (sizeof(long) * 8))
+#define BLK_SCSI_MAX_CMDS	(256)
+#define BLK_SCSI_CMD_PER_LONG	(BLK_SCSI_MAX_CMDS / (sizeof(long) * 8))
 
 /*
  * Zoned block device models (zoned limit).
  */
 enum blk_zoned_model {
-	BLK_ZONED_NONE, /* Regular block device */
-	BLK_ZONED_HA, /* Host-aware zoned block device */
-	BLK_ZONED_HM, /* Host-managed zoned block device */
+	BLK_ZONED_NONE,	/* Regular block device */
+	BLK_ZONED_HA,	/* Host-aware zoned block device */
+	BLK_ZONED_HM,	/* Host-managed zoned block device */
 };
 
 struct queue_limits {
-	unsigned long bounce_pfn;
-	unsigned long seg_boundary_mask;
-	unsigned long virt_boundary_mask;
+	unsigned long		bounce_pfn;
+	unsigned long		seg_boundary_mask;
+	unsigned long		virt_boundary_mask;
 
-	unsigned int max_hw_sectors;
-	unsigned int max_dev_sectors;
-	unsigned int chunk_sectors;
-	unsigned int max_sectors;
-	unsigned int max_segment_size;
-	unsigned int physical_block_size;
-	unsigned int alignment_offset;
-	unsigned int io_min;
-	unsigned int io_opt;
-	unsigned int max_discard_sectors;
-	unsigned int max_hw_discard_sectors;
-	unsigned int max_write_same_sectors;
-	unsigned int max_write_zeroes_sectors;
-	unsigned int discard_granularity;
-	unsigned int discard_alignment;
+	unsigned int		max_hw_sectors;
+	unsigned int		max_dev_sectors;
+	unsigned int		chunk_sectors;
+	unsigned int		max_sectors;
+	unsigned int		max_segment_size;
+	unsigned int		physical_block_size;
+	unsigned int		alignment_offset;
+	unsigned int		io_min;
+	unsigned int		io_opt;
+	unsigned int		max_discard_sectors;
+	unsigned int		max_hw_discard_sectors;
+	unsigned int		max_write_same_sectors;
+	unsigned int		max_write_zeroes_sectors;
+	unsigned int		discard_granularity;
+	unsigned int		discard_alignment;
 
-	unsigned short logical_block_size;
-	unsigned short max_segments;
-	unsigned short max_integrity_segments;
-	unsigned short max_discard_segments;
+	unsigned short		logical_block_size;
+	unsigned short		max_segments;
+	unsigned short		max_integrity_segments;
+	unsigned short		max_discard_segments;
 
-	unsigned char misaligned;
-	unsigned char discard_misaligned;
-	unsigned char cluster;
-	unsigned char raid_partial_stripes_expensive;
-	enum blk_zoned_model zoned;
+	unsigned char		misaligned;
+	unsigned char		discard_misaligned;
+	unsigned char		cluster;
+	unsigned char		raid_partial_stripes_expensive;
+	enum blk_zoned_model	zoned;
 
-	RH_KABI_USE(1, unsigned int max_zone_append_sectors)
+	RH_KABI_USE(1, unsigned int		max_zone_append_sectors)
 
 	RH_KABI_RESERVE(2)
 	RH_KABI_RESERVE(3)
@@ -373,7 +372,7 @@ void blk_queue_set_zoned(struct gendisk *disk, enum blk_zoned_model model);
 
 #ifdef CONFIG_BLK_DEV_ZONED
 
-#define BLK_ALL_ZONES ((unsigned int)-1)
+#define BLK_ALL_ZONES  ((unsigned int)-1)
 int blkdev_report_zones(struct block_device *bdev, sector_t sector,
 			unsigned int nr_zones, report_zones_cb cb, void *data);
 unsigned int blkdev_nr_zones(struct gendisk *disk);
@@ -417,25 +416,25 @@ struct request_queue {
 	 */
 	RH_KABI_DEPRECATE(struct list_head,	queue_head)
 	struct request		*last_merge;
-	struct elevator_queue	*elevator; // 电梯算法，要具体到 cfq，dd，none
+	struct elevator_queue	*elevator;
 
-	struct blk_queue_stats *stats;
-	struct rq_qos *rq_qos;
+	struct blk_queue_stats	*stats;
+	struct rq_qos		*rq_qos;
 
-	make_request_fn *make_request_fn;
-	dma_drain_needed_fn *dma_drain_needed;
+	make_request_fn		*make_request_fn;
+	dma_drain_needed_fn	*dma_drain_needed;
 
-	const struct blk_mq_ops *mq_ops; // scsi_mq_ops/scsi_mq_ops_no_commit 会初始化这个变量，块设备驱动 mq 的操作集合，用于抽象快设备驱动的行为
+	const struct blk_mq_ops	*mq_ops;
 
 	/* sw queues */
-	struct blk_mq_ctx __percpu	*queue_ctx; // 软件队列，一个等待发送到硬件队列的请求队列，按 cpu core 数量
-	RH_KABI_DEPRECATE(unsigned int,            nr_queues) // 软件队列的数量，对应 cpu core 的数量
+	struct blk_mq_ctx __percpu	*queue_ctx;
+	RH_KABI_DEPRECATE(unsigned int,            nr_queues)
 
 	unsigned int		queue_depth;
 
 	/* hw dispatch queues */
-	struct blk_mq_hw_ctx	**queue_hw_ctx; // 块硬件队列数组
-	unsigned int		nr_hw_queues; // 块设备硬件队列的数量
+	struct blk_mq_hw_ctx	**queue_hw_ctx;
+	unsigned int		nr_hw_queues;
 
 	struct backing_dev_info	*backing_dev_info;
 
@@ -443,31 +442,31 @@ struct request_queue {
 	 * The queue owner gets to use this for whatever they like.
 	 * ll_rw_blk doesn't touch it.
 	 */
-	void *queuedata;
+	void			*queuedata;
 
 	/*
 	 * various queue flags, see QUEUE_* below
 	 */
-	unsigned long queue_flags;
+	unsigned long		queue_flags;
 	/*
 	 * Number of contexts that have called blk_set_pm_only(). If this
 	 * counter is above zero then only RQF_PM and RQF_PREEMPT requests are
 	 * processed.
 	 */
-	atomic_t pm_only;
+	atomic_t		pm_only;
 
 	/*
 	 * ida allocated id for this queue.  Used to index queues from
 	 * ioctx.
 	 */
-	int id;
+	int			id;
 
 	/*
 	 * queue needs bounce pages for pages above this limit
 	 */
-	gfp_t bounce_gfp;
+	gfp_t			bounce_gfp;
 
-	spinlock_t queue_lock;
+	spinlock_t		queue_lock;
 
 	/*
 	 * queue kobject
@@ -479,43 +478,43 @@ struct request_queue {
 	 */
 	struct kobject *mq_kobj;
 
-#ifdef CONFIG_BLK_DEV_INTEGRITY
+#ifdef  CONFIG_BLK_DEV_INTEGRITY
 	struct blk_integrity integrity;
-#endif /* CONFIG_BLK_DEV_INTEGRITY */
+#endif	/* CONFIG_BLK_DEV_INTEGRITY */
 
 #ifdef CONFIG_PM
-	struct device *dev;
-	RH_KABI_REPLACE(int rpm_status, enum rpm_status rpm_status)
-	unsigned int nr_pending;
+	struct device		*dev;
+	RH_KABI_REPLACE(int	rpm_status, enum rpm_status rpm_status)
+	unsigned int		nr_pending;
 #endif
 
 	/*
 	 * queue settings
 	 */
-	unsigned long nr_requests; /* Max # of requests */
+	unsigned long		nr_requests;	/* Max # of requests */
 
-	unsigned int dma_drain_size;
-	void *dma_drain_buffer;
-	unsigned int dma_pad_mask;
-	unsigned int dma_alignment;
+	unsigned int		dma_drain_size;
+	void			*dma_drain_buffer;
+	unsigned int		dma_pad_mask;
+	unsigned int		dma_alignment;
 
-	unsigned int rq_timeout;
-	int poll_nsec;
+	unsigned int		rq_timeout;
+	int			poll_nsec;
 
-	struct blk_stat_callback *poll_cb;
-	struct blk_rq_stat poll_stat[BLK_MQ_POLL_STATS_BKTS];
+	struct blk_stat_callback	*poll_cb;
+	struct blk_rq_stat	poll_stat[BLK_MQ_POLL_STATS_BKTS];
 
-	struct timer_list timeout;
-	struct work_struct timeout_work;
+	struct timer_list	timeout;
+	struct work_struct	timeout_work;
 
-	struct list_head icq_list;
+	struct list_head	icq_list;
 #ifdef CONFIG_BLK_CGROUP
-	DECLARE_BITMAP(blkcg_pols, BLKCG_MAX_POLS);
-	struct blkcg_gq *root_blkg;
-	struct list_head blkg_list;
+	DECLARE_BITMAP		(blkcg_pols, BLKCG_MAX_POLS);
+	struct blkcg_gq		*root_blkg;
+	struct list_head	blkg_list;
 #endif
 
-	struct queue_limits limits;
+	struct queue_limits	limits;
 
 #if 1 /* CONFIG_BLK_DEV_ZONED */
 	/*
@@ -535,33 +534,33 @@ struct request_queue {
 	 * no requests are being processed. See also blk_mq_freeze_queue() and
 	 * blk_mq_unfreeze_queue().
 	 */
-	unsigned int nr_zones;
-	RH_KABI_REPLACE(unsigned long *seq_zones_bitmap,
-			unsigned long *conv_zones_bitmap)
+	unsigned int		nr_zones;
+	RH_KABI_REPLACE(unsigned long   *seq_zones_bitmap,
+			unsigned long           *conv_zones_bitmap)
 
-	unsigned long *seq_zones_wlock;
+	unsigned long		*seq_zones_wlock;
 #endif /* CONFIG_BLK_DEV_ZONED */
 
 	/*
 	 * sg stuff
 	 */
-	unsigned int sg_timeout;
-	unsigned int sg_reserved_size;
-	int node;
+	unsigned int		sg_timeout;
+	unsigned int		sg_reserved_size;
+	int			node;
 #ifdef CONFIG_BLK_DEV_IO_TRACE
-	struct blk_trace RH_KABI_ADD_MODIFIER(__rcu) * blk_trace;
-	struct mutex blk_trace_mutex;
+	struct blk_trace RH_KABI_ADD_MODIFIER(__rcu) *blk_trace;
+	struct mutex		blk_trace_mutex;
 #endif
 	/*
 	 * for flush operations
 	 */
-	struct blk_flush_queue *fq;
+	struct blk_flush_queue	*fq;
 
-	struct list_head requeue_list;
-	spinlock_t requeue_lock;
-	struct delayed_work requeue_work;
+	struct list_head	requeue_list;
+	spinlock_t		requeue_lock;
+	struct delayed_work	requeue_work;
 
-	struct mutex sysfs_lock;
+	struct mutex		sysfs_lock;
 
 	RH_KABI_REPLACE(atomic_t                mq_freeze_depth,
 			int			mq_freeze_depth)
@@ -574,140 +573,137 @@ struct request_queue {
 	/* Throttle data */
 	struct throtl_data *td;
 #endif
-	struct rcu_head rcu_head;
-	wait_queue_head_t mq_freeze_wq;
-	struct percpu_ref q_usage_counter;
+	struct rcu_head		rcu_head;
+	wait_queue_head_t	mq_freeze_wq;
+	struct percpu_ref	q_usage_counter;
 	RH_KABI_DEPRECATE(struct list_head, all_q_node)
 
-	struct blk_mq_tag_set *
-		tag_set; // 包含了块设备的硬件配置信息，例如硬件队列数 nr_hw_queues，队列深度 queue_depth 等
-	struct list_head tag_set_list;
-	struct bio_set bio_split;
+	struct blk_mq_tag_set	*tag_set;
+	struct list_head	tag_set_list;
+	struct bio_set		bio_split;
 
 #ifdef CONFIG_BLK_DEBUG_FS
-	struct dentry *debugfs_dir; // 通过/sys/kernel/debug/block/xxx/可以查看块设备的信息
-	struct dentry *sched_debugfs_dir;
+	struct dentry		*debugfs_dir;
+	struct dentry		*sched_debugfs_dir;
 #endif
 
-	bool mq_sysfs_init_done;
+	bool			mq_sysfs_init_done;
 
-	size_t cmd_size;
+	size_t			cmd_size;
 
-	RH_KABI_DEPRECATE(struct work_struct, release_work)
+	RH_KABI_DEPRECATE(struct work_struct,      release_work)
 
-#define BLK_MAX_WRITE_HINTS 5
-	u64 write_hints[BLK_MAX_WRITE_HINTS];
+#define BLK_MAX_WRITE_HINTS	5
+	u64			write_hints[BLK_MAX_WRITE_HINTS];
 
 	/*
 	 * for reusing dead hctx instance in case of updating
 	 * nr_hw_queues
 	 */
-	RH_KABI_EXTEND(struct list_head unused_hctx_list)
-	RH_KABI_EXTEND(spinlock_t unused_hctx_lock)
+	RH_KABI_EXTEND(struct list_head	unused_hctx_list)
+	RH_KABI_EXTEND(spinlock_t	unused_hctx_lock)
 	/*
 	 * Protect concurrent access to q_usage_counter by
 	 * percpu_ref_kill() and percpu_ref_reinit().
 	 */
-	RH_KABI_EXTEND(struct mutex mq_freeze_lock)
+	RH_KABI_EXTEND(struct mutex		mq_freeze_lock)
 
-	RH_KABI_EXTEND(struct mutex sysfs_dir_lock)
+	RH_KABI_EXTEND(struct mutex		sysfs_dir_lock)
 
-	RH_KABI_EXTEND(struct dentry *rqos_debugfs_dir)
+	RH_KABI_EXTEND(struct dentry		*rqos_debugfs_dir)
 
-	RH_KABI_EXTEND(unsigned int required_elevator_features)
+	RH_KABI_EXTEND(unsigned int	required_elevator_features)
 
-	RH_KABI_EXTEND(struct mutex debugfs_mutex)
+	RH_KABI_EXTEND(struct mutex		debugfs_mutex)
 
-	RH_KABI_EXTEND(atomic_t nr_active_requests_shared_sbitmap)
+	RH_KABI_EXTEND(atomic_t		nr_active_requests_shared_sbitmap)
 
-	RH_KABI_EXTEND(struct sbitmap_queue sched_bitmap_tags)
-	RH_KABI_EXTEND(struct sbitmap_queue sched_breserved_tags)
+	RH_KABI_EXTEND(struct sbitmap_queue	sched_bitmap_tags)
+	RH_KABI_EXTEND(struct sbitmap_queue	sched_breserved_tags)
 };
 
 /* Keep blk_queue_flag_name[] in sync with the definitions below */
-#define QUEUE_FLAG_STOPPED 1 /* queue is stopped */
-#define QUEUE_FLAG_DYING 2 /* queue being torn down */
-#define QUEUE_FLAG_HCTX_ACTIVE 3 /* at least one blk-mq hctx is active */
-#define QUEUE_FLAG_NOMERGES 5 /* disable merge attempts */
-#define QUEUE_FLAG_SAME_COMP 6 /* complete on same CPU-group */
-#define QUEUE_FLAG_FAIL_IO 7 /* fake timeout */
-#define QUEUE_FLAG_UNPRIV_SGIO 8 /* SG_IO free for unprivileged users */
-#define QUEUE_FLAG_NONROT 9 /* non-rotational device (SSD) */
-#define QUEUE_FLAG_VIRT QUEUE_FLAG_NONROT /* paravirt device */
-#define QUEUE_FLAG_IO_STAT 10 /* do IO stats */
-#define QUEUE_FLAG_DISCARD 11 /* supports DISCARD */
-#define QUEUE_FLAG_NOXMERGES 12 /* No extended merges */
-#define QUEUE_FLAG_ADD_RANDOM 13 /* Contributes to random pool */
-#define QUEUE_FLAG_SECERASE 14 /* supports secure erase */
-#define QUEUE_FLAG_SAME_FORCE 15 /* force complete on same CPU */
-#define QUEUE_FLAG_DEAD 16 /* queue tear-down finished */
-#define QUEUE_FLAG_INIT_DONE 17 /* queue is initialized */
-#define QUEUE_FLAG_NO_SG_MERGE                                                 \
-	18 /* don't attempt to merge SG segments (obsolete) */
-#define QUEUE_FLAG_POLL 19 /* IO polling enabled if set */
-#define QUEUE_FLAG_WC 20 /* Write back caching */
-#define QUEUE_FLAG_FUA 21 /* device supports FUA writes */
-#define QUEUE_FLAG_RQ_ALLOC_TIME 22 /* record rq->alloc_time_ns */
-#define QUEUE_FLAG_DAX 23 /* device supports DAX */
-#define QUEUE_FLAG_STATS 24 /* track rq completion times */
-#define QUEUE_FLAG_POLL_STATS 25 /* collecting stats for hybrid polling */
-#define QUEUE_FLAG_REGISTERED 26 /* queue has been registered to a disk */
-#define QUEUE_FLAG_SCSI_PASSTHROUGH 27 /* queue supports SCSI commands */
-#define QUEUE_FLAG_QUIESCED 28 /* queue has been quiesced */
-#define QUEUE_FLAG_PCI_P2PDMA 29 /* device supports PCI p2p requests */
-#define QUEUE_FLAG_ZONE_RESETALL 30 /* supports Zone Reset All */
-#define QUEUE_FLAG_NOWAIT 31 /* device supports NOWAIT */
+#define QUEUE_FLAG_STOPPED	1	/* queue is stopped */
+#define QUEUE_FLAG_DYING	2	/* queue being torn down */
+#define QUEUE_FLAG_HCTX_ACTIVE  3	/* at least one blk-mq hctx is active */
+#define QUEUE_FLAG_NOMERGES     5	/* disable merge attempts */
+#define QUEUE_FLAG_SAME_COMP	6	/* complete on same CPU-group */
+#define QUEUE_FLAG_FAIL_IO	7	/* fake timeout */
+#define QUEUE_FLAG_UNPRIV_SGIO  8	/* SG_IO free for unprivileged users */
+#define QUEUE_FLAG_NONROT	9	/* non-rotational device (SSD) */
+#define QUEUE_FLAG_VIRT        QUEUE_FLAG_NONROT /* paravirt device */
+#define QUEUE_FLAG_IO_STAT     10	/* do IO stats */
+#define QUEUE_FLAG_DISCARD     11	/* supports DISCARD */
+#define QUEUE_FLAG_NOXMERGES   12	/* No extended merges */
+#define QUEUE_FLAG_ADD_RANDOM  13	/* Contributes to random pool */
+#define QUEUE_FLAG_SECERASE    14	/* supports secure erase */
+#define QUEUE_FLAG_SAME_FORCE  15	/* force complete on same CPU */
+#define QUEUE_FLAG_DEAD        16	/* queue tear-down finished */
+#define QUEUE_FLAG_INIT_DONE   17	/* queue is initialized */
+#define QUEUE_FLAG_NO_SG_MERGE 18	/* don't attempt to merge SG segments (obsolete) */
+#define QUEUE_FLAG_POLL	       19	/* IO polling enabled if set */
+#define QUEUE_FLAG_WC	       20	/* Write back caching */
+#define QUEUE_FLAG_FUA	       21	/* device supports FUA writes */
+#define QUEUE_FLAG_RQ_ALLOC_TIME 22	/* record rq->alloc_time_ns */
+#define QUEUE_FLAG_DAX         23	/* device supports DAX */
+#define QUEUE_FLAG_STATS       24	/* track rq completion times */
+#define QUEUE_FLAG_POLL_STATS  25	/* collecting stats for hybrid polling */
+#define QUEUE_FLAG_REGISTERED  26	/* queue has been registered to a disk */
+#define QUEUE_FLAG_SCSI_PASSTHROUGH 27	/* queue supports SCSI commands */
+#define QUEUE_FLAG_QUIESCED    28	/* queue has been quiesced */
+#define QUEUE_FLAG_PCI_P2PDMA  29	/* device supports PCI p2p requests */
+#define QUEUE_FLAG_ZONE_RESETALL 30	/* supports Zone Reset All */
+#define QUEUE_FLAG_NOWAIT      31	/* device supports NOWAIT */
 
-#define QUEUE_FLAG_DEFAULT                                                     \
-	((1 << QUEUE_FLAG_IO_STAT) | (1 << QUEUE_FLAG_SAME_COMP) |             \
-	 (1 << QUEUE_FLAG_ADD_RANDOM))
+#define QUEUE_FLAG_DEFAULT	((1 << QUEUE_FLAG_IO_STAT) |		\
+				 (1 << QUEUE_FLAG_SAME_COMP)	|	\
+				 (1 << QUEUE_FLAG_ADD_RANDOM))
 
-#define QUEUE_FLAG_MQ_DEFAULT                                                  \
-	((1 << QUEUE_FLAG_IO_STAT) | (1 << QUEUE_FLAG_SAME_COMP) |             \
-	 (1 << QUEUE_FLAG_NOWAIT))
+#define QUEUE_FLAG_MQ_DEFAULT	((1 << QUEUE_FLAG_IO_STAT) |		\
+				 (1 << QUEUE_FLAG_SAME_COMP) |		\
+				 (1 << QUEUE_FLAG_NOWAIT))
 
 void blk_queue_flag_set(unsigned int flag, struct request_queue *q);
 void blk_queue_flag_clear(unsigned int flag, struct request_queue *q);
 bool blk_queue_flag_test_and_set(unsigned int flag, struct request_queue *q);
 
-#define blk_queue_stopped(q) test_bit(QUEUE_FLAG_STOPPED, &(q)->queue_flags)
-#define blk_queue_dying(q) test_bit(QUEUE_FLAG_DYING, &(q)->queue_flags)
-#define blk_queue_dead(q) test_bit(QUEUE_FLAG_DEAD, &(q)->queue_flags)
-#define blk_queue_init_done(q) test_bit(QUEUE_FLAG_INIT_DONE, &(q)->queue_flags)
-#define blk_queue_nomerges(q) test_bit(QUEUE_FLAG_NOMERGES, &(q)->queue_flags)
-#define blk_queue_noxmerges(q) test_bit(QUEUE_FLAG_NOXMERGES, &(q)->queue_flags)
-#define blk_queue_unpriv_sgio(q)                                               \
+#define blk_queue_stopped(q)	test_bit(QUEUE_FLAG_STOPPED, &(q)->queue_flags)
+#define blk_queue_dying(q)	test_bit(QUEUE_FLAG_DYING, &(q)->queue_flags)
+#define blk_queue_dead(q)	test_bit(QUEUE_FLAG_DEAD, &(q)->queue_flags)
+#define blk_queue_init_done(q)	test_bit(QUEUE_FLAG_INIT_DONE, &(q)->queue_flags)
+#define blk_queue_nomerges(q)	test_bit(QUEUE_FLAG_NOMERGES, &(q)->queue_flags)
+#define blk_queue_noxmerges(q)	\
+	test_bit(QUEUE_FLAG_NOXMERGES, &(q)->queue_flags)
+#define blk_queue_unpriv_sgio(q) \
 	test_bit(QUEUE_FLAG_UNPRIV_SGIO, &(q)->queue_flags)
-#define blk_queue_nonrot(q) test_bit(QUEUE_FLAG_NONROT, &(q)->queue_flags)
-#define blk_queue_io_stat(q) test_bit(QUEUE_FLAG_IO_STAT, &(q)->queue_flags)
-#define blk_queue_add_random(q)                                                \
-	test_bit(QUEUE_FLAG_ADD_RANDOM, &(q)->queue_flags)
-#define blk_queue_discard(q) test_bit(QUEUE_FLAG_DISCARD, &(q)->queue_flags)
-#define blk_queue_zone_resetall(q)                                             \
+#define blk_queue_nonrot(q)	test_bit(QUEUE_FLAG_NONROT, &(q)->queue_flags)
+#define blk_queue_io_stat(q)	test_bit(QUEUE_FLAG_IO_STAT, &(q)->queue_flags)
+#define blk_queue_add_random(q)	test_bit(QUEUE_FLAG_ADD_RANDOM, &(q)->queue_flags)
+#define blk_queue_discard(q)	test_bit(QUEUE_FLAG_DISCARD, &(q)->queue_flags)
+#define blk_queue_zone_resetall(q)	\
 	test_bit(QUEUE_FLAG_ZONE_RESETALL, &(q)->queue_flags)
-#define blk_queue_secure_erase(q)                                              \
+#define blk_queue_secure_erase(q) \
 	(test_bit(QUEUE_FLAG_SECERASE, &(q)->queue_flags))
-#define blk_queue_dax(q) test_bit(QUEUE_FLAG_DAX, &(q)->queue_flags)
-#define blk_queue_scsi_passthrough(q)                                          \
+#define blk_queue_dax(q)	test_bit(QUEUE_FLAG_DAX, &(q)->queue_flags)
+#define blk_queue_scsi_passthrough(q)	\
 	test_bit(QUEUE_FLAG_SCSI_PASSTHROUGH, &(q)->queue_flags)
-#define blk_queue_pci_p2pdma(q)                                                \
+#define blk_queue_pci_p2pdma(q)	\
 	test_bit(QUEUE_FLAG_PCI_P2PDMA, &(q)->queue_flags)
 #ifdef CONFIG_BLK_RQ_ALLOC_TIME
-#define blk_queue_rq_alloc_time(q)                                             \
+#define blk_queue_rq_alloc_time(q)	\
 	test_bit(QUEUE_FLAG_RQ_ALLOC_TIME, &(q)->queue_flags)
 #else
-#define blk_queue_rq_alloc_time(q) false
+#define blk_queue_rq_alloc_time(q)	false
 #endif
 
-#define blk_noretry_request(rq)                                                \
-	((rq)->cmd_flags &                                                     \
-	 (REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT | REQ_FAILFAST_DRIVER))
-#define blk_queue_quiesced(q) test_bit(QUEUE_FLAG_QUIESCED, &(q)->queue_flags)
-#define blk_queue_pm_only(q) atomic_read(&(q)->pm_only)
-#define blk_queue_fua(q) test_bit(QUEUE_FLAG_FUA, &(q)->queue_flags)
-#define blk_queue_registered(q)                                                \
-	test_bit(QUEUE_FLAG_REGISTERED, &(q)->queue_flags)
-#define blk_queue_nowait(q) test_bit(QUEUE_FLAG_NOWAIT, &(q)->queue_flags)
+#define blk_noretry_request(rq) \
+	((rq)->cmd_flags & (REQ_FAILFAST_DEV|REQ_FAILFAST_TRANSPORT| \
+			     REQ_FAILFAST_DRIVER))
+#define blk_queue_quiesced(q)	test_bit(QUEUE_FLAG_QUIESCED, &(q)->queue_flags)
+#define blk_queue_pm_only(q)	atomic_read(&(q)->pm_only)
+#define blk_queue_fua(q)	test_bit(QUEUE_FLAG_FUA, &(q)->queue_flags)
+#define blk_queue_registered(q)	test_bit(QUEUE_FLAG_REGISTERED, &(q)->queue_flags)
+#define blk_queue_nowait(q)	test_bit(QUEUE_FLAG_NOWAIT, &(q)->queue_flags)
 
 extern void blk_set_pm_only(struct request_queue *q);
 extern void blk_clear_pm_only(struct request_queue *q);
@@ -717,16 +713,16 @@ static inline bool blk_account_rq(struct request *rq)
 	return (rq->rq_flags & RQF_STARTED) && !blk_rq_is_passthrough(rq);
 }
 
-#define list_entry_rq(ptr) list_entry((ptr), struct request, queuelist)
+#define list_entry_rq(ptr)	list_entry((ptr), struct request, queuelist)
 
-#define rq_data_dir(rq) (op_is_write(req_op(rq)) ? WRITE : READ)
+#define rq_data_dir(rq)		(op_is_write(req_op(rq)) ? WRITE : READ)
 
-#define rq_dma_dir(rq)                                                         \
+#define rq_dma_dir(rq) \
 	(op_is_write(req_op(rq)) ? DMA_TO_DEVICE : DMA_FROM_DEVICE)
 
-#define dma_map_bvec(dev, bv, dir, attrs)                                      \
-	dma_map_page_attrs(dev, (bv)->bv_page, (bv)->bv_offset, (bv)->bv_len,  \
-			   (dir), (attrs))
+#define dma_map_bvec(dev, bv, dir, attrs) \
+	dma_map_page_attrs(dev, (bv)->bv_page, (bv)->bv_offset, (bv)->bv_len, \
+	(dir), (attrs))
 
 static inline bool queue_is_mq(struct request_queue *q)
 {
@@ -739,7 +735,7 @@ static inline unsigned int blk_queue_cluster(struct request_queue *q)
 }
 
 static inline enum blk_zoned_model
-	blk_queue_zoned_model(struct request_queue *q)
+blk_queue_zoned_model(struct request_queue *q)
 {
 	if (IS_ENABLED(CONFIG_BLK_DEV_ZONED))
 		return q->limits.zoned;
@@ -831,7 +827,8 @@ static inline bool rq_mergeable(struct request *rq)
 
 static inline bool blk_write_same_mergeable(struct bio *a, struct bio *b)
 {
-	if (bio_page(a) == bio_page(b) && bio_offset(a) == bio_offset(b))
+	if (bio_page(a) == bio_page(b) &&
+	    bio_offset(a) == bio_offset(b))
 		return true;
 
 	return false;
@@ -856,18 +853,18 @@ extern unsigned long blk_max_low_pfn, blk_max_pfn;
  */
 
 #if BITS_PER_LONG == 32
-#define BLK_BOUNCE_HIGH ((u64)blk_max_low_pfn << PAGE_SHIFT)
+#define BLK_BOUNCE_HIGH		((u64)blk_max_low_pfn << PAGE_SHIFT)
 #else
-#define BLK_BOUNCE_HIGH -1ULL
+#define BLK_BOUNCE_HIGH		-1ULL
 #endif
-#define BLK_BOUNCE_ANY (-1ULL)
-#define BLK_BOUNCE_ISA (DMA_BIT_MASK(24))
+#define BLK_BOUNCE_ANY		(-1ULL)
+#define BLK_BOUNCE_ISA		(DMA_BIT_MASK(24))
 
 /*
  * default timeout for SG_IO if none specified
  */
-#define BLK_DEFAULT_SG_TIMEOUT (60 * HZ)
-#define BLK_MIN_SG_TIMEOUT (7 * HZ)
+#define BLK_DEFAULT_SG_TIMEOUT	(60 * HZ)
+#define BLK_MIN_SG_TIMEOUT	(7 * HZ)
 
 struct rq_map_data {
 	struct page **pages;
@@ -884,20 +881,22 @@ struct req_iterator {
 };
 
 /* This should not be used directly - use rq_for_each_segment */
-#define for_each_bio(_bio) for (; _bio; _bio = _bio->bi_next)
-#define __rq_for_each_bio(_bio, rq)                                            \
-	if ((rq->bio))                                                         \
+#define for_each_bio(_bio)		\
+	for (; _bio; _bio = _bio->bi_next)
+#define __rq_for_each_bio(_bio, rq)	\
+	if ((rq->bio))			\
 		for (_bio = (rq)->bio; _bio; _bio = _bio->bi_next)
 
-#define rq_for_each_segment(bvl, _rq, _iter)                                   \
-	__rq_for_each_bio (_iter.bio, _rq)                                     \
-		bio_for_each_segment (bvl, _iter.bio, _iter.iter)
+#define rq_for_each_segment(bvl, _rq, _iter)			\
+	__rq_for_each_bio(_iter.bio, _rq)			\
+		bio_for_each_segment(bvl, _iter.bio, _iter.iter)
 
-#define rq_iter_last(bvec, _iter)                                              \
-	(_iter.bio->bi_next == NULL && bio_iter_last(bvec, _iter.iter))
+#define rq_iter_last(bvec, _iter)				\
+		(_iter.bio->bi_next == NULL &&			\
+		 bio_iter_last(bvec, _iter.iter))
 
 #ifndef ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE
-#error "You should define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE for your platform"
+# error	"You should define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE for your platform"
 #endif
 #if ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE
 extern void rq_flush_dcache_pages(struct request *rq);
@@ -922,13 +921,13 @@ extern int blk_rq_prep_clone(struct request *rq, struct request *rq_src,
 			     void *data);
 extern void blk_rq_unprep_clone(struct request *rq);
 extern blk_status_t blk_insert_cloned_request(struct request_queue *q,
-					      struct request *rq);
+				     struct request *rq);
 extern int blk_rq_append_bio(struct request *rq, struct bio **bio);
 extern void blk_queue_split(struct request_queue *, struct bio **);
 extern void blk_recount_segments(struct request_queue *, struct bio *);
 extern int scsi_verify_blk_ioctl(struct block_device *, unsigned int);
-extern int scsi_cmd_blk_ioctl(struct block_device *, fmode_t, unsigned int,
-			      void __user *);
+extern int scsi_cmd_blk_ioctl(struct block_device *, fmode_t,
+			      unsigned int, void __user *);
 extern int scsi_cmd_ioctl(struct request_queue *, struct gendisk *, fmode_t,
 			  unsigned int, void __user *);
 extern int sg_scsi_ioctl(struct request_queue *, struct gendisk *, fmode_t,
@@ -941,13 +940,12 @@ extern int blk_rq_map_user(struct request_queue *, struct request *,
 			   struct rq_map_data *, void __user *, unsigned long,
 			   gfp_t);
 extern int blk_rq_unmap_user(struct bio *);
-extern int blk_rq_map_kern(struct request_queue *, struct request *, void *,
-			   unsigned int, gfp_t);
+extern int blk_rq_map_kern(struct request_queue *, struct request *, void *, unsigned int, gfp_t);
 extern int blk_rq_map_user_iov(struct request_queue *, struct request *,
 			       struct rq_map_data *, const struct iov_iter *,
 			       gfp_t);
 extern void blk_execute_rq(struct request_queue *, struct gendisk *,
-			   struct request *, int);
+			  struct request *, int);
 extern void blk_execute_rq_nowait(struct request_queue *, struct gendisk *,
 				  struct request *, int, rq_end_io_fn *);
 
@@ -961,7 +959,7 @@ int blk_poll(struct request_queue *q, blk_qc_t cookie, bool spin);
 
 static inline struct request_queue *bdev_get_queue(struct block_device *bdev)
 {
-	return bdev->bd_disk->queue; /* this is never NULL */
+	return bdev->bd_disk->queue;	/* this is never NULL */
 }
 
 /*
@@ -1094,12 +1092,13 @@ static inline unsigned int blk_rq_get_max_sectors(struct request *rq,
 	if (blk_rq_is_passthrough(rq))
 		return q->limits.max_hw_sectors;
 
-	if (!q->limits.chunk_sectors || req_op(rq) == REQ_OP_DISCARD ||
+	if (!q->limits.chunk_sectors ||
+	    req_op(rq) == REQ_OP_DISCARD ||
 	    req_op(rq) == REQ_OP_SECURE_ERASE)
 		return blk_queue_get_max_sectors(q, req_op(rq));
 
 	return min(blk_max_size_offset(q, offset, 0),
-		   blk_queue_get_max_sectors(q, req_op(rq)));
+			blk_queue_get_max_sectors(q, req_op(rq)));
 }
 
 static inline unsigned int blk_rq_count_bios(struct request *rq)
@@ -1107,7 +1106,7 @@ static inline unsigned int blk_rq_count_bios(struct request *rq)
 	unsigned int nr_bios = 0;
 	struct bio *bio;
 
-	__rq_for_each_bio (bio, rq)
+	__rq_for_each_bio(bio, rq)
 		nr_bios++;
 
 	return nr_bios;
@@ -1136,21 +1135,17 @@ extern void blk_queue_max_hw_sectors(struct request_queue *, unsigned int);
 extern void blk_queue_chunk_sectors(struct request_queue *, unsigned int);
 extern void blk_queue_max_segments(struct request_queue *, unsigned short);
 extern void blk_queue_max_discard_segments(struct request_queue *,
-					   unsigned short);
+		unsigned short);
 extern void blk_queue_max_segment_size(struct request_queue *, unsigned int);
 extern void blk_queue_max_discard_sectors(struct request_queue *q,
-					  unsigned int max_discard_sectors);
-extern void
-	blk_queue_max_write_same_sectors(struct request_queue *q,
-					 unsigned int max_write_same_sectors);
-extern void
-	blk_queue_max_write_zeroes_sectors(struct request_queue *q,
-					   unsigned int max_write_same_sectors);
-extern void blk_queue_logical_block_size(struct request_queue *,
-					 unsigned short);
-extern void
-	blk_queue_max_zone_append_sectors(struct request_queue *q,
-					  unsigned int max_zone_append_sectors);
+		unsigned int max_discard_sectors);
+extern void blk_queue_max_write_same_sectors(struct request_queue *q,
+		unsigned int max_write_same_sectors);
+extern void blk_queue_max_write_zeroes_sectors(struct request_queue *q,
+		unsigned int max_write_same_sectors);
+extern void blk_queue_logical_block_size(struct request_queue *, unsigned short);
+extern void blk_queue_max_zone_append_sectors(struct request_queue *q,
+		unsigned int max_zone_append_sectors);
 extern void blk_queue_physical_block_size(struct request_queue *, unsigned int);
 extern void blk_queue_alignment_offset(struct request_queue *q,
 				       unsigned int alignment);
@@ -1165,23 +1160,21 @@ extern void blk_set_stacking_limits(struct queue_limits *lim);
 extern int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 			    sector_t offset);
 extern int bdev_stack_limits(struct queue_limits *t, struct block_device *bdev,
-			     sector_t offset);
+			    sector_t offset);
 extern void disk_stack_limits(struct gendisk *disk, struct block_device *bdev,
 			      sector_t offset);
-extern void blk_queue_stack_limits(struct request_queue *t,
-				   struct request_queue *b);
+extern void blk_queue_stack_limits(struct request_queue *t, struct request_queue *b);
 extern void blk_queue_dma_pad(struct request_queue *, unsigned int);
 extern void blk_queue_update_dma_pad(struct request_queue *, unsigned int);
 extern int blk_queue_dma_drain(struct request_queue *q,
-			       dma_drain_needed_fn *dma_drain_needed, void *buf,
-			       unsigned int size);
+			       dma_drain_needed_fn *dma_drain_needed,
+			       void *buf, unsigned int size);
 extern void blk_queue_segment_boundary(struct request_queue *, unsigned long);
 extern void blk_queue_virt_boundary(struct request_queue *, unsigned long);
 extern void blk_queue_dma_alignment(struct request_queue *, int);
 extern void blk_queue_update_dma_alignment(struct request_queue *, int);
 extern void blk_queue_rq_timeout(struct request_queue *, unsigned int);
-extern void blk_queue_write_cache(struct request_queue *q, bool enabled,
-				  bool fua);
+extern void blk_queue_write_cache(struct request_queue *q, bool enabled, bool fua);
 extern void blk_queue_required_elevator_features(struct request_queue *q,
 						 unsigned int features);
 
@@ -1211,9 +1204,9 @@ static inline unsigned short blk_rq_nr_discard_segments(struct request *rq)
 }
 
 int __blk_rq_map_sg(struct request_queue *q, struct request *rq,
-		    struct scatterlist *sglist, struct scatterlist **last_sg);
+		struct scatterlist *sglist, struct scatterlist **last_sg);
 static inline int blk_rq_map_sg(struct request_queue *q, struct request *rq,
-				struct scatterlist *sglist)
+		struct scatterlist *sglist)
 {
 	struct scatterlist *last_sg = NULL;
 
@@ -1224,8 +1217,7 @@ extern long nr_blockdev_pages(void);
 
 bool __must_check blk_get_queue(struct request_queue *);
 struct request_queue *blk_alloc_queue(gfp_t);
-struct request_queue *blk_alloc_queue_rh(make_request_fn make_request,
-					 int node_id);
+struct request_queue *blk_alloc_queue_rh(make_request_fn make_request, int node_id);
 extern void blk_put_queue(struct request_queue *);
 extern void blk_set_queue_dying(struct request_queue *);
 
@@ -1257,8 +1249,8 @@ struct blk_plug_cb {
 	blk_plug_cb_fn callback;
 	void *data;
 };
-extern struct blk_plug_cb *blk_check_plugged(blk_plug_cb_fn unplug, void *data,
-					     int size);
+extern struct blk_plug_cb *blk_check_plugged(blk_plug_cb_fn unplug,
+					     void *data, int size);
 extern void blk_start_plug(struct blk_plug *);
 extern void blk_finish_plug(struct blk_plug *);
 extern void blk_flush_plug_list(struct blk_plug *, bool);
@@ -1284,51 +1276,52 @@ static inline bool blk_needs_flush_plug(struct task_struct *tsk)
 	struct blk_plug *plug = tsk->plug;
 
 	return plug &&
-	       (!list_empty(&plug->mq_list) || !list_empty(&plug->cb_list));
+		 (!list_empty(&plug->mq_list) ||
+		 !list_empty(&plug->cb_list));
 }
 
 extern void blk_io_schedule(void);
 
 int blkdev_issue_flush(struct block_device *, gfp_t);
 extern int blkdev_issue_write_same(struct block_device *bdev, sector_t sector,
-				   sector_t nr_sects, gfp_t gfp_mask,
-				   struct page *page);
+		sector_t nr_sects, gfp_t gfp_mask, struct page *page);
 
-#define BLKDEV_DISCARD_SECURE (1 << 0) /* issue a secure erase */
+#define BLKDEV_DISCARD_SECURE	(1 << 0)	/* issue a secure erase */
 
 extern int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
-				sector_t nr_sects, gfp_t gfp_mask,
-				unsigned long flags);
+		sector_t nr_sects, gfp_t gfp_mask, unsigned long flags);
 extern int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
-				  sector_t nr_sects, gfp_t gfp_mask, int flags,
-				  struct bio **biop);
+		sector_t nr_sects, gfp_t gfp_mask, int flags,
+		struct bio **biop);
 
-#define BLKDEV_ZERO_NOUNMAP (1 << 0) /* do not free blocks */
-#define BLKDEV_ZERO_NOFALLBACK (1 << 1) /* don't write explicit zeroes */
+#define BLKDEV_ZERO_NOUNMAP	(1 << 0)  /* do not free blocks */
+#define BLKDEV_ZERO_NOFALLBACK	(1 << 1)  /* don't write explicit zeroes */
 
 extern int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
-				  sector_t nr_sects, gfp_t gfp_mask,
-				  struct bio **biop, unsigned flags);
+		sector_t nr_sects, gfp_t gfp_mask, struct bio **biop,
+		unsigned flags);
 extern int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
-				sector_t nr_sects, gfp_t gfp_mask,
-				unsigned flags);
+		sector_t nr_sects, gfp_t gfp_mask, unsigned flags);
 
 static inline int sb_issue_discard(struct super_block *sb, sector_t block,
-				   sector_t nr_blocks, gfp_t gfp_mask,
-				   unsigned long flags)
+		sector_t nr_blocks, gfp_t gfp_mask, unsigned long flags)
 {
-	return blkdev_issue_discard(
-		sb->s_bdev, block << (sb->s_blocksize_bits - SECTOR_SHIFT),
-		nr_blocks << (sb->s_blocksize_bits - SECTOR_SHIFT), gfp_mask,
-		flags);
+	return blkdev_issue_discard(sb->s_bdev,
+				    block << (sb->s_blocksize_bits -
+					      SECTOR_SHIFT),
+				    nr_blocks << (sb->s_blocksize_bits -
+						  SECTOR_SHIFT),
+				    gfp_mask, flags);
 }
 static inline int sb_issue_zeroout(struct super_block *sb, sector_t block,
-				   sector_t nr_blocks, gfp_t gfp_mask)
+		sector_t nr_blocks, gfp_t gfp_mask)
 {
-	return blkdev_issue_zeroout(
-		sb->s_bdev, block << (sb->s_blocksize_bits - SECTOR_SHIFT),
-		nr_blocks << (sb->s_blocksize_bits - SECTOR_SHIFT), gfp_mask,
-		0);
+	return blkdev_issue_zeroout(sb->s_bdev,
+				    block << (sb->s_blocksize_bits -
+					      SECTOR_SHIFT),
+				    nr_blocks << (sb->s_blocksize_bits -
+						  SECTOR_SHIFT),
+				    gfp_mask, 0);
 }
 
 extern int blk_verify_command(struct request_queue *q, unsigned char *cmd,
@@ -1340,11 +1333,11 @@ static inline bool bdev_is_partition(struct block_device *bdev)
 }
 
 enum blk_default_limits {
-	BLK_MAX_SEGMENTS = 128,
-	BLK_SAFE_MAX_SECTORS = 255,
-	BLK_DEF_MAX_SECTORS = 2560,
-	BLK_MAX_SEGMENT_SIZE = 65536,
-	BLK_SEG_BOUNDARY_MASK = 0xFFFFFFFFUL,
+	BLK_MAX_SEGMENTS	= 128,
+	BLK_SAFE_MAX_SECTORS	= 255,
+	BLK_DEF_MAX_SECTORS	= 2560,
+	BLK_MAX_SEGMENT_SIZE	= 65536,
+	BLK_SEG_BOUNDARY_MASK	= 0xFFFFFFFFUL,
 };
 
 static inline unsigned long queue_segment_boundary(struct request_queue *q)
@@ -1382,8 +1375,7 @@ static inline unsigned int queue_max_segment_size(struct request_queue *q)
 	return q->limits.max_segment_size;
 }
 
-static inline unsigned int
-	queue_max_zone_append_sectors(const struct request_queue *q)
+static inline unsigned int queue_max_zone_append_sectors(const struct request_queue *q)
 {
 	return q->limits.max_zone_append_sectors;
 }
@@ -1441,12 +1433,11 @@ static inline int queue_alignment_offset(struct request_queue *q)
 	return q->limits.alignment_offset;
 }
 
-static inline int queue_limit_alignment_offset(struct queue_limits *lim,
-					       sector_t sector)
+static inline int queue_limit_alignment_offset(struct queue_limits *lim, sector_t sector)
 {
 	unsigned int granularity = max(lim->physical_block_size, lim->io_min);
 	unsigned int alignment = sector_div(sector, granularity >> SECTOR_SHIFT)
-				 << SECTOR_SHIFT;
+		<< SECTOR_SHIFT;
 
 	return (granularity + lim->alignment_offset - alignment) % granularity;
 }
@@ -1472,8 +1463,7 @@ static inline int queue_discard_alignment(struct request_queue *q)
 	return q->limits.discard_alignment;
 }
 
-static inline int queue_limit_discard_alignment(struct queue_limits *lim,
-						sector_t sector)
+static inline int queue_limit_discard_alignment(struct queue_limits *lim, sector_t sector)
 {
 	unsigned int alignment, granularity, offset;
 
@@ -1600,39 +1590,38 @@ static inline unsigned int block_size(struct block_device *bdev)
 }
 
 int kblockd_schedule_work(struct work_struct *work);
-int kblockd_mod_delayed_work_on(int cpu, struct delayed_work *dwork,
-				unsigned long delay);
+int kblockd_mod_delayed_work_on(int cpu, struct delayed_work *dwork, unsigned long delay);
 
-#define MODULE_ALIAS_BLOCKDEV(major, minor)                                    \
+#define MODULE_ALIAS_BLOCKDEV(major,minor) \
 	MODULE_ALIAS("block-major-" __stringify(major) "-" __stringify(minor))
-#define MODULE_ALIAS_BLOCKDEV_MAJOR(major)                                     \
+#define MODULE_ALIAS_BLOCKDEV_MAJOR(major) \
 	MODULE_ALIAS("block-major-" __stringify(major) "-*")
 
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
 
 enum blk_integrity_flags {
-	BLK_INTEGRITY_VERIFY = 1 << 0,
-	BLK_INTEGRITY_GENERATE = 1 << 1,
-	BLK_INTEGRITY_DEVICE_CAPABLE = 1 << 2,
-	BLK_INTEGRITY_IP_CHECKSUM = 1 << 3,
+	BLK_INTEGRITY_VERIFY		= 1 << 0,
+	BLK_INTEGRITY_GENERATE		= 1 << 1,
+	BLK_INTEGRITY_DEVICE_CAPABLE	= 1 << 2,
+	BLK_INTEGRITY_IP_CHECKSUM	= 1 << 3,
 };
 
 struct blk_integrity_iter {
-	void *prot_buf;
-	void *data_buf;
-	sector_t seed;
-	unsigned int data_size;
-	unsigned short interval;
-	const char *disk_name;
+	void			*prot_buf;
+	void			*data_buf;
+	sector_t		seed;
+	unsigned int		data_size;
+	unsigned short		interval;
+	const char		*disk_name;
 };
 
-typedef blk_status_t(integrity_processing_fn)(struct blk_integrity_iter *);
-typedef void(integrity_prepare_fn)(struct request *);
-typedef void(integrity_complete_fn)(struct request *, unsigned int);
+typedef blk_status_t (integrity_processing_fn) (struct blk_integrity_iter *);
+typedef void (integrity_prepare_fn) (struct request *);
+typedef void (integrity_complete_fn) (struct request *, unsigned int);
 
 struct blk_integrity_profile_ext_ops {
-	integrity_prepare_fn *prepare_fn;
-	integrity_complete_fn *complete_fn;
+	integrity_prepare_fn		*prepare_fn;
+	integrity_complete_fn		*complete_fn;
 
 	RH_KABI_RESERVE(1)
 	RH_KABI_RESERVE(2)
@@ -1641,9 +1630,9 @@ struct blk_integrity_profile_ext_ops {
 };
 
 struct blk_integrity_profile {
-	integrity_processing_fn *generate_fn;
-	integrity_processing_fn *verify_fn;
-	const char *name;
+	integrity_processing_fn		*generate_fn;
+	integrity_processing_fn		*verify_fn;
+	const char			*name;
 
 	RH_KABI_USE(1, const struct blk_integrity_profile_ext_ops *ext_ops)
 	RH_KABI_RESERVE(2)
@@ -1666,8 +1655,8 @@ static inline struct blk_integrity *blk_get_integrity(struct gendisk *disk)
 	return bi;
 }
 
-static inline struct blk_integrity *
-	bdev_get_integrity(struct block_device *bdev)
+static inline
+struct blk_integrity *bdev_get_integrity(struct block_device *bdev)
 {
 	return blk_get_integrity(bdev->bd_disk);
 }
@@ -1684,7 +1673,7 @@ static inline void blk_queue_max_integrity_segments(struct request_queue *q,
 }
 
 static inline unsigned short
-	queue_max_integrity_segments(struct request_queue *q)
+queue_max_integrity_segments(struct request_queue *q)
 {
 	return q->limits.max_integrity_segments;
 }
@@ -1739,7 +1728,8 @@ static inline int blk_rq_count_integrity_sg(struct request_queue *q,
 	return 0;
 }
 static inline int blk_rq_map_integrity_sg(struct request_queue *q,
-					  struct bio *b, struct scatterlist *s)
+					  struct bio *b,
+					  struct scatterlist *s)
 {
 	return 0;
 }
@@ -1756,7 +1746,7 @@ static inline int blk_integrity_compare(struct gendisk *a, struct gendisk *b)
 	return 0;
 }
 static inline void blk_integrity_register(struct gendisk *d,
-					  struct blk_integrity *b)
+					 struct blk_integrity *b)
 {
 }
 static inline void blk_integrity_unregister(struct gendisk *d)
@@ -1766,8 +1756,7 @@ static inline void blk_queue_max_integrity_segments(struct request_queue *q,
 						    unsigned int segs)
 {
 }
-static inline unsigned short
-	queue_max_integrity_segments(struct request_queue *q)
+static inline unsigned short queue_max_integrity_segments(struct request_queue *q)
 {
 	return 0;
 }
@@ -1792,30 +1781,28 @@ static inline struct bio_vec *rq_integrity_vec(struct request *rq)
 #endif /* CONFIG_BLK_DEV_INTEGRITY */
 
 struct block_device_operations {
-	int (*open)(struct block_device *, fmode_t);
-	void (*release)(struct gendisk *, fmode_t);
-	int (*rw_page)(struct block_device *, sector_t, struct page *,
-		       unsigned int);
-	int (*ioctl)(struct block_device *, fmode_t, unsigned, unsigned long);
-	int (*compat_ioctl)(struct block_device *, fmode_t, unsigned,
-			    unsigned long);
-	unsigned int (*check_events)(struct gendisk *disk,
-				     unsigned int clearing);
+	int (*open) (struct block_device *, fmode_t);
+	void (*release) (struct gendisk *, fmode_t);
+	int (*rw_page)(struct block_device *, sector_t, struct page *, unsigned int);
+	int (*ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
+	int (*compat_ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
+	unsigned int (*check_events) (struct gendisk *disk,
+				      unsigned int clearing);
 	/* ->media_changed() is DEPRECATED, use ->check_events() instead */
-	int (*media_changed)(struct gendisk *);
-	void (*unlock_native_capacity)(struct gendisk *);
-	int (*revalidate_disk)(struct gendisk *);
+	int (*media_changed) (struct gendisk *);
+	void (*unlock_native_capacity) (struct gendisk *);
+	int (*revalidate_disk) (struct gendisk *);
 	int (*getgeo)(struct block_device *, struct hd_geometry *);
 	/* this callback is with swap_lock and sometimes page table lock held */
-	void (*swap_slot_free_notify)(struct block_device *, unsigned long);
+	void (*swap_slot_free_notify) (struct block_device *, unsigned long);
 
-	RH_KABI_REPLACE(int (*report_zones)(struct gendisk *, sector_t sector,
-					    struct blk_zone *zones,
-					    unsigned int *nr_zones,
-					    gfp_t gfp_mask),
-			int (*report_zones)(struct gendisk *, sector_t sector,
-					    unsigned int nr_zones,
-					    report_zones_cb cb, void *data))
+	RH_KABI_REPLACE(
+	int (*report_zones)(struct gendisk *, sector_t sector,
+			    struct blk_zone *zones, unsigned int *nr_zones,
+			    gfp_t gfp_mask),
+	int (*report_zones)(struct gendisk *, sector_t sector,
+			unsigned int nr_zones, report_zones_cb cb, void *data)
+	)
 	struct module *owner;
 	const struct pr_ops *pr_ops;
 
@@ -1830,7 +1817,7 @@ extern int __blkdev_driver_ioctl(struct block_device *, fmode_t, unsigned int,
 				 unsigned long);
 extern int bdev_read_page(struct block_device *, sector_t, struct page *);
 extern int bdev_write_page(struct block_device *, sector_t, struct page *,
-			   struct writeback_control *);
+						struct writeback_control *);
 
 #ifdef CONFIG_BLK_DEV_ZONED
 bool blk_req_needs_zone_write_lock(struct request *rq);
@@ -1853,7 +1840,7 @@ static inline void blk_req_zone_write_unlock(struct request *rq)
 static inline bool blk_req_zone_is_write_locked(struct request *rq)
 {
 	return rq->q->seq_zones_wlock &&
-	       test_bit(blk_rq_zone_no(rq), rq->q->seq_zones_wlock);
+		test_bit(blk_rq_zone_no(rq), rq->q->seq_zones_wlock);
 }
 
 static inline bool blk_req_can_dispatch_to_zone(struct request *rq)
@@ -1919,6 +1906,7 @@ static inline void blk_schedule_flush_plug(struct task_struct *task)
 {
 }
 
+
 static inline bool blk_needs_flush_plug(struct task_struct *tsk)
 {
 	return false;
@@ -1946,9 +1934,9 @@ static inline void blk_wake_io_task(struct task_struct *waiter)
 
 #ifdef CONFIG_BLOCK
 unsigned long disk_start_io_acct(struct gendisk *disk, unsigned int sectors,
-				 unsigned int op);
+		unsigned int op);
 void disk_end_io_acct(struct gendisk *disk, unsigned int op,
-		      unsigned long start_time);
+		unsigned long start_time);
 
 unsigned long part_start_io_acct(struct gendisk *disk, struct hd_struct **part,
 				 struct bio *bio);
@@ -1985,22 +1973,22 @@ struct block_device *lookup_bdev(const char *);
 
 void blkdev_show(struct seq_file *seqf, off_t offset);
 
-#define BDEVNAME_SIZE 32 /* Largest string for a blockdev identifier */
-#define BDEVT_SIZE 10 /* Largest string for MAJ:MIN for blkdev */
+#define BDEVNAME_SIZE	32	/* Largest string for a blockdev identifier */
+#define BDEVT_SIZE	10	/* Largest string for MAJ:MIN for blkdev */
 #ifdef CONFIG_BLOCK
-#define BLKDEV_MAJOR_MAX 512
+#define BLKDEV_MAJOR_MAX	512
 #else
-#define BLKDEV_MAJOR_MAX 0
+#define BLKDEV_MAJOR_MAX	0
 #endif
 
 int blkdev_get(struct block_device *bdev, fmode_t mode, void *holder);
 struct block_device *blkdev_get_by_path(const char *path, fmode_t mode,
-					void *holder);
+		void *holder);
 struct block_device *blkdev_get_by_dev(dev_t dev, fmode_t mode, void *holder);
 int bd_prepare_to_claim(struct block_device *bdev, struct block_device *whole,
-			void *holder);
+		void *holder);
 void bd_abort_claiming(struct block_device *bdev, struct block_device *whole,
-		       void *holder);
+		void *holder);
 void blkdev_put(struct block_device *bdev, fmode_t mode);
 
 struct block_device *bdget(dev_t);
