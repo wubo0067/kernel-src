@@ -341,6 +341,7 @@ asmlinkage __visible void do_softirq(void)
 
 	if (in_interrupt())
 		// 检查是否在中断上下文中，如果是，则直接返回，不处理软中断。
+		// 如果 cpu 正在服务硬件中断
 		return;
 
 	// 用于保存当前的中断状态到 flags 变量中，并关闭中断，以防止在处理软中断期间发生其他中断。
@@ -348,6 +349,8 @@ asmlinkage __visible void do_softirq(void)
 
 	// 函数用于获取当前待处理的软中断标志。
 	// 它是待处理的软中断的 32 位位图----如果第 n 位被设置位 1，那么第 n 位对应的软中断等待被处理
+	// 每一次一种软 IRQ 类型受到服务时，其位就会从活跃的软 IRQ 的本地副本 pending 中清掉。
+	// 没有未决的软 IRQ 需要处理，该函数返回 0
 	pending = local_softirq_pending();
 
 	// 这段代码首先检查是否有待处理的软中断（pending 是否非零）。

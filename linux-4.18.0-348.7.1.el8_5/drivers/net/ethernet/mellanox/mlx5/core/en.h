@@ -692,6 +692,9 @@ struct mlx5e_rq {
 
 enum mlx5e_channel_state { MLX5E_CHANNEL_STATE_XSK, MLX5E_CHANNEL_NUM_STATES };
 
+// 代表一个网络通道（Channel），它是网络接口的一个逻辑部分
+// 每个通道管理一个或多个发送队列和接收队列。
+// 该结构体包含了与通道相关的各种信息和资源，如发送队列、接收队列、NAPI 结构等。
 struct mlx5e_channel {
 	/* data path */
 	struct mlx5e_rq rq;
