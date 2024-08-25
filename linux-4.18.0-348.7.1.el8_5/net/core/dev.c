@@ -606,7 +606,7 @@ static inline struct list_head *ptype_head(const struct packet_type *pt)
 		return pt->dev ? &pt->dev->ptype_all : &ptype_all;
 	else
 		return pt->dev ? &pt->dev->ptype_specific :
-				 &ptype_base[ntohs(pt->type) & PTYPE_HASH_MASK];
+				       &ptype_base[ntohs(pt->type) & PTYPE_HASH_MASK];
 }
 
 /**
@@ -2779,7 +2779,7 @@ int __netif_set_xps_queue(struct net_device *dev, const unsigned long *mask,
 
 		tci = j * num_tc + tc;
 		map = dev_maps ? xmap_dereference(dev_maps->attr_map[tci]) :
-				 NULL;
+				       NULL;
 
 		map = expand_xps_map(map, j, index, is_rxqs_map);
 		if (!map)
@@ -2909,7 +2909,7 @@ error:
 			new_map = xmap_dereference(new_dev_maps->attr_map[tci]);
 			map = dev_maps ? xmap_dereference(
 						 dev_maps->attr_map[tci]) :
-					 NULL;
+					       NULL;
 			if (new_map && new_map != map)
 				kfree(new_map);
 		}
@@ -3138,7 +3138,7 @@ EXPORT_SYMBOL(netif_set_real_num_rx_queues);
 int netif_get_num_default_rss_queues(void)
 {
 	return is_kdump_kernel() ? 1 :
-				   min_t(int, DEFAULT_MAX_NUM_RSS_QUEUES,
+					 min_t(int, DEFAULT_MAX_NUM_RSS_QUEUES,
 					 num_online_cpus());
 }
 EXPORT_SYMBOL(netif_get_num_default_rss_queues);
@@ -3212,9 +3212,11 @@ void __dev_kfree_skb_irq(struct sk_buff *skb, enum skb_free_reason reason)
 		return;
 	}
 	get_kfree_skb_cb(skb)->reason = reason;
+	// 保存中断掩码状态，并禁用本地处理器上的所有中断
 	local_irq_save(flags);
 	skb->next = __this_cpu_read(softnet_data.completion_queue);
 	__this_cpu_write(softnet_data.completion_queue, skb);
+	//
 	raise_softirq_irqoff(NET_TX_SOFTIRQ);
 	local_irq_restore(flags);
 }
@@ -3734,7 +3736,7 @@ int skb_csum_hwoffload_help(struct sk_buff *skb,
 	if (unlikely(skb_csum_is_sctp(skb)))
 		return !!(features & NETIF_F_SCTP_CRC) ?
 			       0 :
-			       skb_crc32c_csum_help(skb);
+				     skb_crc32c_csum_help(skb);
 
 	return !!(features & NETIF_F_CSUM_MASK) ? 0 : skb_checksum_help(skb);
 }
