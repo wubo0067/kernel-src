@@ -3214,9 +3214,10 @@ void __dev_kfree_skb_irq(struct sk_buff *skb, enum skb_free_reason reason)
 	get_kfree_skb_cb(skb)->reason = reason;
 	// 保存中断掩码状态，并禁用本地处理器上的所有中断
 	local_irq_save(flags);
+	// 将 skb 插入到 softnet_data 完成队列的头部
 	skb->next = __this_cpu_read(softnet_data.completion_queue);
 	__this_cpu_write(softnet_data.completion_queue, skb);
-	//
+	// 触发软中断
 	raise_softirq_irqoff(NET_TX_SOFTIRQ);
 	local_irq_restore(flags);
 }
@@ -5006,13 +5007,18 @@ static __latent_entropy void net_tx_action(struct softirq_action *h)
 	struct softnet_data *sd = this_cpu_ptr(&softnet_data);
 
 	if (sd->completion_queue) {
+		// 回收所有因为驱动程序调用 dev_kfree_skb_irq 而被添加到 completion_queue 列表的缓冲区，
+		// 因为 net_tx_action 是在中断环境外运行的，设备驱动程序可以在任何时刻添加元素，所以，net_tx_action 在
+		// 访问 softnet_data 结构时必须关闭中断功能。
 		struct sk_buff *clist;
 
 		local_irq_disable();
+		// 为了尽可能让中断功能关闭时间短一点，该函数会把 completion_queue 设置为 NULL，之前存放到一个局部变量中
 		clist = sd->completion_queue;
 		sd->completion_queue = NULL;
 		local_irq_enable();
 
+		// 这一块的实现逻辑和 napi_consume_skb 很类似
 		while (clist) {
 			struct sk_buff *skb = clist;
 

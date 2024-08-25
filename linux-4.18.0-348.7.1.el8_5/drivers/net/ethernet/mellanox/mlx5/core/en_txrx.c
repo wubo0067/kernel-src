@@ -110,6 +110,7 @@ static bool mlx5e_napi_xsk_post(struct mlx5e_xdpsq *xsksq, struct mlx5e_rq *xskr
 	return busy_xsk;
 }
 
+// todo: 查这个函数的调用堆栈
 int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 {
 	struct mlx5e_channel *c = container_of(napi, struct mlx5e_channel,

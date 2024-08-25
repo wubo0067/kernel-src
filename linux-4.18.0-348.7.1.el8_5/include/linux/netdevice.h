@@ -3886,6 +3886,7 @@ void __dev_kfree_skb_any(struct sk_buff *skb, enum skb_free_reason reason);
  * dev_consume_skb_any(skb) when caller doesn't know its current irq context,
  *  and consumed a packet. Used in place of consume_skb(skb)
  */
+// 设备驱动程序使用该函数来回收 skb，不知道 mlx5 是否会使用该函数，搜索代码 mlx5 是没有调用该函数的
 static inline void dev_kfree_skb_irq(struct sk_buff *skb)
 {
 	__dev_kfree_skb_irq(skb, SKB_REASON_DROPPED);
@@ -3896,6 +3897,8 @@ static inline void dev_consume_skb_irq(struct sk_buff *skb)
 	__dev_kfree_skb_irq(skb, SKB_REASON_CONSUMED);
 }
 
+// mlx5 调用该函数
+// todo：查下该函数的调用堆栈
 static inline void dev_kfree_skb_any(struct sk_buff *skb)
 {
 	__dev_kfree_skb_any(skb, SKB_REASON_DROPPED);

@@ -693,6 +693,8 @@ static void mlx5e_sq_xmit_mpwqe(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	// !! 将 DMA 地址推送到发送队列中
 	mlx5e_dma_push(sq, txd.dma_addr, txd.len, MLX5E_DMA_MAP_SINGLE);
 	// !! 将数据包添加到发送队列中，这仅仅是 skb*的数组，我怀疑这个队列是需要发送完毕记录要释放的 skb
+	// 事实就是在函数 mlx5e_tx_wi_kfree_fifo_skbs 中去释放的
+	// mlx5e_skb_fifo_pop(&sq->db.skb_fifo)，在这里 pop 队列
 	mlx5e_skb_fifo_push(&sq->db.skb_fifo, skb);
 	// !! 函数将数据段添加到 MPWQE 中，这就将 descriptor push 到 tx-queue 了，核心就是记录 dma 地址
 	mlx5e_tx_mpwqe_add_dseg(sq, &txd);
@@ -771,7 +773,7 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 			if (unlikely(!mlx5e_txwqe_build_eseg(
 				    priv, sq, skb, &accel, &eseg, attr.ihs)))
 				return NETDEV_TX_OK;
-
+			// 核心传送函数
 			mlx5e_sq_xmit_mpwqe(sq, skb, &eseg, netdev_xmit_more());
 			return NETDEV_TX_OK;
 		}
@@ -844,7 +846,7 @@ static void mlx5e_consume_skb(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		else
 			skb_tstamp_tx(skb, &hwts);
 	}
-
+	// 不是用 tx_action 软中断来释放的，而是直接释放了
 	napi_consume_skb(skb, napi_budget);
 }
 
@@ -856,6 +858,7 @@ static void mlx5e_tx_wi_consume_fifo_skbs(struct mlx5e_txqsq *sq,
 	int i;
 
 	for (i = 0; i < wi->num_fifo_pkts; i++) {
+		// mlx5e_sq_xmit_mpwqe 会将发送的 skb 放倒 db.skb_fifo 数组中
 		struct sk_buff *skb = mlx5e_skb_fifo_pop(&sq->db.skb_fifo);
 
 		mlx5e_consume_skb(sq, skb, cqe, napi_budget);
@@ -980,7 +983,6 @@ static void mlx5e_tx_wi_kfree_fifo_skbs(struct mlx5e_txqsq *sq,
 					struct mlx5e_tx_wqe_info *wi)
 {
 	int i;
-
 	for (i = 0; i < wi->num_fifo_pkts; i++)
 		dev_kfree_skb_any(mlx5e_skb_fifo_pop(&sq->db.skb_fifo));
 }
