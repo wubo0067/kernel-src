@@ -1578,6 +1578,7 @@ EXPORT_SYMBOL(netdev_notify_peers);
 
 static int napi_threaded_poll(void *data);
 
+// 创建 设备的 napi 线程
 static int napi_kthread_create(struct napi_struct *n)
 {
 	int err = 0;
@@ -4376,6 +4377,7 @@ static inline void ____napi_schedule(struct softnet_data *sd,
 	struct task_struct *thread;
 
 	if (test_bit(NAPI_STATE_THREADED, &napi->state)) {
+		// 判断 napi 的状态
 		/* Paired with smp_mb__before_atomic() in
 		 * napi_enable()/dev_set_threaded().
 		 * Use READ_ONCE() to guarantee a complete
@@ -4398,6 +4400,7 @@ static inline void ____napi_schedule(struct softnet_data *sd,
 	}
 
 	list_add_tail(&napi->poll_list, &sd->poll_list);
+	// 这里还是触发的 RX 软中断
 	__raise_softirq_irqoff(NET_RX_SOFTIRQ);
 }
 
@@ -6677,6 +6680,8 @@ int dev_set_threaded(struct net_device *dev, bool threaded)
 		return 0;
 
 	if (threaded) {
+		// 这个 napi_list 链表中的元素在哪里添加的
+		// list_add_rcu(&napi->dev_list, &dev->napi_list); dev_list 是 napi 元素的 list_head 成员
 		list_for_each_entry (napi, &dev->napi_list, dev_list) {
 			if (!napi->thread) {
 				err = napi_kthread_create(napi);
@@ -6735,6 +6740,7 @@ void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
 #endif
 	set_bit(NAPI_STATE_SCHED, &napi->state);
 	set_bit(NAPI_STATE_NPSVC, &napi->state);
+	// list_for_each_entry (napi, &dev->napi_list, dev_list) {
 	list_add_rcu(&napi->dev_list, &dev->napi_list);
 	napi_hash_add(napi);
 	/* Create kthread for this napi if dev->threaded is set.

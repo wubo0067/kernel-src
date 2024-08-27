@@ -3262,7 +3262,8 @@ extern int netdev_flow_limit_table_len;
  * Incoming packets are placed on per-CPU queues
  */
 struct softnet_data {
-	struct list_head poll_list;
+	struct list_head
+		poll_list; // 这是一个双向列表，其中的设备都带有输入帧等着被处理
 	struct sk_buff_head process_queue;
 
 	/* stats */
@@ -3277,6 +3278,9 @@ struct softnet_data {
 #endif
 	RH_KABI_EXCLUDE(struct Qdisc *output_queue)
 	RH_KABI_EXCLUDE(struct Qdisc **output_queue_tailp)
+
+	// 是缓冲区列表，其中的缓冲区以成功传输，因此可以释放掉，查考第十一章
+	// 中断上半部，ISR（mlx5_eq_comp_int），调用 mlx5e_completion_event
 	struct sk_buff *completion_queue;
 #ifdef CONFIG_XFRM_OFFLOAD
 	struct sk_buff_head xfrm_backlog;
@@ -3299,7 +3303,8 @@ struct softnet_data {
 	unsigned int input_queue_tail;
 #endif
 	unsigned int dropped;
-	struct sk_buff_head input_pkt_queue;
+	struct sk_buff_head
+		input_pkt_queue; // 这个队列用来保存进来的帧（被驱动程序处理前）
 	struct napi_struct backlog;
 };
 
