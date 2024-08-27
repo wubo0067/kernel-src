@@ -109,8 +109,10 @@ static int request_irqs(struct mlx5_core_dev *dev, int nvec)
 
 		irq_set_name(name, i);
 		ATOMIC_INIT_NOTIFIER_HEAD(&irq->nh);
-		snprintf(irq->name, MLX5_MAX_IRQ_NAME,
-			 "%s@pci:%s", name, pci_name(dev->pdev));
+		// 生成mlx5硬中断处理函数名，cat /proc/interrupts的最后一列
+		snprintf(irq->name, MLX5_MAX_IRQ_NAME, "%s@pci:%s", name,
+			 pci_name(dev->pdev));
+		// 注册mlx5中断处理函数ISR
 		err = request_irq(irqn, mlx5_irq_int_handler, 0, irq->name,
 				  &irq->nh);
 		if (err) {
