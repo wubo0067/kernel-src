@@ -4211,9 +4211,10 @@ static int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 
 	/* Disable soft irqs for various locks below. Also
 	 * stops preemption for RCU.
+	  关闭软中断 - __rcu_read_lock_bh()--->local_bh_disable();
 	 */
 	rcu_read_lock_bh();
-
+	// 设置 skb->priority 值
 	skb_update_prio(skb);
 
 	qdisc_pkt_len_init(skb);
@@ -4234,7 +4235,8 @@ static int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 		skb_dst_drop(skb);
 	else
 		skb_dst_force(skb);
-
+	/*
+	https://www.kerneltravel.net/blog/2020/network_ljr14/ */
 	txq = netdev_pick_tx(dev, skb, sb_dev);
 	q = rcu_dereference_bh(txq->qdisc);
 

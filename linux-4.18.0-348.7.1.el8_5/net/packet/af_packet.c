@@ -2946,7 +2946,7 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 
 	if (unlikely(extra_len == 4))
 		skb->no_fcs = 1;
-
+	// 调用 dev_queue_xmit，skb->dev 是外出设备，dev->data 指向有效载荷的开头，dev->len 是长度
 	err = po->xmit(skb);
 	if (err > 0 && (err = net_xmit_errno(err)) != 0)
 		goto out_unlock;
