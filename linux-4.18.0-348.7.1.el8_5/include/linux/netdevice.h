@@ -3276,6 +3276,10 @@ struct softnet_data {
 #ifdef CONFIG_NET_FLOW_LIMIT
 	struct sd_flow_limit __rcu *flow_limit;
 #endif
+	/*
+		sd->output_queue = NULL;
+        sd->output_queue_tailp = &sd->output_queue;
+	*/
 	RH_KABI_EXCLUDE(struct Qdisc *output_queue)
 	RH_KABI_EXCLUDE(struct Qdisc **output_queue_tailp)
 

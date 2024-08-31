@@ -3144,23 +3144,37 @@ int netif_get_num_default_rss_queues(void)
 }
 EXPORT_SYMBOL(netif_get_num_default_rss_queues);
 
+/*
+		sd->output_queue = NULL;
+        sd->output_queue_tailp = &sd->output_queue;
+*/
 static void __netif_reschedule(struct Qdisc *q)
 {
 	struct softnet_data *sd;
 	unsigned long flags;
-
+	// 保存当前的硬中断（IRQ）状态，并通过调用 local_irq_save 禁用 IRQ
 	local_irq_save(flags);
+	// 获取当前 CPU 的 struct softnet_data 实例
 	sd = this_cpu_ptr(&softnet_data);
 	q->next_sched = NULL;
+	// 将 qdisc 添加到 struct softnet_data 实例的 output 队列中
+	// output_queue_tailp 指向 q
+	// 这样实际也是给 output_queue 赋值了，如果 output_queue=NULL，那么 output_queue 也指向了 qdisc
+	// **这样，在 qdisc 中的 skb 包实际上就保存在 sd 的 output_queue 中了
 	*sd->output_queue_tailp = q;
 	sd->output_queue_tailp = &q->next_sched;
+	// 通过调用 raise_softirq_irqoff 触发 NET_TX_SOFTIRQ 软中断
 	raise_softirq_irqoff(NET_TX_SOFTIRQ);
+	// 恢复 IRQ 状态并重新启用硬中断
 	local_irq_restore(flags);
 }
 
 void __netif_schedule(struct Qdisc *q)
 {
+	// 此代码检查 qdisc 状态中的__QDISC_STATE_SCHED 位，如果为该位为 0，会将其置 1。
+	// 如果置位成功（意味着之前不在__QDISC_STATE_SCHED 状态），代码将调用__netif_reschedule
 	if (!test_and_set_bit(__QDISC_STATE_SCHED, &q->state))
+		// 这个函数非常重要
 		__netif_reschedule(q);
 }
 EXPORT_SYMBOL(__netif_schedule);
@@ -3275,7 +3289,11 @@ static u16 skb_tx_hash(const struct net_device *dev,
 	u16 qoffset = 0;
 	u16 qcount = dev->real_num_tx_queues;
 
+	// 如果 num_tc 不为零，则表示此设备支持基于硬件的流量控制
 	if (dev->num_tc) {
+		// 程序可以设置 socket 上发送的数据的优先级。
+		// 这可以通过 setsockopt 带 SOL_SOCKET 和 SO_PRIORITY 选项来完成。有关 SO_PRIORITY 的更多信息
+		// 查询一个 packet priority 到该硬件支持的流量控制的映射，根据此映射选择适当的流量类型（traffic class）。
 		u8 tc = netdev_get_prio_tc_map(dev, skb->priority);
 
 		qoffset = sb_dev->tc_to_txq[tc].offset;
@@ -3713,6 +3731,7 @@ struct sk_buff *dev_hard_start_xmit(struct sk_buff *first,
 
 		skb = next;
 		if (netif_tx_queue_stopped(txq) && skb) {
+			// 返回队列忙
 			rc = NETDEV_TX_BUSY;
 			break;
 		}
@@ -3870,6 +3889,8 @@ static void qdisc_pkt_len_init(struct sk_buff *skb)
 	}
 }
 
+// 排队规则 qdisc、网络设备 dev 和发送队列 txq
+// 判断该函数返回值，确定 skb 是否成功发送到驱动层
 static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 				 struct net_device *dev,
 				 struct netdev_queue *txq)
@@ -3878,10 +3899,13 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 	struct sk_buff *to_free = NULL;
 	bool contended;
 	int rc;
-
+	// 函数在 Linux 内核网络层中用于计算数据包的长度，以便在队列调度器（qdisc）中进行流量控制和队列管理
+	// 考虑了协议头、实际数据和可能的填充；帮助调度器确定数据包在传输中的影响，用于执行流量整形和优先级管理
+	// 为队列调度器提供准确的数据包长度信息，以便进行有效的队列管理和流量控制
 	qdisc_calculate_pkt_len(skb, q);
 
 	if (q->flags & TCQ_F_NOLOCK) {
+		// pfifo_fast 是不需要加锁的
 		rc = q->enqueue(skb, q, &to_free) & NET_XMIT_MASK;
 		if (likely(!netif_xmit_frozen_or_stopped(txq)))
 			qdisc_run(q);
@@ -3899,22 +3923,32 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 	 */
 	contended = qdisc_is_running(q);
 	if (unlikely(contended))
+		// 如果 qdisc 当前正在运行，那么试图发送的其他程序将在 qdisc 的 busylock 上竞争
 		spin_lock(&q->busylock);
 
+	// 主锁
 	spin_lock(root_lock);
 	if (unlikely(test_bit(__QDISC_STATE_DEACTIVATED, &q->state))) {
+		// 如果 qdisc 停用，则释放数据并将返回代码设置为 NET_XMIT_DROP
 		__qdisc_drop(skb, &to_free);
 		rc = NET_XMIT_DROP;
 	} else if ((q->flags & TCQ_F_CAN_BYPASS) && !qdisc_qlen(q) &&
 		   qdisc_run_begin(q)) {
 		/*
+		 * q-> flags＆TCQ_F_CAN_BYPASS：qdisc 允许数据包绕过排队系统
+		 * !qdisc_qlen(q)：qdisc 的队列中没有待发送的数据
+		 * 如果 qdisc 未运行，此函数将设置 qdisc 的状态为“running”并返回 true，如果 qdisc 已在运行，则返回 false
 		 * This is a work-conserving queue; there are no old skbs
 		 * waiting to be sent out; and the qdisc is not running -
 		 * xmit the skb directly.
 		 */
 
 		qdisc_bstats_update(q, skb);
-
+		// trace-cmd record -p function_graph -g __dev_queue_xmit --max-graph-depth 5
+		// 跟踪 ol8，发现走的是这个函数
+		// qdisc_restart 函数也调用该函数
+		// 函数在 Linux 内核中用于直接发送数据包。它是网络子系统中一个关键的函数，
+		// 负责将数据包从队列调度器（Qdisc）传递到网络设备驱动程序进行实际发送
 		if (sch_direct_xmit(skb, q, dev, txq, root_lock, true)) {
 			if (unlikely(contended)) {
 				spin_unlock(&q->busylock);
@@ -3926,9 +3960,18 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 		qdisc_run_end(q);
 		rc = NET_XMIT_SUCCESS;
 	} else {
+		// 调用 qdisc 的 enqueue 方法将数据入队，保存函数返回值
+		/*
+			sch->enqueue = ops->enqueue;
+			sch->dequeue = ops->dequeue;
+			其实就是调用 mq_qdisc_ops.enqueue
+			切记 enqueue 是将 skb 加入到 Qdisc 管理的队列中，
+		*/
 		rc = q->enqueue(skb, q, &to_free) & NET_XMIT_MASK;
+		// qdisc_run_begin(p) 将 qdisc 标记为正在运行
 		if (qdisc_run_begin(q)) {
 			if (unlikely(contended)) {
+				// 不期望为 0
 				spin_unlock(&q->busylock);
 				contended = false;
 			}
@@ -4125,11 +4168,19 @@ static u16 __netdev_pick_tx(struct net_device *dev, struct sk_buff *skb,
 
 	sb_dev = sb_dev ?: dev;
 
+	// <0 表示尚未设置 TX queue 的情况
 	if (queue_index < 0 || skb->ooo_okay ||
+	    // 如果用户最近通过 ethtool 更改了设备上的队列数，则会发生这种情况
 	    queue_index >= dev->real_num_tx_queues) {
+		// 以上任何一种情况，都表示没有找到合适的 TX queue
+
+		// XPS: Transmit Packet Steering，发送数据包控制
+		// 允许系统管理员配置哪些 CPU 可以处理网卡的哪些发送队列。
+		// XPS 的主要目的是避免处理发送请求时的锁竞争。使用 XPS 还可以减少缓存驱逐，避免 NUMA 机器上的远程内存访问等
 		int new_index = get_xps_queue(dev, sb_dev, skb);
 
 		if (new_index < 0)
+			// 使用 skb_tx_hash 自动选择了发送队列
 			new_index = skb_tx_hash(dev, sb_dev, skb);
 
 		if (queue_index != new_index && sk && sk_fullsock(sk) &&
@@ -4165,8 +4216,9 @@ struct netdev_queue *netdev_pick_tx(struct net_device *dev, struct sk_buff *skb,
 
 		queue_index = netdev_cap_txqueue(dev, queue_index);
 	}
-
+	// 队列号缓存到 skb->queue_mapping 中
 	skb_set_queue_mapping(skb, queue_index);
+	// 返回队列指针
 	return netdev_get_tx_queue(dev, queue_index);
 }
 
@@ -4203,7 +4255,7 @@ static int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 	struct Qdisc *q;
 	int rc = -ENOMEM;
 	bool again = false;
-
+	// 准备发送 skb。这会重置 skb 内部的指针，使得 ether 头可以被访问
 	skb_reset_mac_header(skb);
 
 	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_SCHED_TSTAMP))
@@ -4211,10 +4263,10 @@ static int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 
 	/* Disable soft irqs for various locks below. Also
 	 * stops preemption for RCU.
-	  关闭软中断 - __rcu_read_lock_bh()--->local_bh_disable();
+	  关闭软中断，禁止 cpu 抢占 - __rcu_read_lock_bh()--->local_bh_disable();
 	 */
 	rcu_read_lock_bh();
-	// 设置 skb->priority 值
+	// 如果启用了网络优先级 cgroup，这会设置 skb 的优先级
 	skb_update_prio(skb);
 
 	qdisc_pkt_len_init(skb);
@@ -4237,11 +4289,17 @@ static int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 		skb_dst_force(skb);
 	/*
 	https://www.kerneltravel.net/blog/2020/network_ljr14/ */
+	// 多 tx 队列的情况下，选择合适的 tx 队列
 	txq = netdev_pick_tx(dev, skb, sb_dev);
+	// 从 netdev_queue 结构上获取设备的 qdisc
+	// 单队列设备 qdisc 默认为 pfifo_fast，多队列设备 qdisc 默认为 mq qdisc
+	// extern struct Qdisc_ops pfifo_fast_ops;
+	// extern struct Qdisc_ops mq_qdisc_ops;
 	q = rcu_dereference_bh(txq->qdisc);
-
+	// 通过该 tacepoint 可以看到选择的 tx_queue
 	trace_net_dev_queue(skb);
 	if (q->enqueue) {
+		// 检查 disc 是否有合适的队列来存放 packet, 如果该设备有队列可用，就调用__dev_xmit_skb
 		rc = __dev_xmit_skb(skb, q, dev, txq);
 		goto out;
 	}
@@ -4257,6 +4315,7 @@ static int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 
 	 * Check this and shot the lock. It is not prone from deadlocks.
 	 *Either shot noqueue qdisc, it is even simpler 8)
+	 * 唯一可以拥有"没有队列的 qdisc"的设备是环回设备和隧道设
 	 */
 	if (dev->flags & IFF_UP) {
 		int cpu = smp_processor_id(); /* ok because BHs are off */
