@@ -3174,7 +3174,7 @@ void __netif_schedule(struct Qdisc *q)
 	// 此代码检查 qdisc 状态中的__QDISC_STATE_SCHED 位，如果为该位为 0，会将其置 1。
 	// 如果置位成功（意味着之前不在__QDISC_STATE_SCHED 状态），代码将调用__netif_reschedule
 	if (!test_and_set_bit(__QDISC_STATE_SCHED, &q->state))
-		// 这个函数非常重要
+		// 这个函数非常重要，如果执行到这里说明权重数量的 pack 一次发送不完
 		__netif_reschedule(q);
 }
 EXPORT_SYMBOL(__netif_schedule);
@@ -3712,6 +3712,7 @@ static int xmit_one(struct sk_buff *skb, struct net_device *dev,
 	return rc;
 }
 
+// 到了这里 skb 就穿过了整个网络栈，net_tx_action 最终也会到这里
 struct sk_buff *dev_hard_start_xmit(struct sk_buff *first,
 				    struct net_device *dev,
 				    struct netdev_queue *txq, int *ret)

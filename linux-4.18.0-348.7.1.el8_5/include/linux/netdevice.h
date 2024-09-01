@@ -4779,8 +4779,10 @@ static inline netdev_tx_t __netdev_start_xmit(const struct net_device_ops *ops,
 					      struct sk_buff *skb,
 					      struct net_device *dev, bool more)
 {
+	// 表示当前还有更多的数据包需要处理和发送，这通常用于优化批量发送的性能，减少中断的频率
 	__this_cpu_write(softnet_data.xmit.more, more);
 	// 如果是 veth_netdev，nod_start_xmit 函数是 veth_xmit 函数
+	// .ndo_start_xmit = mlx5e_xmit,
 	return ops->ndo_start_xmit(skb, dev);
 }
 
@@ -4794,11 +4796,13 @@ static inline netdev_tx_t netdev_start_xmit(struct sk_buff *skb,
 					    struct netdev_queue *txq, bool more)
 {
 	// 设备对应的 net_device_ops
+	// const struct net_device_ops mlx5e_netdev_ops
 	const struct net_device_ops *ops = dev->netdev_ops;
 	int rc;
 
 	rc = __netdev_start_xmit(ops, skb, dev, more);
 	if (rc == NETDEV_TX_OK)
+		// 更新网络设备队列的传输开始时间，trans_start 字段更新为当前的 jiffies 值
 		txq_trans_update(txq);
 
 	return rc;
