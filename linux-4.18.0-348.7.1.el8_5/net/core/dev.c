@@ -606,7 +606,7 @@ static inline struct list_head *ptype_head(const struct packet_type *pt)
 		return pt->dev ? &pt->dev->ptype_all : &ptype_all;
 	else
 		return pt->dev ? &pt->dev->ptype_specific :
-				       &ptype_base[ntohs(pt->type) & PTYPE_HASH_MASK];
+				 &ptype_base[ntohs(pt->type) & PTYPE_HASH_MASK];
 }
 
 /**
@@ -2780,7 +2780,7 @@ int __netif_set_xps_queue(struct net_device *dev, const unsigned long *mask,
 
 		tci = j * num_tc + tc;
 		map = dev_maps ? xmap_dereference(dev_maps->attr_map[tci]) :
-				       NULL;
+				 NULL;
 
 		map = expand_xps_map(map, j, index, is_rxqs_map);
 		if (!map)
@@ -2910,7 +2910,7 @@ error:
 			new_map = xmap_dereference(new_dev_maps->attr_map[tci]);
 			map = dev_maps ? xmap_dereference(
 						 dev_maps->attr_map[tci]) :
-					       NULL;
+					 NULL;
 			if (new_map && new_map != map)
 				kfree(new_map);
 		}
@@ -3139,7 +3139,7 @@ EXPORT_SYMBOL(netif_set_real_num_rx_queues);
 int netif_get_num_default_rss_queues(void)
 {
 	return is_kdump_kernel() ? 1 :
-					 min_t(int, DEFAULT_MAX_NUM_RSS_QUEUES,
+				   min_t(int, DEFAULT_MAX_NUM_RSS_QUEUES,
 					 num_online_cpus());
 }
 EXPORT_SYMBOL(netif_get_num_default_rss_queues);
@@ -3152,7 +3152,9 @@ static void __netif_reschedule(struct Qdisc *q)
 	local_irq_save(flags);
 	sd = this_cpu_ptr(&softnet_data);
 	q->next_sched = NULL;
+	// 将 output_queue_tailp 指向的地址内容设置为 q
 	*sd->output_queue_tailp = q;
+	// 重新设置 output_queue_tailp 指向 q->next_sched 的地址
 	sd->output_queue_tailp = &q->next_sched;
 	raise_softirq_irqoff(NET_TX_SOFTIRQ);
 	local_irq_restore(flags);
@@ -3738,7 +3740,7 @@ int skb_csum_hwoffload_help(struct sk_buff *skb,
 	if (unlikely(skb_csum_is_sctp(skb)))
 		return !!(features & NETIF_F_SCTP_CRC) ?
 			       0 :
-				     skb_crc32c_csum_help(skb);
+			       skb_crc32c_csum_help(skb);
 
 	return !!(features & NETIF_F_CSUM_MASK) ? 0 : skb_checksum_help(skb);
 }
@@ -4155,9 +4157,11 @@ struct netdev_queue *netdev_pick_tx(struct net_device *dev, struct sk_buff *skb,
 #endif
 
 	if (dev->real_num_tx_queues != 1) {
+		// 如果队列数量不为 1
 		const struct net_device_ops *ops = dev->netdev_ops;
 
 		if (ops->ndo_select_queue)
+			// 调用驱动的队列选择函数 mlx5e_select_queue
 			queue_index = ops->ndo_select_queue(dev, skb, sb_dev,
 							    __netdev_pick_tx);
 		else
@@ -4165,7 +4169,7 @@ struct netdev_queue *netdev_pick_tx(struct net_device *dev, struct sk_buff *skb,
 
 		queue_index = netdev_cap_txqueue(dev, queue_index);
 	}
-
+	// 设置 skb 映射的队列 id
 	skb_set_queue_mapping(skb, queue_index);
 	return netdev_get_tx_queue(dev, queue_index);
 }
@@ -4238,6 +4242,7 @@ static int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 	/*
 	https://www.kerneltravel.net/blog/2020/network_ljr14/ */
 	txq = netdev_pick_tx(dev, skb, sb_dev);
+	// 从 netdev_queue 结构上获取设备的 qdisc
 	q = rcu_dereference_bh(txq->qdisc);
 
 	trace_net_dev_queue(skb);

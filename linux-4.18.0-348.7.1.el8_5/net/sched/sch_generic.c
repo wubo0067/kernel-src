@@ -405,8 +405,10 @@ static inline bool qdisc_restart(struct Qdisc *q, int *packets)
 	return sch_direct_xmit(skb, q, dev, txq, root_lock, validate);
 }
 
+// 从__dev_xmit_skb调下来
 void __qdisc_run(struct Qdisc *q)
 {
+	// int dev_tx_weight __read_mostly = 64;
 	int quota = dev_tx_weight;
 	int packets;
 

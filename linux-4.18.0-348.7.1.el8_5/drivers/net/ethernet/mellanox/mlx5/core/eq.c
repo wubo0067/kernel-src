@@ -131,7 +131,7 @@ static int mlx5_eq_comp_int(struct notifier_block *nb,
 {
 	struct mlx5_eq_comp *eq_comp =
 		container_of(nb, struct mlx5_eq_comp, irq_nb);
-	// 完成事件队列completion Event Queue
+	// 完成事件队列 completion Event Queue
 	struct mlx5_eq *eq = &eq_comp->core;
 	struct mlx5_eqe *eqe;
 	int num_eqes = 0;
@@ -158,8 +158,8 @@ static int mlx5_eq_comp_int(struct notifier_block *nb,
 			++cq->arm_sn;
 			/*
 			cq->comp 是一个函数指针“mlx5_add_cq_to_tasklet”，指向处理该 CQ 完成事件的回调函数
-			void mlx5e_completion_event(struct mlx5_core_cq *mcq, struct mlx5_eqe *eqe)调用napi_schedule
-			poll函数是mlx5e_napi_poll来执行下半段
+			void mlx5e_completion_event(struct mlx5_core_cq *mcq, struct mlx5_eqe *eqe) 调用 napi_schedule
+			poll 函数是 mlx5e_napi_poll 来执行下半段
 			*/
 			cq->comp(cq, eqe);
 			mlx5_cq_put(cq);
@@ -846,10 +846,11 @@ static int create_comp_eqs(struct mlx5_core_dev *dev)
 		INIT_LIST_HEAD(&eq->tasklet_ctx.list);
 		INIT_LIST_HEAD(&eq->tasklet_ctx.process_list);
 		spin_lock_init(&eq->tasklet_ctx.lock);
-		// 这里用了一个tasklet来做中断的下半部
+		// 这里用了一个 tasklet 来做中断的下半部
 		tasklet_init(&eq->tasklet_ctx.task, mlx5_cq_tasklet_cb,
 			     (unsigned long)&eq->tasklet_ctx);
-		// 中断notifier_call_chain回调函数
+		// 中断 notifier_call_chain 回调函数
+		// notifier_call_chain-->(nb->notifier_call)
 		eq->irq_nb.notifier_call = mlx5_eq_comp_int;
 		param = (struct mlx5_eq_param){
 			.irq_index = vecidx,

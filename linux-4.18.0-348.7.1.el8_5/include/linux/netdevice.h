@@ -3262,8 +3262,8 @@ extern int netdev_flow_limit_table_len;
  * Incoming packets are placed on per-CPU queues
  */
 struct softnet_data {
-	struct list_head
-		poll_list; // 这是一个双向列表，其中的设备都带有输入帧等着被处理
+	// 这是一个双向列表，其中的设备都带有输入帧等着被处理
+	struct list_head poll_list;
 	struct sk_buff_head process_queue;
 
 	/* stats */
@@ -3276,6 +3276,7 @@ struct softnet_data {
 #ifdef CONFIG_NET_FLOW_LIMIT
 	struct sd_flow_limit __rcu *flow_limit;
 #endif
+	// 是设备列表，其中的设备有信息要传输
 	RH_KABI_EXCLUDE(struct Qdisc *output_queue)
 	RH_KABI_EXCLUDE(struct Qdisc **output_queue_tailp)
 

@@ -79,6 +79,7 @@ int mlx5_irq_detach_nb(struct mlx5_irq_table *irq_table, int vecidx,
 	return atomic_notifier_chain_unregister(&irq->nh, nb);
 }
 
+// 默认的中断处理函数
 static irqreturn_t mlx5_irq_int_handler(int irq, void *nh)
 {
 	atomic_notifier_call_chain(nh, 0, NULL);
@@ -109,10 +110,10 @@ static int request_irqs(struct mlx5_core_dev *dev, int nvec)
 
 		irq_set_name(name, i);
 		ATOMIC_INIT_NOTIFIER_HEAD(&irq->nh);
-		// 生成mlx5硬中断处理函数名，cat /proc/interrupts的最后一列
+		// 生成 mlx5 硬中断处理函数名，cat /proc/interrupts的最后一列
 		snprintf(irq->name, MLX5_MAX_IRQ_NAME, "%s@pci:%s", name,
 			 pci_name(dev->pdev));
-		// 注册mlx5中断处理函数ISR
+		// 注册 mlx5 中断处理函数 ISR
 		err = request_irq(irqn, mlx5_irq_int_handler, 0, irq->name,
 				  &irq->nh);
 		if (err) {
@@ -129,7 +130,7 @@ err_request_irq:
 
 		free_irq(irqn, &irq->nh);
 	}
-	return  err;
+	return err;
 }
 
 static void irq_clear_rmap(struct mlx5_core_dev *dev)
@@ -193,8 +194,7 @@ static int set_comp_irq_affinity_hint(struct mlx5_core_dev *mdev, int i)
 
 	cpumask_set_cpu(cpumask_local_spread(i, mdev->priv.numa_node),
 			irq->mask);
-	if (IS_ENABLED(CONFIG_SMP) &&
-	    irq_set_affinity_hint(irqn, irq->mask))
+	if (IS_ENABLED(CONFIG_SMP) && irq_set_affinity_hint(irqn, irq->mask))
 		mlx5_core_warn(mdev, "irq_set_affinity_hint failed, irq 0x%.4x",
 			       irqn);
 
@@ -243,8 +243,8 @@ static void clear_comp_irqs_affinity_hints(struct mlx5_core_dev *mdev)
 		clear_comp_irq_affinity_hint(mdev, i);
 }
 
-struct cpumask *
-mlx5_irq_get_affinity_mask(struct mlx5_irq_table *irq_table, int vecidx)
+struct cpumask *mlx5_irq_get_affinity_mask(struct mlx5_irq_table *irq_table,
+					   int vecidx)
 {
 	return irq_table->irq[vecidx].mask;
 }
@@ -271,8 +271,8 @@ int mlx5_irq_table_create(struct mlx5_core_dev *dev)
 	struct mlx5_priv *priv = &dev->priv;
 	struct mlx5_irq_table *table = priv->irq_table;
 	int num_eqs = MLX5_CAP_GEN(dev, max_num_eqs) ?
-		      MLX5_CAP_GEN(dev, max_num_eqs) :
-		      1 << MLX5_CAP_GEN(dev, log_max_eq);
+			      MLX5_CAP_GEN(dev, max_num_eqs) :
+			      1 << MLX5_CAP_GEN(dev, log_max_eq);
 	int nvec;
 	int err;
 

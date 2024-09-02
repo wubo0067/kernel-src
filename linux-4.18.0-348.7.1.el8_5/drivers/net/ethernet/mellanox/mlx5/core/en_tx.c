@@ -122,6 +122,8 @@ static int mlx5e_select_htb_queue(struct mlx5e_priv *priv, struct sk_buff *skb,
 	return mlx5e_get_txq_by_classid(priv, classid);
 }
 
+// trace-cmd start -p function_graph -g mlx5e_select_queue --max-graph-depth 4
+// 跟踪下队列选择逻辑
 u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 		       struct net_device *sb_dev,
 		       select_queue_fallback_t fallback)
