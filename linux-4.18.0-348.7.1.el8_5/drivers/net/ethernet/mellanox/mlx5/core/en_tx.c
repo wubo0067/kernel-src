@@ -754,7 +754,7 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct mlx5e_tx_wqe *wqe;
 	struct mlx5e_txqsq *sq;
 	u16 pi;
-
+	// 驱动程序或获取发送队列，skb->queue_mapping;
 	sq = priv->txq2sq[skb_get_queue_mapping(skb)];
 	if (unlikely(!sq)) {
 		dev_kfree_skb_any(skb);

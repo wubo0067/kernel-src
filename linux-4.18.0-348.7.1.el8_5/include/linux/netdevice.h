@@ -316,8 +316,7 @@ struct netdev_boot_setup {
 
 int __init netdev_boot_setup(char *str);
 
-struct napi_struct_extended_rh {
-};
+struct napi_struct_extended_rh {};
 
 /*
  * Structure for NAPI scheduling similar to tasklet but with weighting
@@ -935,8 +934,7 @@ struct netdev_bpf {
 #define XDP_WAKEUP_TX (1 << 1)
 
 #ifdef CONFIG_XFRM_OFFLOAD
-struct xfrmdev_ops_extended_rh {
-};
+struct xfrmdev_ops_extended_rh {};
 
 struct xfrmdev_ops {
 	int (*xdo_dev_state_add)(struct xfrm_state *x);
@@ -965,8 +963,7 @@ enum tls_offload_ctx_dir {
 struct tls_crypto_info;
 struct tls_context;
 
-struct tlsdev_ops_extended_rh {
-};
+struct tlsdev_ops_extended_rh {};
 
 struct tlsdev_ops {
 	int (*tls_dev_add)(struct net_device *netdev, struct sock *sk,
@@ -1000,8 +997,7 @@ struct netdev_net_notifier {
 	struct notifier_block *nb;
 };
 
-struct net_device_ops_extended_rh {
-};
+struct net_device_ops_extended_rh {};
 struct devlink;
 
 struct netdev_name_node {
@@ -1673,8 +1669,7 @@ enum netdev_priv_flags {
 #define IFF_FAILOVER_SLAVE IFF_FAILOVER_SLAVE
 #define IFF_L3MDEV_RX_HANDLER IFF_L3MDEV_RX_HANDLER
 
-struct net_device_extended_rh {
-};
+struct net_device_extended_rh {};
 
 /**
  *	struct net_device - The DEVICE structure.
@@ -2862,7 +2857,7 @@ static inline struct net_device *first_net_device(struct net *net)
 {
 	return list_empty(&net->dev_base_head) ?
 		       NULL :
-			     net_device_entry(net->dev_base_head.next);
+		       net_device_entry(net->dev_base_head.next);
 }
 
 static inline struct net_device *first_net_device_rcu(struct net *net)
@@ -3276,7 +3271,10 @@ struct softnet_data {
 #ifdef CONFIG_NET_FLOW_LIMIT
 	struct sd_flow_limit __rcu *flow_limit;
 #endif
-	// 是设备列表，其中的设备有信息要传输
+	/*
+		sd->output_queue = NULL;
+        sd->output_queue_tailp = &sd->output_queue;
+	*/
 	RH_KABI_EXCLUDE(struct Qdisc *output_queue)
 	RH_KABI_EXCLUDE(struct Qdisc **output_queue_tailp)
 
@@ -4385,7 +4383,7 @@ static inline void netif_tx_unlock_bh(struct net_device *dev)
 
 #define HARD_TX_TRYLOCK(dev, txq)                                              \
 	(((dev->features & NETIF_F_LLTX) == 0) ? __netif_tx_trylock(txq) :     \
-						       __netif_tx_acquire(txq))
+						 __netif_tx_acquire(txq))
 
 #define HARD_TX_UNLOCK(dev, txq)                                               \
 	{                                                                      \
@@ -4776,8 +4774,10 @@ static inline netdev_tx_t __netdev_start_xmit(const struct net_device_ops *ops,
 					      struct sk_buff *skb,
 					      struct net_device *dev, bool more)
 {
+	// 表示当前还有更多的数据包需要处理和发送，这通常用于优化批量发送的性能，减少中断的频率
 	__this_cpu_write(softnet_data.xmit.more, more);
 	// 如果是 veth_netdev，nod_start_xmit 函数是 veth_xmit 函数
+	// .ndo_start_xmit = mlx5e_xmit,
 	return ops->ndo_start_xmit(skb, dev);
 }
 
@@ -4791,11 +4791,13 @@ static inline netdev_tx_t netdev_start_xmit(struct sk_buff *skb,
 					    struct netdev_queue *txq, bool more)
 {
 	// 设备对应的 net_device_ops
+	// const struct net_device_ops mlx5e_netdev_ops
 	const struct net_device_ops *ops = dev->netdev_ops;
 	int rc;
 
 	rc = __netdev_start_xmit(ops, skb, dev, more);
 	if (rc == NETDEV_TX_OK)
+		// 更新网络设备队列的传输开始时间，trans_start 字段更新为当前的 jiffies 值
 		txq_trans_update(txq);
 
 	return rc;
