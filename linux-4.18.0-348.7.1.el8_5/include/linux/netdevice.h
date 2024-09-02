@@ -614,7 +614,7 @@ struct netdev_queue {
 	spinlock_t _xmit_lock ____cacheline_aligned_in_smp;
 	int xmit_lock_owner;
 	/*
-	 * Time (in jiffies) of last Tx
+	 * Time (in jiffies) of last Tx 最近一个帧传输启动的时间
 	 */
 	unsigned long trans_start;
 
@@ -2103,6 +2103,9 @@ struct net_device {
 #ifdef CONFIG_NET_SCHED
 	DECLARE_HASHTABLE(qdisc_hash, 4);
 #endif
+	// 当你使用 ifconfig dev txqueuelen <value> 命令时，ifconfig 工具会通过 ioctl 系统调用与内核进行通信，将新的队列长度值传递给内核。
+	// Max frames per queue allowed，每个队列允许最大的 frame 数量
+	// 当内核支持流量控制时，该成员可能不用。
 	unsigned int tx_queue_len;
 	spinlock_t tx_global_lock;
 	int watchdog_timeo;

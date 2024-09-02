@@ -284,6 +284,7 @@ validate:
 			return NULL;
 		goto bulk;
 	}
+	// 在这里出队列
 	skb = q->dequeue(q);
 	if (skb) {
 	bulk:
@@ -406,7 +407,7 @@ static inline bool qdisc_restart(struct Qdisc *q, int *packets)
 	dev = qdisc_dev(q);
 	// 获取与 skb 关联的 tx_queue，这才是真正的发送队列
 	txq = skb_get_tx_queue(dev, skb);
-
+	// 发送到驱动层
 	return sch_direct_xmit(skb, q, dev, txq, root_lock, validate);
 }
 
@@ -656,6 +657,7 @@ static inline struct skb_array *band2list(struct pfifo_fast_priv *priv,
 	return &priv->q[band];
 }
 
+// skb 插入 pfifo_fast 流控队列
 static int pfifo_fast_enqueue(struct sk_buff *skb, struct Qdisc *qdisc,
 			      struct sk_buff **to_free)
 {
@@ -781,6 +783,7 @@ nla_put_failure:
 static int pfifo_fast_init(struct Qdisc *qdisc, struct nlattr *opt,
 			   struct netlink_ext_ack *extack)
 {
+	// 根据 ifconfig <dev> txqueuelen <size>初始化 pfifo_fast 流控队列
 	unsigned int qlen = qdisc_dev(qdisc)->tx_queue_len;
 	struct pfifo_fast_priv *priv = qdisc_priv(qdisc);
 	int prio;
@@ -1474,7 +1477,7 @@ void mini_qdisc_pair_swap(struct mini_Qdisc_pair *miniqp,
 	}
 
 	miniq = !miniq_old || miniq_old == &miniqp->miniq2 ? &miniqp->miniq1 :
-								   &miniqp->miniq2;
+							     &miniqp->miniq2;
 
 	/* We need to make sure that readers won't see the miniq
 	 * we are about to modify. So wait until previous call_rcu callback

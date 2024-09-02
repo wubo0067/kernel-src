@@ -414,7 +414,7 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c, struct mlx5e_params *params,
 	rq->xsk_pool = xsk_pool;
 	rq->ptp_cyc2time = mlx5_is_real_time_rq(mdev) ?
 				   mlx5_real_time_cyc2time :
-					 mlx5_timecounter_cyc2time;
+				   mlx5_timecounter_cyc2time;
 
 	if (rq->xsk_pool)
 		rq->stats = &c->priv->channel_stats[c->ix].xskrq;
@@ -667,7 +667,7 @@ int mlx5e_create_rq(struct mlx5e_rq *rq, struct mlx5e_rq_param *param)
 
 	ts_format = mlx5_is_real_time_rq(mdev) ?
 			    MLX5_RQC_TIMESTAMP_FORMAT_REAL_TIME :
-				  MLX5_RQC_TIMESTAMP_FORMAT_FREE_RUNNING;
+			    MLX5_RQC_TIMESTAMP_FORMAT_FREE_RUNNING;
 	rqc = MLX5_ADDR_OF(create_rq_in, in, ctx);
 	wq = MLX5_ADDR_OF(rqc, rqc, wq);
 
@@ -996,7 +996,7 @@ static int mlx5e_alloc_xdpsq(struct mlx5e_channel *c,
 
 	sq->stats = sq->xsk_pool ? &c->priv->channel_stats[c->ix].xsksq :
 		    is_redirect	 ? &c->priv->channel_stats[c->ix].xdpsq :
-					 &c->priv->channel_stats[c->ix].rq_xdpsq;
+				   &c->priv->channel_stats[c->ix].rq_xdpsq;
 
 	param->wq.db_numa_node = cpu_to_node(c->cpu);
 	err = mlx5_wq_cyc_create(mdev, &param->wq, sqc_wq, wq, &sq->wq_ctrl);
@@ -1152,7 +1152,7 @@ static int mlx5e_alloc_txqsq(struct mlx5e_channel *c, int txq_ix,
 	sq->stop_room = param->stop_room;
 	sq->ptp_cyc2time = mlx5_is_real_time_sq(mdev) ?
 				   mlx5_real_time_cyc2time :
-					 mlx5_timecounter_cyc2time;
+				   mlx5_timecounter_cyc2time;
 
 	param->wq.db_numa_node = cpu_to_node(c->cpu);
 	err = mlx5_wq_cyc_create(mdev, &param->wq, sqc_wq, wq, &sq->wq_ctrl);
@@ -1200,7 +1200,7 @@ static int mlx5e_create_sq(struct mlx5_core_dev *mdev,
 
 	ts_format = mlx5_is_real_time_sq(mdev) ?
 			    MLX5_SQC_TIMESTAMP_FORMAT_REAL_TIME :
-				  MLX5_SQC_TIMESTAMP_FORMAT_FREE_RUNNING;
+			    MLX5_SQC_TIMESTAMP_FORMAT_FREE_RUNNING;
 	sqc = MLX5_ADDR_OF(create_sq_in, in, ctx);
 	wq = MLX5_ADDR_OF(sqc, sqc, wq);
 
@@ -1356,6 +1356,7 @@ void mlx5e_activate_txqsq(struct mlx5e_txqsq *sq)
 void mlx5e_tx_disable_queue(struct netdev_queue *txq)
 {
 	__netif_tx_lock_bh(txq);
+	// 关闭传输队列，其实就是个标志
 	netif_tx_stop_queue(txq);
 	__netif_tx_unlock_bh(txq);
 }
@@ -1874,7 +1875,7 @@ static int mlx5e_open_queues(struct mlx5e_channel *c,
 	err = c->xdp ? mlx5e_open_cq(c->priv, params->tx_cq_moderation,
 				     &cparam->xdp_sq.cqp, &ccp,
 				     &c->rq_xdpsq.cq) :
-			     0;
+		       0;
 	if (err)
 		goto err_close_rx_cq;
 
@@ -2281,7 +2282,7 @@ void mlx5e_destroy_direct_rqts(struct mlx5e_priv *priv, struct mlx5e_tir *tirs)
 static int mlx5e_rx_hash_fn(int hfunc)
 {
 	return (hfunc == ETH_RSS_HASH_TOP) ? MLX5_RX_HASH_FN_TOEPLITZ :
-						   MLX5_RX_HASH_FN_INVERTED_XOR8;
+					     MLX5_RX_HASH_FN_INVERTED_XOR8;
 }
 
 int mlx5e_bits_invert(unsigned long a, int size)
@@ -2481,7 +2482,7 @@ void mlx5e_build_indir_tir_ctx_hash(struct mlx5e_rss_params *rss_params,
 {
 	void *hfso =
 		inner ? MLX5_ADDR_OF(tirc, tirc, rx_hash_field_selector_inner) :
-			      MLX5_ADDR_OF(tirc, tirc, rx_hash_field_selector_outer);
+			MLX5_ADDR_OF(tirc, tirc, rx_hash_field_selector_outer);
 
 	MLX5_SET(tirc, tirc, rx_hash_fn, mlx5e_rx_hash_fn(rss_params->hfunc));
 	if (rss_params->hfunc == ETH_RSS_HASH_TOP) {
@@ -4098,7 +4099,7 @@ int mlx5e_hwstamp_set(struct mlx5e_priv *priv, struct ifreq *ifr)
 	netdev_update_features(priv->netdev);
 
 	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ? -EFAULT :
-									    0;
+								      0;
 }
 
 int mlx5e_hwstamp_get(struct mlx5e_priv *priv, struct ifreq *ifr)
@@ -4697,7 +4698,7 @@ void mlx5e_build_nic_params(struct mlx5e_priv *priv, struct mlx5e_xsk *xsk,
 	/* SQ */
 	params->log_sq_size = is_kdump_kernel() ?
 				      MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE :
-					    MLX5E_PARAMS_DEFAULT_LOG_SQ_SIZE;
+				      MLX5E_PARAMS_DEFAULT_LOG_SQ_SIZE;
 	MLX5E_SET_PFLAG(params, MLX5E_PFLAG_SKB_TX_MPWQE,
 			mlx5e_tx_mpwqe_supported(mdev));
 
@@ -4731,7 +4732,7 @@ void mlx5e_build_nic_params(struct mlx5e_priv *priv, struct mlx5e_xsk *xsk,
 	/* CQ moderation params */
 	rx_cq_period_mode = MLX5_CAP_GEN(mdev, cq_period_start_from_cqe) ?
 				    MLX5_CQ_PERIOD_MODE_START_FROM_CQE :
-					  MLX5_CQ_PERIOD_MODE_START_FROM_EQE;
+				    MLX5_CQ_PERIOD_MODE_START_FROM_EQE;
 	params->rx_dim_enabled = MLX5_CAP_GEN(mdev, cq_moderation);
 	params->tx_dim_enabled = MLX5_CAP_GEN(mdev, cq_moderation);
 	mlx5e_set_rx_cq_mode_params(params, rx_cq_period_mode);

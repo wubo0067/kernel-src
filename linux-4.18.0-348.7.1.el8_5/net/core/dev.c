@@ -3719,6 +3719,7 @@ struct sk_buff *dev_hard_start_xmit(struct sk_buff *first,
 				    struct netdev_queue *txq, int *ret)
 {
 	struct sk_buff *skb = first;
+	// 传输成功，缓冲区尚未被释放
 	int rc = NETDEV_TX_OK;
 
 	while (skb) {
@@ -3732,8 +3733,9 @@ struct sk_buff *dev_hard_start_xmit(struct sk_buff *first,
 		}
 
 		skb = next;
+		// 驱动会调用 netif_tx_stop_queue，这样就不能向驱动层下发 skb 了
 		if (netif_tx_queue_stopped(txq) && skb) {
-			// 返回队列忙
+			// 返回队列忙，驱动程序发现 NIC 的传输缓冲没有足够的空间
 			rc = NETDEV_TX_BUSY;
 			break;
 		}
@@ -4300,14 +4302,11 @@ static int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 	// 多 tx 队列的情况下，选择合适的 tx 队列
 	txq = netdev_pick_tx(dev, skb, sb_dev);
 	// 从 netdev_queue 结构上获取设备的 qdisc
-<<<<<<< HEAD
-	== == ==
-		=
-			// 单队列设备 qdisc 默认为 pfifo_fast，多队列设备 qdisc 默认为 mq qdisc
-		// extern struct Qdisc_ops pfifo_fast_ops;
-		// extern struct Qdisc_ops mq_qdisc_ops;
->>>>>>> e8746f93e3402ca6d871b1ef5429d6bce4a1469a
-		q = rcu_dereference_bh(txq->qdisc);
+
+	// 单队列设备 qdisc 默认为 pfifo_fast，多队列设备 qdisc 默认为 mq qdisc
+	// extern struct Qdisc_ops pfifo_fast_ops;
+	// extern struct Qdisc_ops mq_qdisc_ops;
+	q = rcu_dereference_bh(txq->qdisc);
 	// 通过该 tacepoint 可以看到选择的 tx_queue
 	trace_net_dev_queue(skb);
 	if (q->enqueue) {
@@ -5117,6 +5116,8 @@ static __latent_entropy void net_tx_action(struct softirq_action *h)
 	}
 
 	if (sd->output_queue) {
+		// __qdisc_run 中权重批次无法发送完毕的 skb，会在函数__netif_reschedule 中将 qdisc 加入到
+		// softdata_net 的 output_queue 链表中
 		struct Qdisc *head;
 
 		local_irq_disable();
@@ -5156,6 +5157,7 @@ static __latent_entropy void net_tx_action(struct softirq_action *h)
 			}
 
 			clear_bit(__QDISC_STATE_SCHED, &q->state);
+			// 在软中断中发送 softnet_data->output_queue 的数据，
 			qdisc_run(q);
 			if (root_lock)
 				spin_unlock(root_lock);
