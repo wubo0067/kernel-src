@@ -106,6 +106,7 @@ static int request_irqs(struct mlx5_core_dev *dev, int nvec)
 
 	for (i = 0; i < nvec; i++) {
 		struct mlx5_irq *irq = mlx5_irq_get(dev, i);
+		// irqn 注册号
 		int irqn = pci_irq_vector(dev->pdev, i);
 
 		irq_set_name(name, i);

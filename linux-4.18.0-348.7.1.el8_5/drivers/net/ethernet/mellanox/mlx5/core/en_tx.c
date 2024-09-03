@@ -460,6 +460,7 @@ static void mlx5e_tx_skb_update_hwts_flags(struct sk_buff *skb)
 
 static void mlx5e_tx_check_stop(struct mlx5e_txqsq *sq)
 {
+	// 如果 ring dma descriptor 缓冲区不足，就关闭队列，stop 计数递增
 	if (unlikely(!mlx5e_wqc_has_room_for(&sq->wq, sq->cc, sq->pc,
 					     sq->stop_room))) {
 		netif_tx_stop_queue(sq->txq);
@@ -491,7 +492,7 @@ static inline void
 	mlx5e_tx_skb_update_hwts_flags(skb);
 
 	sq->pc += wi->num_wqebbs;
-
+	// 每次发送完毕都会做 ring full check
 	mlx5e_tx_check_stop(sq);
 
 	if (unlikely(sq->ptpsq)) {
@@ -698,7 +699,7 @@ static void mlx5e_sq_xmit_mpwqe(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	// 事实就是在函数 mlx5e_tx_wi_kfree_fifo_skbs 中去释放的
 	// mlx5e_skb_fifo_pop(&sq->db.skb_fifo)，在这里 pop 队列
 	mlx5e_skb_fifo_push(&sq->db.skb_fifo, skb);
-	// !! 函数将数据段添加到 MPWQE 中，这就将 descriptor push 到 tx-queue 了，核心就是记录 dma 地址
+	// !! 函数将数据段添加到 MPWQE 中，这就将 descriptor push 到 ring 了，核心就是记录 dma 地址
 	mlx5e_tx_mpwqe_add_dseg(sq, &txd);
 	// 并更新数据包的硬件时间戳标志
 	mlx5e_tx_skb_update_hwts_flags(skb);
@@ -706,6 +707,7 @@ static void mlx5e_sq_xmit_mpwqe(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	if (unlikely(mlx5e_tx_mpwqe_is_full(&sq->mpwqe))) {
 		// 判断发送队列是否满
 		/* Might stop the queue and affect the retval of __netdev_tx_sent_queue. */
+		// 上层 dev_hardxxx_xmit 会返回 busy
 		cseg = mlx5e_tx_mpwqe_session_complete(sq);
 
 		if (__netdev_tx_sent_queue(sq->txq, txd.len, xmit_more))
@@ -720,6 +722,7 @@ static void mlx5e_sq_xmit_mpwqe(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	return;
 
 err_unmap:
+	// 如果向网卡硬件发送失败，这里会取消 dma 映射，递增 drop 包数量，释放 skb
 	mlx5e_dma_unmap_wqe_err(sq, 1);
 	sq->stats->dropped++;
 	dev_kfree_skb_any(skb);
@@ -745,6 +748,7 @@ static bool mlx5e_txwqe_build_eseg(struct mlx5e_priv *priv,
 	return true;
 }
 
+// 这个发送函数怎么做流控的在发送到 dma_fifo 中时
 netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
@@ -955,7 +959,7 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 			}
 			stats->cqe_err++;
 		}
-
+		// 最多 128 个，释放了消费者的空间
 	} while ((++i < MLX5E_TX_CQ_POLL_BUDGET) &&
 		 (cqe = mlx5_cqwq_get_cqe(&cq->wq)));
 
@@ -971,9 +975,11 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 
 	netdev_tx_completed_queue(sq->txq, npkts, nbytes);
 
+	// 如果 ring is full 且有空余空间，就开启发送队列，启动 tx 的软中断
 	if (netif_tx_queue_stopped(sq->txq) &&
 	    mlx5e_wqc_has_room_for(&sq->wq, sq->cc, sq->pc, sq->stop_room) &&
 	    !test_bit(MLX5E_SQ_STATE_RECOVERING, &sq->state)) {
+		// 唤醒发送软中断，这是在清理过程中
 		netif_tx_wake_queue(sq->txq);
 		stats->wake++;
 	}

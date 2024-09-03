@@ -3203,6 +3203,7 @@ EXPORT_SYMBOL(netif_schedule_queue);
 
 void netif_tx_wake_queue(struct netdev_queue *dev_queue)
 {
+	// 清除关闭状态
 	if (test_and_clear_bit(__QUEUE_STATE_DRV_XOFF, &dev_queue->state)) {
 		struct Qdisc *q;
 
