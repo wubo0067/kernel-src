@@ -98,6 +98,8 @@ static void irq_set_name(char *name, int vecidx)
 	return;
 }
 
+// nvec 是中断向量数量，这个数值通常与设备能否使用的 MSI-X(message signaled Interrupt)
+// 中断向量的数量相关
 static int request_irqs(struct mlx5_core_dev *dev, int nvec)
 {
 	char name[MLX5_MAX_IRQ_NAME];
@@ -179,22 +181,36 @@ err_out:
 }
 
 /* Completion IRQ vectors */
-
+// 假设 i 为 0，MLX5_IRQ_VEC_COMP_BASE 为 10，mdev->priv.numa_node 为 0，
+// 则 vecidx 为 10。函数将为索引为 10 的中断向量分配 CPU 掩码，并将其绑定到 NUMA 节点 0 上的一个 CPU。
 static int set_comp_irq_affinity_hint(struct mlx5_core_dev *mdev, int i)
 {
+	// 计算中断向量的索引，MLX5_IRQ_VEC_COMP_BASE 是基准值，加上 i 得到具体的中断向量索引。
 	int vecidx = MLX5_IRQ_VEC_COMP_BASE + i;
 	struct mlx5_irq *irq;
 	int irqn;
-
+	// 获取中断向量结构
 	irq = mlx5_irq_get(mdev, vecidx);
+	// 获取中断号
 	irqn = pci_irq_vector(mdev->pdev, vecidx);
+	// 函数为中断向量分配一个 CPU 掩码
 	if (!zalloc_cpumask_var(&irq->mask, GFP_KERNEL)) {
 		mlx5_core_warn(mdev, "zalloc_cpumask_var failed");
 		return -ENOMEM;
 	}
-
+	// 将中断向量绑定到特定的 CPU 上
+	// cpumask_local_spread 函数根据 NUMA 节点和索引 i 选择一个合适的 CPU
+	// 它使用 i 值来帮助在节点的可用 CPU 之间进行分散。
+	// 选择过程考虑了负载均衡，试图将中断均匀地分布在所有可用的 CPU 上
+	// 设置中断亲和性后，中断确实会倾向于在指定的 CPU 上处理。
+	// 然而，这通常是一个"软"亲和性或"提示"，而不是硬绑定
+	// /proc/interrupts 对于设置了亲和性的中断，你会看到大多数计数集中在指定的 CPU 列。但是，你可能仍会在其他 CPU 列看到一些计数，尽管数量较少。
+	// 负载均衡：系统可能会在高负载情况下将中断分散到其他 CPU。
+	// 中断迁移：某些情况下，中断可能会暂时迁移到其他 CPU。
 	cpumask_set_cpu(cpumask_local_spread(i, mdev->priv.numa_node),
 			irq->mask);
+
+	// 如果系统支持 SMP（对称多处理），则调用 irq_set_affinity_hint 函数设置中断的 CPU 亲和性提示
 	if (IS_ENABLED(CONFIG_SMP) && irq_set_affinity_hint(irqn, irq->mask))
 		mlx5_core_warn(mdev, "irq_set_affinity_hint failed, irq 0x%.4x",
 			       irqn);
@@ -214,13 +230,17 @@ static void clear_comp_irq_affinity_hint(struct mlx5_core_dev *mdev, int i)
 	free_cpumask_var(irq->mask);
 }
 
+// 设置中断和 CPU 的亲和性
 static int set_comp_irq_affinity_hints(struct mlx5_core_dev *mdev)
 {
+	// 中断向量的数量
 	int nvec = mlx5_irq_get_num_comp(mdev->priv.irq_table);
 	int err;
 	int i;
 
 	for (i = 0; i < nvec; i++) {
+		// 这段代码实现了一个重要的网络驱动优化机制，通过设置中断和 CPU 的亲和性来提高网络性能。
+		// 它遍历所有的完成中断向量，为每个向量设置 CPU 亲和性提示
 		err = set_comp_irq_affinity_hint(mdev, i);
 		if (err)
 			goto err_out;
@@ -229,6 +249,7 @@ static int set_comp_irq_affinity_hints(struct mlx5_core_dev *mdev)
 	return 0;
 
 err_out:
+	// 回滚
 	for (i--; i >= 0; i--)
 		clear_comp_irq_affinity_hint(mdev, i);
 
@@ -279,7 +300,8 @@ int mlx5_irq_table_create(struct mlx5_core_dev *dev)
 
 	if (mlx5_core_is_sf(dev))
 		return 0;
-
+	// num_ports:设备的物理端口数量，设备硬件上实际存在的网络端口数量，这个值通常在设备初始化时从硬件中读取
+	// CPU 核心数量
 	nvec = MLX5_CAP_GEN(dev, num_ports) * num_online_cpus() +
 	       MLX5_IRQ_VEC_COMP_BASE;
 	nvec = min_t(int, nvec, num_eqs);
@@ -289,7 +311,7 @@ int mlx5_irq_table_create(struct mlx5_core_dev *dev)
 	table->irq = kcalloc(nvec, sizeof(*table->irq), GFP_KERNEL);
 	if (!table->irq)
 		return -ENOMEM;
-
+	//
 	nvec = pci_alloc_irq_vectors(dev->pdev, MLX5_IRQ_VEC_COMP_BASE + 1,
 				     nvec, PCI_IRQ_MSIX);
 	if (nvec < 0) {

@@ -522,7 +522,7 @@ static void mlx5e_sq_xmit_wqe(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 
 	stats->xmit_more += xmit_more;
 
-	/* fill wqe */
+	/* fill wqe，Work Queue Element */
 	wi = &sq->db.wqe_info[pi];
 	cseg = &wqe->ctrl;
 	eseg = &wqe->eth;

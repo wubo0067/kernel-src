@@ -91,7 +91,7 @@ struct page_pool;
 #define MLX5_MPWRQ_WQE_PAGE_ORDER                                              \
 	(MLX5_MPWRQ_LOG_WQE_SZ - PAGE_SHIFT > 0 ?                              \
 		 MLX5_MPWRQ_LOG_WQE_SZ - PAGE_SHIFT :                          \
-		       0)
+		 0)
 #define MLX5_MPWRQ_PAGES_PER_WQE BIT(MLX5_MPWRQ_WQE_PAGE_ORDER)
 
 #define MLX5_ALIGN_MTTS(mtts) (ALIGN(mtts, 8))
@@ -199,7 +199,7 @@ static inline u16 mlx5_min_rx_wqes(int wq_type, u32 wq_size)
 static inline int mlx5e_get_max_num_channels(struct mlx5_core_dev *mdev)
 {
 	return is_kdump_kernel() ? MLX5E_MIN_NUM_CHANNELS :
-					 min_t(int, mlx5_comp_vectors_count(mdev),
+				   min_t(int, mlx5_comp_vectors_count(mdev),
 					 MLX5E_MAX_NUM_CHANNELS);
 }
 
@@ -338,10 +338,11 @@ struct mlx5e_tx_mpwqe {
 };
 
 struct mlx5e_skb_fifo {
-	struct sk_buff **fifo;
-	u16 *pc;
-	u16 *cc;
-	u16 mask;
+	struct sk_buff **
+		fifo; // 这是一个指向 sk_buff 指针数组的指针，这个数组实际上是循环缓冲区，用于存储待处理的网络数据包。
+	u16 *pc; // 生产者计数器 (Producer Counter) 的指针，指向一个 16 位无符号整数，表示下一个要被添加到 FIFO 的位置。
+	u16 *cc; // 消费者计数器 (Consumer Counter) 的指针，指向一个 16 位无符号整数，表示下一个要从 FIFO 中取出的位置。
+	u16 mask; // 通常是 FIFO 大小减 1，用于快速计算索引
 };
 
 struct mlx5e_ptpsq;
@@ -573,7 +574,7 @@ struct mlx5e_mpw_info {
 #define MLX5E_CACHE_UNIT                                                       \
 	(MLX5_MPWRQ_PAGES_PER_WQE > NAPI_POLL_WEIGHT ?                         \
 		 MLX5_MPWRQ_PAGES_PER_WQE :                                    \
-		       NAPI_POLL_WEIGHT)
+		 NAPI_POLL_WEIGHT)
 #define MLX5E_CACHE_SIZE (4 * roundup_pow_of_two(MLX5E_CACHE_UNIT))
 struct mlx5e_page_cache {
 	u32 head;

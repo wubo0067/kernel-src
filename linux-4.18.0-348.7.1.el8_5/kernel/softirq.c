@@ -259,6 +259,8 @@ static inline void lockdep_softirq_end(bool in_hardirq)
 
 asmlinkage __visible void __softirq_entry __do_softirq(void)
 {
+	// 當系統在做推遲的處理時，有可能會不斷有新的 softirqs 發生，此時如果為了處理新的 softirq，
+	// 可能會導致 userspace 的 thread 不能被排程，因此可以看到這裡會設定一個允許處理的時間。
 	unsigned long end = jiffies + MAX_SOFTIRQ_TIME;
 	unsigned long old_flags = current->flags;
 	int max_restart = MAX_SOFTIRQ_RESTART;
@@ -289,6 +291,7 @@ restart:
 	h = softirq_vec;
 
 	while ((softirq_bit = ffs(pending))) {
+		// 循环未决软中断 bit 位
 		unsigned int vec_nr;
 		int prev_count;
 
@@ -351,12 +354,15 @@ asmlinkage __visible void do_softirq(void)
 	// 它是待处理的软中断的 32 位位图----如果第 n 位被设置位 1，那么第 n 位对应的软中断等待被处理
 	// 每一次一种软 IRQ 类型受到服务时，其位就会从活跃的软 IRQ 的本地副本 pending 中清掉。
 	// 没有未决的软 IRQ 需要处理，该函数返回 0
+	// __raise_softirq_irqoff 会置中断位图位 1
 	pending = local_softirq_pending();
 
 	// 这段代码首先检查是否有待处理的软中断（pending 是否非零）。
 	// 如果有，并且当前没有正在运行的软中断守护线程（ksoftirqd_running(pending) 返回假），
 	// 则调用 do_softirq_own_stack() 函数来处理软中断。
 	if (pending && !ksoftirqd_running(pending))
+		// 有未决的软中断，且软中断守护线程没有运行，则调用 do_softirq_own_stack() 处理软中断
+		// 这个函数在中断关闭情况下执行，需要执行效率非常快
 		do_softirq_own_stack();
 
 	// 恢复之前保存的中断状态：
@@ -443,7 +449,7 @@ void irq_exit(void)
 }
 
 /*
- * This function must run with irqs disabled!
+ * This function must run with irqs disabled!，在中断关闭情况下执行
  */
 inline void raise_softirq_irqoff(unsigned int nr)
 {
@@ -456,24 +462,31 @@ inline void raise_softirq_irqoff(unsigned int nr)
 	 * the irq or softirq.
 	 *
 	 * Otherwise we wake up ksoftirqd to make sure we
-	 * schedule the softirq soon.
+	 * schedule the softirq soon. 如果在中断上下文中，包括上下半部分，则返回非 0；如果再进程上下文中，则返回 0
 	 */
 	if (!in_interrupt())
+		// 如果不在中断上下文中，唤醒中断处理线程 ksoftirqd，执行 do_softirq,
+		// 如果在中断上下文中，看 do_softirq 怎么处理 pending 的软中断
 		wakeup_softirqd();
 }
 
 void raise_softirq(unsigned int nr)
 {
 	unsigned long flags;
-
+	// 将状态存放在 flags 中，并且关闭中断
 	local_irq_save(flags);
 	raise_softirq_irqoff(nr);
+	// 恢复保存的 flags(中断开关，视保存前的状况而定)
 	local_irq_restore(flags);
 }
 
 void __raise_softirq_irqoff(unsigned int nr)
 {
 	trace_softirq_raise(nr);
+	// 标注被延迟处理的软中断类型
+	// 用来置标志位，每个 CPU 都有一个 softirq_pending 位图，每种软中断类型对应这个位图中的一个位
+	// 这里，nr 是软中断的编号，(1UL << nr) 创建一个只有对应位被设置的掩码
+	// __raise_softirq_irqoff 函数不会累计计数，多次调用这个函数只会将对应的软中断标记为未决，而不会增加计数
 	or_softirq_pending(1UL << nr);
 }
 
