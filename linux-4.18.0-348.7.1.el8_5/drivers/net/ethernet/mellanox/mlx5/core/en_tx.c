@@ -871,6 +871,7 @@ static void mlx5e_tx_wi_consume_fifo_skbs(struct mlx5e_txqsq *sq,
 	}
 }
 
+// 处理已完成的传输，释放相关资源，并更新统计信息
 bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 {
 	struct mlx5e_sq_stats *stats;
@@ -881,12 +882,14 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 	u16 npkts;
 	u16 sqcc;
 	int i;
-	// 从完成队列获取父结构发送队列
-	sq = container_of(cq, struct mlx5e_txqsq, cq);
 
+	// 从 cq 获取包含它的父结构 mlx5e_txqsq
+	// 获取与完成队列关联的发送队列 sq
+	sq = container_of(cq, struct mlx5e_txqsq, cq);
+	// 检查 sq 是否启动
 	if (unlikely(!test_bit(MLX5E_SQ_STATE_ENABLED, &sq->state)))
 		return false;
-
+	// 获取一个完成队列条目 cqe
 	cqe = mlx5_cqwq_get_cqe(&cq->wq);
 	if (!cqe)
 		return false;
@@ -903,28 +906,32 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 
 	/* avoid dirtying sq cache line every cqe */
 	dma_fifo_cc = sq->dma_fifo_cc;
-
+	// 直到达到预算（MLX5E_TX_CQ_POLL_BUDGET）或没有更多 CQE。
 	i = 0;
 	do {
 		struct mlx5e_tx_wqe_info *wi;
 		u16 wqe_counter;
 		bool last_wqe;
 		u16 ci;
-
+		// 弹出完成队列的 cqe
 		mlx5_cqwq_pop(&cq->wq);
-
+		// 获取 work queue element 计数器
 		wqe_counter = be16_to_cpu(cqe->wqe_counter);
 
+		// 内循环，处理所有已完成的 WQE
 		do {
+			// 检查是否是最后一个 WQE。
 			last_wqe = (sqcc == wqe_counter);
-
+			// 获取 WQE 信息。
 			ci = mlx5_wq_cyc_ctr2ix(&sq->wq, sqcc);
 			wi = &sq->db.wqe_info[ci];
 
 			sqcc += wi->num_wqebbs;
-
+			// 如果 WQE 有关联的 SKB：
 			if (likely(wi->skb)) {
+				// 解除 DMA 映射。
 				mlx5e_tx_wi_dma_unmap(sq, wi, &dma_fifo_cc);
+				// 消费（释放）SKB。
 				mlx5e_consume_skb(sq, wi->skb, cqe,
 						  napi_budget);
 
@@ -946,7 +953,7 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 				nbytes += wi->num_bytes;
 			}
 		} while (!last_wqe);
-
+		// 检查 CQE 是否报告错误。
 		if (unlikely(get_cqe_opcode(cqe) == MLX5_CQE_REQ_ERR)) {
 			if (!test_and_set_bit(MLX5E_SQ_STATE_RECOVERING,
 					      &sq->state)) {
@@ -964,7 +971,7 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 		 (cqe = mlx5_cqwq_get_cqe(&cq->wq)));
 
 	stats->cqes += i;
-
+	// 更新完成队列的数据库记录
 	mlx5_cqwq_update_db_record(&cq->wq);
 
 	/* ensure cq space is freed before enabling more cqes */
@@ -972,14 +979,14 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 
 	sq->dma_fifo_cc = dma_fifo_cc;
 	sq->cc = sqcc;
-
+	// 通知网络栈已完成的传输
 	netdev_tx_completed_queue(sq->txq, npkts, nbytes);
 
 	// 如果 ring is full 且有空余空间，就开启发送队列，启动 tx 的软中断
 	if (netif_tx_queue_stopped(sq->txq) &&
 	    mlx5e_wqc_has_room_for(&sq->wq, sq->cc, sq->pc, sq->stop_room) &&
 	    !test_bit(MLX5E_SQ_STATE_RECOVERING, &sq->state)) {
-		// 唤醒发送软中断，这是在清理过程中
+		// 如果队列之前被停止且现在有空间，唤醒传输队列。
 		netif_tx_wake_queue(sq->txq);
 		stats->wake++;
 	}

@@ -561,7 +561,11 @@ static inline bool napi_if_scheduled_mark_missed(struct napi_struct *n)
 }
 
 enum netdev_queue_state_t {
+	// 这个宏表示驱动层面停止了发送队列。通常在驱动程序资源不足（例如发送描述符不足）时使用
+	// 驱动程序会调用 netif_tx_stop_queue 函数来设置这个状态 1。
 	__QUEUE_STATE_DRV_XOFF,
+	// 这个宏表示协议栈层面停止了发送队列。主要由 Byte Queue Limits (BQL) 算法使用，
+	// 以控制网卡队列中的数据量，减少延迟。协议栈会在需要时调用 test_and_clear_bit 函数来检查并清除这个状态
 	__QUEUE_STATE_STACK_XOFF,
 	__QUEUE_STATE_FROZEN,
 };
@@ -3556,14 +3560,16 @@ static inline bool __netdev_sent_queue(struct net_device *dev,
 				      xmit_more);
 }
 
+// 网络设备驱动程序中用于报告已完成传输的数据包的重要函数
 static inline void netdev_tx_completed_queue(struct netdev_queue *dev_queue,
 					     unsigned int pkts,
 					     unsigned int bytes)
 {
-#ifdef CONFIG_BQL
+#ifdef CONFIG_BQL // Byte Queue Limit, BQL 是一种动态调整传输队列长度的机制，基于字节而不是数据包数量
 	if (unlikely(!bytes))
+		// 如果传输的字节数为 0，函数直接返回，不做任何操作。
 		return;
-
+	// 来更新已完成传输的字节数，DQL 是 BQL 的实现机制
 	dql_completed(&dev_queue->dql, bytes);
 
 	/*
@@ -3571,11 +3577,12 @@ static inline void netdev_tx_completed_queue(struct netdev_queue *dev_queue,
 	 * netdev_tx_sent_queue will miss the update and cause the queue to
 	 * be stopped forever
 	 */
+	// 使用 smp_mb() 创建一个内存屏障，确保前面的更新对其他 CPU 可见
 	smp_mb();
 
 	if (dql_avail(&dev_queue->dql) < 0)
 		return;
-
+	// __QUEUE_STATE_STACK_XOFF 这是一个队列状态标志，表示队列被上层（如协议栈）停止
 	if (test_and_clear_bit(__QUEUE_STATE_STACK_XOFF, &dev_queue->state))
 		netif_schedule_queue(dev_queue);
 #endif

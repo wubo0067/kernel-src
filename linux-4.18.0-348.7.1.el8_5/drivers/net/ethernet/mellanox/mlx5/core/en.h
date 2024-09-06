@@ -700,6 +700,7 @@ struct mlx5e_channel {
 	/* data path */
 	struct mlx5e_rq rq;
 	struct mlx5e_xdpsq rq_xdpsq;
+	// MLX5E_MAX_NUM_TC：定义了最大的流量类别（Traffic Class, TC）数量，而不是直接定义传输队列的数量。
 	struct mlx5e_txqsq sq[MLX5E_MAX_NUM_TC];
 	struct mlx5e_icosq icosq; /* internal control operations */
 	struct mlx5e_txqsq __rcu *__rcu *qos_sqs;

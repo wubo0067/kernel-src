@@ -117,6 +117,7 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 {
 	struct mlx5e_channel *c =
 		container_of(napi, struct mlx5e_channel, napi);
+	// 拿到通道状态字段
 	struct mlx5e_ch_stats *ch_stats = c->stats;
 	struct mlx5e_xdpsq *xsksq = &c->xsksq;
 	struct mlx5e_txqsq __rcu **qos_sqs;
@@ -137,7 +138,7 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	xsk_open = test_bit(MLX5E_CHANNEL_STATE_XSK, c->state);
 
 	ch_stats->poll++;
-
+	// 流量类的数量
 	for (i = 0; i < c->num_tc; i++)
 		busy |= mlx5e_poll_tx_cq(&c->sq[i].cq, budget);
 
@@ -251,7 +252,7 @@ out:
    - `napi_schedule` 确实最终会触发 `NET_RX_SOFTIRQ`，但这并不意味着它只处理接收（RX）操作。
 
 2. 统一的处理机制：
-   - MLX5 驱动使用统一的 NAPI 机制来处理both接收和发送完成事件。
+   - MLX5 驱动使用统一的 NAPI 机制来处理 both 接收和发送完成事件。
    - 这种设计简化了驱动结构，并提高了效率。
 
 3. NAPI poll 函数：
@@ -259,7 +260,7 @@ out:
    - 在 MLX5 驱动中，这个 `poll` 函数通常是 `mlx5e_napi_poll`。
 
 4. mlx5e_napi_poll 的实现：
-   - 这个函数会处理both接收和发送完成队列。
+   - 这个函数会处理 both 接收和发送完成队列。
    - 例如：
      ```c
      int mlx5e_napi_poll(struct napi_struct *napi, int budget)
@@ -286,7 +287,7 @@ out:
 总结：
 虽然 `napi_schedule` 最终触发 `NET_RX_SOFTIRQ`，但这并不限制它只处理接收操作。
 MLX5 驱动利用 NAPI 的灵活性来统一处理接收和发送完成事件。这种设计提供了更好的性能和资源利用，
-同时简化了驱动的结构。在 `mlx5e_napi_poll` 函数中，驱动会适当地处理both接收和发送队列，确保所有网络操作都得到及时处理。*/
+同时简化了驱动的结构。在 `mlx5e_napi_poll` 函数中，驱动会适当地处理 both 接收和发送队列，确保所有网络操作都得到及时处理。*/
 void mlx5e_completion_event(struct mlx5_core_cq *mcq, struct mlx5_eqe *eqe)
 {
 	struct mlx5e_cq *cq = container_of(mcq, struct mlx5e_cq, mcq);
