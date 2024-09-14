@@ -203,8 +203,11 @@ static inline int mlx5e_get_max_num_channels(struct mlx5_core_dev *mdev)
 					 MLX5E_MAX_NUM_CHANNELS);
 }
 
+// 是 mlx5e 发送队列（TX queue）ring buffer 的条目结构
 struct mlx5e_tx_wqe {
+	// 这个字段包含了 WQE 的控制信息，如操作码、QPN（队列对号）等。它用于管理和控制 WQE 的执行。
 	struct mlx5_wqe_ctrl_seg ctrl;
+	// 这个字段包含了以太网头部信息，如源 MAC 地址、目的 MAC 地址、VLAN 标签等。它用于处理以太网帧的相关信息。
 	struct mlx5_wqe_eth_seg eth;
 	struct mlx5_wqe_data_seg data[0];
 };
@@ -311,9 +314,17 @@ struct mlx5e_cq_decomp {
 
 enum mlx5e_dma_map_type { MLX5E_DMA_MAP_SINGLE, MLX5E_DMA_MAP_PAGE };
 
+/*
+在网络数据包发送过程中，数据需要从系统内存传输到网卡，这个结构体帮助跟踪每个DMA传输的详细信息
+它允许驱动程序准确的跟踪那些内存区域被映射用于dma
+当传输完成时，这些信息用于正确地解除 DMA 映射和释放资源。
+*/
 struct mlx5e_sq_dma {
+	// 这是 DMA 操作的物理地址，它表示数据在内存中的物理位置，用于 DMA 传输。
 	dma_addr_t addr;
+	// 表示 DMA 传输的大小（以字节为单位）。这个信息用于确定要传输多少数据。
 	u32 size;
+	// 用于指示 DMA 映射的类型，用于确定如何正确地解除 DMA 映射。
 	enum mlx5e_dma_map_type type;
 };
 

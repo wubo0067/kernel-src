@@ -3959,6 +3959,7 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 				spin_unlock(&q->busylock);
 				contended = false;
 			}
+			// 从 qdisc 队列中获取
 			__qdisc_run(q);
 		}
 

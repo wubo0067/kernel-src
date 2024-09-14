@@ -29,7 +29,7 @@ static int max_skb_frags = MAX_SKB_FRAGS;
 static long long_one __maybe_unused = 1;
 static long long_max __maybe_unused = LONG_MAX;
 
-static int net_msg_warn;	/* Unused, but still a sysctl */
+static int net_msg_warn; /* Unused, but still a sysctl */
 
 int sysctl_fb_tunnels_only_for_init_net __read_mostly = 0;
 EXPORT_SYMBOL(sysctl_fb_tunnels_only_for_init_net);
@@ -40,25 +40,23 @@ static int rps_sock_flow_sysctl(struct ctl_table *table, int write,
 {
 	unsigned int orig_size, size;
 	int ret, i;
-	struct ctl_table tmp = {
-		.data = &size,
-		.maxlen = sizeof(size),
-		.mode = table->mode
-	};
+	struct ctl_table tmp = { .data = &size,
+				 .maxlen = sizeof(size),
+				 .mode = table->mode };
 	struct rps_sock_flow_table *orig_sock_table, *sock_table;
 	static DEFINE_MUTEX(sock_flow_mutex);
 
 	mutex_lock(&sock_flow_mutex);
 
-	orig_sock_table = rcu_dereference_protected(rps_sock_flow_table,
-					lockdep_is_held(&sock_flow_mutex));
+	orig_sock_table = rcu_dereference_protected(
+		rps_sock_flow_table, lockdep_is_held(&sock_flow_mutex));
 	size = orig_size = orig_sock_table ? orig_sock_table->mask + 1 : 0;
 
 	ret = proc_dointvec(&tmp, write, buffer, lenp, ppos);
 
 	if (write) {
 		if (size) {
-			if (size > 1<<29) {
+			if (size > 1 << 29) {
 				/* Enforce limit to prevent overflow */
 				mutex_unlock(&sock_flow_mutex);
 				return -EINVAL;
@@ -66,12 +64,13 @@ static int rps_sock_flow_sysctl(struct ctl_table *table, int write,
 			size = roundup_pow_of_two(size);
 			if (size != orig_size) {
 				sock_table =
-				    vmalloc(RPS_SOCK_FLOW_TABLE_SIZE(size));
+					vmalloc(RPS_SOCK_FLOW_TABLE_SIZE(size));
 				if (!sock_table) {
 					mutex_unlock(&sock_flow_mutex);
 					return -ENOMEM;
 				}
-				rps_cpu_mask = roundup_pow_of_two(nr_cpu_ids) - 1;
+				rps_cpu_mask =
+					roundup_pow_of_two(nr_cpu_ids) - 1;
 				sock_table->mask = size - 1;
 			} else
 				sock_table = orig_sock_table;
@@ -124,10 +123,11 @@ static int flow_limit_cpu_sysctl(struct ctl_table *table, int write,
 
 		mutex_lock(&flow_limit_update_mutex);
 		len = sizeof(*cur) + netdev_flow_limit_table_len;
-		for_each_possible_cpu(i) {
+		for_each_possible_cpu (i) {
 			sd = &per_cpu(softnet_data, i);
-			cur = rcu_dereference_protected(sd->flow_limit,
-				     lockdep_is_held(&flow_limit_update_mutex));
+			cur = rcu_dereference_protected(
+				sd->flow_limit,
+				lockdep_is_held(&flow_limit_update_mutex));
 			if (cur && !cpumask_test_cpu(i, mask)) {
 				RCU_INIT_POINTER(sd->flow_limit, NULL);
 				synchronize_rcu();
@@ -144,7 +144,7 @@ static int flow_limit_cpu_sysctl(struct ctl_table *table, int write,
 				rcu_assign_pointer(sd->flow_limit, cur);
 			}
 		}
-write_unlock:
+	write_unlock:
 		mutex_unlock(&flow_limit_update_mutex);
 	} else {
 		char kbuf[128];
@@ -156,7 +156,7 @@ write_unlock:
 
 		cpumask_clear(mask);
 		rcu_read_lock();
-		for_each_possible_cpu(i) {
+		for_each_possible_cpu (i) {
 			sd = &per_cpu(softnet_data, i);
 			if (rcu_dereference(sd->flow_limit))
 				cpumask_set_cpu(i, mask);
@@ -227,14 +227,14 @@ static int set_default_qdisc(struct ctl_table *table, int write,
 #endif
 
 static int proc_do_dev_weight(struct ctl_table *table, int write,
-			   void __user *buffer, size_t *lenp, loff_t *ppos)
+			      void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;
 
 	ret = proc_dointvec(table, write, buffer, lenp, ppos);
 	if (ret != 0)
 		return ret;
-
+	// weight_p = 64  bias =1
 	dev_rx_weight = weight_p * dev_weight_rx_bias;
 	dev_tx_weight = weight_p * dev_weight_tx_bias;
 
@@ -279,23 +279,21 @@ static int proc_dointvec_minmax_bpf_enable(struct ctl_table *table, int write,
 	return ret;
 }
 
-# ifdef CONFIG_HAVE_EBPF_JIT
-static int
-proc_dointvec_minmax_bpf_restricted(struct ctl_table *table, int write,
-				    void __user *buffer, size_t *lenp,
-				    loff_t *ppos)
+#ifdef CONFIG_HAVE_EBPF_JIT
+static int proc_dointvec_minmax_bpf_restricted(struct ctl_table *table,
+					       int write, void __user *buffer,
+					       size_t *lenp, loff_t *ppos)
 {
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	return proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 }
-# endif /* CONFIG_HAVE_EBPF_JIT */
+#endif /* CONFIG_HAVE_EBPF_JIT */
 
-static int
-proc_dolongvec_minmax_bpf_restricted(struct ctl_table *table, int write,
-				     void __user *buffer, size_t *lenp,
-				     loff_t *ppos)
+static int proc_dolongvec_minmax_bpf_restricted(struct ctl_table *table,
+						int write, void __user *buffer,
+						size_t *lenp, loff_t *ppos)
 {
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -307,256 +305,234 @@ proc_dolongvec_minmax_bpf_restricted(struct ctl_table *table, int write,
 static struct ctl_table net_core_table[] = {
 #ifdef CONFIG_NET
 	{
-		.procname	= "wmem_max",
-		.data		= &sysctl_wmem_max,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &min_sndbuf,
+		.procname = "wmem_max",
+		.data = &sysctl_wmem_max,
+		.maxlen = sizeof(int),
+		.mode = 0644,
+		.proc_handler = proc_dointvec_minmax,
+		.extra1 = &min_sndbuf,
 	},
 	{
-		.procname	= "rmem_max",
-		.data		= &sysctl_rmem_max,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &min_rcvbuf,
+		.procname = "rmem_max",
+		.data = &sysctl_rmem_max,
+		.maxlen = sizeof(int),
+		.mode = 0644,
+		.proc_handler = proc_dointvec_minmax,
+		.extra1 = &min_rcvbuf,
 	},
 	{
-		.procname	= "wmem_default",
-		.data		= &sysctl_wmem_default,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &min_sndbuf,
+		.procname = "wmem_default",
+		.data = &sysctl_wmem_default,
+		.maxlen = sizeof(int),
+		.mode = 0644,
+		.proc_handler = proc_dointvec_minmax,
+		.extra1 = &min_sndbuf,
 	},
 	{
-		.procname	= "rmem_default",
-		.data		= &sysctl_rmem_default,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &min_rcvbuf,
+		.procname = "rmem_default",
+		.data = &sysctl_rmem_default,
+		.maxlen = sizeof(int),
+		.mode = 0644,
+		.proc_handler = proc_dointvec_minmax,
+		.extra1 = &min_rcvbuf,
 	},
 	{
-		.procname	= "dev_weight",
-		.data		= &weight_p,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_do_dev_weight,
+		.procname = "dev_weight",
+		.data = &weight_p,
+		.maxlen = sizeof(int),
+		.mode = 0644,
+		.proc_handler = proc_do_dev_weight,
 	},
 	{
-		.procname	= "dev_weight_rx_bias",
-		.data		= &dev_weight_rx_bias,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_do_dev_weight,
+		.procname = "dev_weight_rx_bias",
+		.data = &dev_weight_rx_bias,
+		.maxlen = sizeof(int),
+		.mode = 0644,
+		.proc_handler = proc_do_dev_weight,
 	},
 	{
-		.procname	= "dev_weight_tx_bias",
-		.data		= &dev_weight_tx_bias,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_do_dev_weight,
+		.procname = "dev_weight_tx_bias",
+		.data = &dev_weight_tx_bias,
+		.maxlen = sizeof(int),
+		.mode = 0644,
+		.proc_handler = proc_do_dev_weight,
 	},
+	{ .procname = "netdev_max_backlog",
+	  .data = &netdev_max_backlog,
+	  .maxlen = sizeof(int),
+	  .mode = 0644,
+	  .proc_handler = proc_dointvec },
 	{
-		.procname	= "netdev_max_backlog",
-		.data		= &netdev_max_backlog,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
-	},
-	{
-		.procname	= "netdev_rss_key",
-		.data		= &netdev_rss_key,
-		.maxlen		= sizeof(int),
-		.mode		= 0444,
-		.proc_handler	= proc_do_rss_key,
+		.procname = "netdev_rss_key",
+		.data = &netdev_rss_key,
+		.maxlen = sizeof(int),
+		.mode = 0444,
+		.proc_handler = proc_do_rss_key,
 	},
 #ifdef CONFIG_BPF_JIT
 	{
-		.procname	= "bpf_jit_enable",
-		.data		= &bpf_jit_enable,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax_bpf_enable,
-# ifdef CONFIG_BPF_JIT_ALWAYS_ON
-		.extra1		= SYSCTL_ONE,
-		.extra2		= SYSCTL_ONE,
-# else
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= &two,
-# endif
+		.procname = "bpf_jit_enable",
+		.data = &bpf_jit_enable,
+		.maxlen = sizeof(int),
+		.mode = 0644,
+		.proc_handler = proc_dointvec_minmax_bpf_enable,
+#ifdef CONFIG_BPF_JIT_ALWAYS_ON
+		.extra1 = SYSCTL_ONE,
+		.extra2 = SYSCTL_ONE,
+#else
+		.extra1 = SYSCTL_ZERO,
+		.extra2 = &two,
+#endif
 	},
-# ifdef CONFIG_HAVE_EBPF_JIT
+#ifdef CONFIG_HAVE_EBPF_JIT
 	{
-		.procname	= "bpf_jit_harden",
-		.data		= &bpf_jit_harden,
-		.maxlen		= sizeof(int),
-		.mode		= 0600,
-		.proc_handler	= proc_dointvec_minmax_bpf_restricted,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= &two,
+		.procname = "bpf_jit_harden",
+		.data = &bpf_jit_harden,
+		.maxlen = sizeof(int),
+		.mode = 0600,
+		.proc_handler = proc_dointvec_minmax_bpf_restricted,
+		.extra1 = SYSCTL_ZERO,
+		.extra2 = &two,
 	},
 	{
-		.procname	= "bpf_jit_kallsyms",
-		.data		= &bpf_jit_kallsyms,
-		.maxlen		= sizeof(int),
-		.mode		= 0600,
-		.proc_handler	= proc_dointvec_minmax_bpf_restricted,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
-	},
-# endif
-	{
-		.procname	= "bpf_jit_limit",
-		.data		= &bpf_jit_limit,
-		.maxlen		= sizeof(long),
-		.mode		= 0600,
-		.proc_handler	= proc_dolongvec_minmax_bpf_restricted,
-		.extra1		= &long_one,
-		.extra2		= &long_max,
+		.procname = "bpf_jit_kallsyms",
+		.data = &bpf_jit_kallsyms,
+		.maxlen = sizeof(int),
+		.mode = 0600,
+		.proc_handler = proc_dointvec_minmax_bpf_restricted,
+		.extra1 = SYSCTL_ZERO,
+		.extra2 = SYSCTL_ONE,
 	},
 #endif
 	{
-		.procname	= "netdev_tstamp_prequeue",
-		.data		= &netdev_tstamp_prequeue,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.procname = "bpf_jit_limit",
+		.data = &bpf_jit_limit,
+		.maxlen = sizeof(long),
+		.mode = 0600,
+		.proc_handler = proc_dolongvec_minmax_bpf_restricted,
+		.extra1 = &long_one,
+		.extra2 = &long_max,
+	},
+#endif
+	{ .procname = "netdev_tstamp_prequeue",
+	  .data = &netdev_tstamp_prequeue,
+	  .maxlen = sizeof(int),
+	  .mode = 0644,
+	  .proc_handler = proc_dointvec },
+	{
+		.procname = "message_cost",
+		.data = &net_ratelimit_state.interval,
+		.maxlen = sizeof(int),
+		.mode = 0644,
+		.proc_handler = proc_dointvec_jiffies,
 	},
 	{
-		.procname	= "message_cost",
-		.data		= &net_ratelimit_state.interval,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.procname = "message_burst",
+		.data = &net_ratelimit_state.burst,
+		.maxlen = sizeof(int),
+		.mode = 0644,
+		.proc_handler = proc_dointvec,
 	},
-	{
-		.procname	= "message_burst",
-		.data		= &net_ratelimit_state.burst,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "optmem_max",
-		.data		= &sysctl_optmem_max,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
-	},
-	{
-		.procname	= "tstamp_allow_data",
-		.data		= &sysctl_tstamp_allow_data,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE
-	},
+	{ .procname = "optmem_max",
+	  .data = &sysctl_optmem_max,
+	  .maxlen = sizeof(int),
+	  .mode = 0644,
+	  .proc_handler = proc_dointvec },
+	{ .procname = "tstamp_allow_data",
+	  .data = &sysctl_tstamp_allow_data,
+	  .maxlen = sizeof(int),
+	  .mode = 0644,
+	  .proc_handler = proc_dointvec_minmax,
+	  .extra1 = SYSCTL_ZERO,
+	  .extra2 = SYSCTL_ONE },
 #ifdef CONFIG_RPS
-	{
-		.procname	= "rps_sock_flow_entries",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= rps_sock_flow_sysctl
-	},
+	{ .procname = "rps_sock_flow_entries",
+	  .maxlen = sizeof(int),
+	  .mode = 0644,
+	  .proc_handler = rps_sock_flow_sysctl },
 #endif
 #ifdef CONFIG_NET_FLOW_LIMIT
-	{
-		.procname	= "flow_limit_cpu_bitmap",
-		.mode		= 0644,
-		.proc_handler	= flow_limit_cpu_sysctl
-	},
-	{
-		.procname	= "flow_limit_table_len",
-		.data		= &netdev_flow_limit_table_len,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= flow_limit_table_len_sysctl
-	},
+	{ .procname = "flow_limit_cpu_bitmap",
+	  .mode = 0644,
+	  .proc_handler = flow_limit_cpu_sysctl },
+	{ .procname = "flow_limit_table_len",
+	  .data = &netdev_flow_limit_table_len,
+	  .maxlen = sizeof(int),
+	  .mode = 0644,
+	  .proc_handler = flow_limit_table_len_sysctl },
 #endif /* CONFIG_NET_FLOW_LIMIT */
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	{
-		.procname	= "busy_poll",
-		.data		= &sysctl_net_busy_poll,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
+		.procname = "busy_poll",
+		.data = &sysctl_net_busy_poll,
+		.maxlen = sizeof(unsigned int),
+		.mode = 0644,
+		.proc_handler = proc_dointvec_minmax,
+		.extra1 = SYSCTL_ZERO,
 	},
 	{
-		.procname	= "busy_read",
-		.data		= &sysctl_net_busy_read,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
+		.procname = "busy_read",
+		.data = &sysctl_net_busy_read,
+		.maxlen = sizeof(unsigned int),
+		.mode = 0644,
+		.proc_handler = proc_dointvec_minmax,
+		.extra1 = SYSCTL_ZERO,
 	},
 #endif
 #ifdef CONFIG_NET_SCHED
-	{
-		.procname	= "default_qdisc",
-		.mode		= 0644,
-		.maxlen		= IFNAMSIZ,
-		.proc_handler	= set_default_qdisc
-	},
+	{ .procname = "default_qdisc",
+	  .mode = 0644,
+	  .maxlen = IFNAMSIZ,
+	  .proc_handler = set_default_qdisc },
 #endif
 #endif /* CONFIG_NET */
+	{ .procname = "netdev_budget",
+	  .data = &netdev_budget,
+	  .maxlen = sizeof(int),
+	  .mode = 0644,
+	  .proc_handler = proc_dointvec },
+	{ .procname = "warnings",
+	  .data = &net_msg_warn,
+	  .maxlen = sizeof(int),
+	  .mode = 0644,
+	  .proc_handler = proc_dointvec },
 	{
-		.procname	= "netdev_budget",
-		.data		= &netdev_budget,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.procname = "max_skb_frags",
+		.data = &sysctl_max_skb_frags,
+		.maxlen = sizeof(int),
+		.mode = 0644,
+		.proc_handler = proc_dointvec_minmax,
+		.extra1 = SYSCTL_ONE,
+		.extra2 = &max_skb_frags,
 	},
 	{
-		.procname	= "warnings",
-		.data		= &net_msg_warn,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.procname = "netdev_budget_usecs",
+		.data = &netdev_budget_usecs,
+		.maxlen = sizeof(unsigned int),
+		.mode = 0644,
+		.proc_handler = proc_dointvec_minmax,
+		.extra1 = SYSCTL_ZERO,
 	},
 	{
-		.procname	= "max_skb_frags",
-		.data		= &sysctl_max_skb_frags,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ONE,
-		.extra2		= &max_skb_frags,
+		.procname = "fb_tunnels_only_for_init_net",
+		.data = &sysctl_fb_tunnels_only_for_init_net,
+		.maxlen = sizeof(int),
+		.mode = 0644,
+		.proc_handler = proc_dointvec_minmax,
+		.extra1 = SYSCTL_ZERO,
+		.extra2 = SYSCTL_ONE,
 	},
-	{
-		.procname	= "netdev_budget_usecs",
-		.data		= &netdev_budget_usecs,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-	},
-	{
-		.procname	= "fb_tunnels_only_for_init_net",
-		.data		= &sysctl_fb_tunnels_only_for_init_net,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
-	},
-	{ }
+	{}
 };
 
 static struct ctl_table netns_core_table[] = {
-	{
-		.procname	= "somaxconn",
-		.data		= &init_net.core.sysctl_somaxconn,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.extra1		= SYSCTL_ZERO,
-		.proc_handler	= proc_dointvec_minmax
-	},
-	{ }
+	{ .procname = "somaxconn",
+	  .data = &init_net.core.sysctl_somaxconn,
+	  .maxlen = sizeof(int),
+	  .mode = 0644,
+	  .extra1 = SYSCTL_ZERO,
+	  .proc_handler = proc_dointvec_minmax },
+	{}
 };
 
 static __net_init int sysctl_core_net_init(struct net *net)
