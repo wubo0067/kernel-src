@@ -298,6 +298,9 @@ static inline u16 mlx5e_tx_get_gso_ihs(struct mlx5e_txqsq *sq,
 	return ihs;
 }
 
+// 填充数据段，它将 SKB 中的数据映射到 DMA 地址，并创建描述符来告诉网卡如何访问这些数据。
+// 这个过程是将软件层面的网络数据包转换为硬件可以直接处理的格式，是网络数据包发送过程中的关键步骤。
+// 构建 WQE 的数据段描述符（Data Segments）。为 SKB 的数据建立 DMA 映射。
 static inline int mlx5e_txwqe_build_dsegs(struct mlx5e_txqsq *sq,
 					  struct sk_buff *skb,
 					  unsigned char *skb_data, u16 headlen,
@@ -308,24 +311,28 @@ static inline int mlx5e_txwqe_build_dsegs(struct mlx5e_txqsq *sq,
 	int i;
 
 	if (headlen) {
+		// 如果 headlen 不为零，为线性部分创建 DMA 映射。
 		dma_addr = dma_map_single(sq->pdev, skb_data, headlen,
 					  DMA_TO_DEVICE);
 		if (unlikely(dma_mapping_error(sq->pdev, dma_addr)))
 			goto dma_unmap_wqe_err;
 
+		// 数据片段的 DMA 地址，即物理内存的地址
 		dseg->addr = cpu_to_be64(dma_addr);
+		// L_KEY (lkey)：内存的本地密钥，和 DMA 关联，用于访问该内存。
 		dseg->lkey = sq->mkey_be;
+		// 长度 (byte_count)：要传输的数据长度。
 		dseg->byte_count = cpu_to_be32(headlen);
-
+		// 调用 mlx5e_dma_push 记录 DMA 映射信息。
 		mlx5e_dma_push(sq, dma_addr, headlen, MLX5E_DMA_MAP_SINGLE);
 		num_dma++;
 		dseg++;
 	}
-
+	// 处理 SKB 的分片部分：
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 		int fsz = skb_frag_size(frag);
-
+		// 为每个分片创建 DMA 映射。
 		dma_addr =
 			skb_frag_dma_map(sq->pdev, frag, 0, fsz, DMA_TO_DEVICE);
 		if (unlikely(dma_mapping_error(sq->pdev, dma_addr)))

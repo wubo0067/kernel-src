@@ -5624,6 +5624,7 @@ static int generic_xdp_install(struct net_device *dev, struct netdev_bpf *xdp)
 	return ret;
 }
 
+// bpftrace -e 'kprobe:netif_receive_skb_internal {printf("%s\n",kstack);}'
 static int netif_receive_skb_internal(struct sk_buff *skb)
 {
 	int ret;

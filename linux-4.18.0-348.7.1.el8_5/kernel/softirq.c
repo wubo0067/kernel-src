@@ -257,6 +257,12 @@ static inline void lockdep_softirq_end(bool in_hardirq)
 }
 #endif
 
+/*
+它也可以在其他上下文中被调用
+a) 从硬中断退出时（在 irq_exit 函数中）。irq_exit
+b) 在启用之前被禁用的软中断时（如 local_bh_enable 函数中）。
+*/
+
 asmlinkage __visible void __softirq_entry __do_softirq(void)
 {
 	// 當系統在做推遲的處理時，有可能會不斷有新的 softirqs 發生，此時如果為了處理新的 softirq，
@@ -275,7 +281,7 @@ asmlinkage __visible void __softirq_entry __do_softirq(void)
 	 * again if the socket is related to swap
 	 */
 	current->flags &= ~PF_MEMALLOC;
-
+	// 这个时候硬件中断是关闭的
 	pending = local_softirq_pending();
 	account_irq_enter_time(current);
 
@@ -303,6 +309,7 @@ restart:
 		kstat_incr_softirqs_this_cpu(vec_nr);
 
 		trace_softirq_entry(vec_nr);
+		// 调用例如 NET_RX_ACTION, NET_TX_ACTION 函数
 		h->action(h);
 		trace_softirq_exit(vec_nr);
 		if (unlikely(prev_count != preempt_count())) {
@@ -320,11 +327,15 @@ restart:
 	local_irq_disable();
 
 	pending = local_softirq_pending();
+	// 限制单次 __do_softirq() 调用的执行时间，防止它长时间占用 CPU。
 	if (pending) {
+		// 如果还有软中断未处理，且当前时间在预设结束时间之前，且不需要重新调度，重启次数不为 0，则可以继续处理
 		if (time_before(jiffies, end) && !need_resched() &&
 		    --max_restart)
 			goto restart;
-
+		// 如果不满足，唤醒 ksoftirqd 内核线程来处理剩余的软中断
+		// 如果 __do_softirq 在非 ksoftirqd 上下文中运行（例如，从硬中断退出），
+		// 并且没有完成所有软中断的处理，那么唤醒 ksoftirqd 是有意义的。
 		wakeup_softirqd();
 	}
 
@@ -627,17 +638,39 @@ static int ksoftirqd_should_run(unsigned int cpu)
 {
 	return local_softirq_pending();
 }
+/*
+为什么要屏蔽硬中断：
+a. 避免嵌套中断：
+软中断处理函数可能会比较耗时。
+如果在处理软中断时允许硬中断，可能会导致新的硬中断触发新的软中断，造成嵌套。
+b. 保证一致性：
+禁用硬中断确保软中断处理过程中不会被打断，保持数据的一致性。
+c. 防止优先级反转：
+软中断通常优先级低于硬中断。禁用硬中断可以防止低优先级的软中断处理被高优先级的硬中断反复打断。
+d. 性能考虑：
+在某些情况下，禁用硬中断可以减少上下文切换，提高处理效率。
+e. 简化同步：
+禁用硬中断简化了软中断处理函数中的同步机制。
 
+3. 潜在风险和平衡：
+长时间禁用硬中断可能会增加系统延迟。
+__do_softirq() 内部通常有机制限制执行时间，防止长时间占用 CPU。
+*/
 static void run_ksoftirqd(unsigned int cpu)
 {
+	// 首先禁用本地中断
 	local_irq_disable();
+	// 检查是否有待处理的软中断
 	if (local_softirq_pending()) {
 		/*
 		 * We can safely run softirq on inline stack, as we are not deep
 		 * in the task stack here.
 		 */
+		// 如果有待处理的软中断，执行
 		__do_softirq();
+		// 处理完后，重新启用中断
 		local_irq_enable();
+		// 让出 cpu，给其他任务运行的机会
 		cond_resched();
 		return;
 	}

@@ -1855,13 +1855,16 @@ static void ttwu_do_activate(struct rq *rq, struct task_struct *p,
  * Consider @p being inside a wait loop:
  *
  *   for (;;) {
+ * 		设置不可中断状态
  *      set_current_state(TASK_UNINTERRUPTIBLE);
  *
  *      if (CONDITION)
+ * 			等待条件被唤醒
  *         break;
- *
+ *		让出 cpu
  *      schedule();
  *   }
+ * 		设置为可运行状态
  *   __set_current_state(TASK_RUNNING);
  *
  * between set_current_state() and schedule(). In this case @p is still
@@ -1875,20 +1878,28 @@ static void ttwu_do_activate(struct rq *rq, struct task_struct *p,
  *
  * Returns: %true when the wakeup is done,
  *          %false otherwise.
+ * 函数的主要功能是检查给定任务是否在运行队列中，如果在，则唤醒它并返回唤醒成功的标志。
+ * 它确保在多线程环境中对运行队列的安全访问，同时处理任务的唤醒逻辑
  */
 static int ttwu_runnable(struct task_struct *p, int wake_flags)
 {
+	// 保存运行队列的状态
 	struct rq_flags rf;
+	// 当前任务所关联的运行队列
 	struct rq *rq;
 	int ret = 0;
-
+	// 此行获取与任务 p 相关的运行队列锁，以确保对运行队列的安全访问
 	rq = __task_rq_lock(p, &rf);
 	if (task_on_rq_queued(p)) {
+		// 判断任务 p 是否已经在运行队列中。如果任务在运行队列中，接下来的操作将被执行
 		/* check_preempt_curr() may use rq clock */
+		// 更新运行队列的时钟，以便调度算法可以基于最新的时间信息做出决策。
 		update_rq_clock(rq);
+		// 这个函数负责将任务从等待状态转换为可运行状态
 		ttwu_do_wakeup(rq, p, wake_flags, &rf);
 		ret = 1;
 	}
+	// 解锁运行队列
 	__task_rq_unlock(rq, &rf);
 
 	return ret;
@@ -2195,6 +2206,7 @@ static void ttwu_queue(struct task_struct *p, int cpu, int wake_flags)
  *
  * Return: %true if @p->state changes (an actual wakeup was done),
  *	   %false otherwise.
+ * p：要唤醒的 task，state：task 必须处于的状态才能被唤醒，wake_flag：唤醒标志
  */
 static int try_to_wake_up(struct task_struct *p, unsigned int state,
 			  int wake_flags)
@@ -2204,6 +2216,7 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state,
 
 	preempt_disable();
 	if (p == current) {
+		// 如果要唤醒的是当前进程，直接设置状态为 TASK_RUNNING 并返回
 		/*
 		 * We're waking current, this means 'p->on_rq' and 'task_cpu(p)
 		 * == smp_processor_id()'. Together this means we can special
@@ -2232,9 +2245,11 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state,
 	 * reordered with p->state check below. This pairs with smp_store_mb()
 	 * in set_current_state() that the waiting thread does.
 	 */
+	// 获取进程的 pi_lock（PI: Priority Inheritance）。
 	raw_spin_lock_irqsave(&p->pi_lock, flags);
 	smp_mb__after_spinlock();
 	if (!(p->state & state))
+		// 检查进程是否处于可唤醒的状态。
 		goto unlock;
 
 	trace_sched_waking(p);
@@ -2265,6 +2280,7 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state,
 	 * A similar smb_rmb() lives in try_invoke_on_locked_down_task().
 	 */
 	smp_rmb();
+	// on_rq: 值通常指示任务是否在运行队列中。如果 on_rq 为真，说明该任务当前在运行队列中
 	if (READ_ONCE(p->on_rq) && ttwu_runnable(p, wake_flags))
 		goto unlock;
 
@@ -2335,9 +2351,10 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state,
 	 * their previous state and preserve Program Order.
 	 */
 	smp_cond_load_acquire(&p->on_cpu, !VAL);
-
+	// 选择合适的 cpu
 	cpu = select_task_rq(p, p->wake_cpu, wake_flags | WF_TTWU);
 	if (task_cpu(p) != cpu) {
+		// 如果是其他的 cpu，要做 task 迁移
 		if (p->in_iowait) {
 			delayacct_blkio_end(p);
 			atomic_dec(&task_rq(p)->nr_iowait);
@@ -2350,7 +2367,7 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state,
 #else
 	cpu = task_cpu(p);
 #endif /* CONFIG_SMP */
-
+	// 调用 ttwu_queue 将进程加入选定 CPU 的运行队列
 	ttwu_queue(p, cpu, wake_flags);
 unlock:
 	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
