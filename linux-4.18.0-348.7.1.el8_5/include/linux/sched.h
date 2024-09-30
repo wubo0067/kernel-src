@@ -275,18 +275,31 @@ struct sched_info {
 #ifdef CONFIG_SCHED_INFO
 	/* Cumulative counters: */
 
+	// 进程的平均等待时间：run_delay / pcount
+
 	/* # of times we have run on this CPU: */
+	// 进程被调度运行的次数
 	unsigned long pcount;
 
 	/* Time spent waiting on a runqueue: */
+	// 进程在就绪队列中等待被调度的总时间（单位通常是纳秒）,它反映了进程在准备好运行到实际被调度运行之间等待的累计时间
 	unsigned long long run_delay;
 
 	/* Timestamps: */
 
+	// 如果 last_arrival > last_queued，说明进程最后一次被调度后还没有重新进入 run queue，可能正在运行或处于某种阻塞状态。
+	// 这个值表示进程从变为可运行状态到实际开始运行所经过的时间。
+
+	// 如果 last_queued > last_arrival，说明进程已经重新进入 run queue，但还未被调度运行。
+
+	// 如果多个进程的 last_arrival - last_queued 值普遍较大，可能表示系统整体负载较高。
+
 	/* When did we last run on a CPU? */
+	// 最近一次进程被调度到 CPU 运行的时间戳
 	unsigned long long last_arrival;
 
 	/* When were we last queued to run? */
+	// 进入 run queue 的时刻，也就是处于 RUNNING 状态，但是还未被调度到 cpu 上运行
 	unsigned long long last_queued;
 
 #endif /* CONFIG_SCHED_INFO */
