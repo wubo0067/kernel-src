@@ -9,13 +9,13 @@
 DECLARE_PER_CPU(int, __preempt_count);
 
 /* We use the MSB mostly because its available */
-#define PREEMPT_NEED_RESCHED	0x80000000
+#define PREEMPT_NEED_RESCHED 0x80000000
 
 /*
  * We use the PREEMPT_NEED_RESCHED bit as an inverted NEED_RESCHED such
  * that a decrement hitting 0 means we can and should reschedule.
  */
-#define PREEMPT_ENABLED	(0 + PREEMPT_NEED_RESCHED)
+#define PREEMPT_ENABLED (0 + PREEMPT_NEED_RESCHED)
 
 /*
  * We mask the PREEMPT_NEED_RESCHED bit so as not to confuse all current users
@@ -33,18 +33,21 @@ static __always_inline void preempt_count_set(int pc)
 	do {
 		old = raw_cpu_read_4(__preempt_count);
 		new = (old & PREEMPT_NEED_RESCHED) |
-			(pc & ~PREEMPT_NEED_RESCHED);
+		      (pc & ~PREEMPT_NEED_RESCHED);
 	} while (raw_cpu_cmpxchg_4(__preempt_count, old, new) != old);
 }
 
 /*
  * must be macros to avoid header recursion hell
  */
-#define init_task_preempt_count(p) do { } while (0)
+#define init_task_preempt_count(p)                                             \
+	do {                                                                   \
+	} while (0)
 
-#define init_idle_preempt_count(p, cpu) do { \
-	per_cpu(__preempt_count, (cpu)) = PREEMPT_ENABLED; \
-} while (0)
+#define init_idle_preempt_count(p, cpu)                                        \
+	do {                                                                   \
+		per_cpu(__preempt_count, (cpu)) = PREEMPT_ENABLED;             \
+	} while (0)
 
 /*
  * We fold the NEED_RESCHED bit into the preempt count such that
@@ -62,6 +65,13 @@ static __always_inline void set_preempt_need_resched(void)
 
 static __always_inline void clear_preempt_need_resched(void)
 {
+	// raw_cpu_or_4() 是一个底层操作，对 __preempt_count 执行按位或操作
+	// 通过对 __preempt_count 进行按位或操作，该函数实际上是设置了 PREEMPT_NEED_RESCHED 标志
+	// 这看起来可能有点反直觉（函数名是 "clear"，但操作是设置标志），但这是因为 PREEMPT_NEED_RESCHED 标志在 
+	// __preempt_count 中的实现方式。
+
+	// **和标志 TIF_NEET_RESCHED 容易混淆，这个是调度机制，标识任务是否需要重新被调度，PREEMPT_NEED_RESCHED 指示是否可以
+	// **安全的进行抢占
 	raw_cpu_or_4(__preempt_count, PREEMPT_NEED_RESCHED);
 }
 
@@ -103,16 +113,16 @@ static __always_inline bool should_resched(int preempt_offset)
 }
 
 #ifdef CONFIG_PREEMPTION
-  extern asmlinkage void ___preempt_schedule(void);
-# define __preempt_schedule() \
-	asm volatile ("call ___preempt_schedule" : ASM_CALL_CONSTRAINT)
+extern asmlinkage void ___preempt_schedule(void);
+#define __preempt_schedule()                                                   \
+	asm volatile("call ___preempt_schedule" : ASM_CALL_CONSTRAINT)
 
-  extern asmlinkage void preempt_schedule(void);
-  extern asmlinkage void ___preempt_schedule_notrace(void);
-# define __preempt_schedule_notrace() \
-	asm volatile ("call ___preempt_schedule_notrace" : ASM_CALL_CONSTRAINT)
+extern asmlinkage void preempt_schedule(void);
+extern asmlinkage void ___preempt_schedule_notrace(void);
+#define __preempt_schedule_notrace()                                           \
+	asm volatile("call ___preempt_schedule_notrace" : ASM_CALL_CONSTRAINT)
 
-  extern asmlinkage void preempt_schedule_notrace(void);
+extern asmlinkage void preempt_schedule_notrace(void);
 #endif
 
 #endif /* __ASM_PREEMPT_H */

@@ -3845,17 +3845,19 @@ static void __sched notrace __schedule(bool preempt)
 	struct rq_flags rf;
 	struct rq *rq;
 	int cpu;
-
+	// 获取当前 cpu 的 id
 	cpu = smp_processor_id();
 	rq = cpu_rq(cpu);
+	// 获取当前正在运行的 task
 	prev = rq->curr;
 
 	schedule_debug(prev);
 
 	if (sched_feat(HRTICK) || sched_feat(HRTICK_DL))
 		hrtick_clear(rq);
-
+	// 禁用本地中断，防止调度过程中被中断打断
 	local_irq_disable();
+	// 通知 RCU（Read-Copy Update）系统即将发生上下文切换。
 	rcu_note_context_switch(preempt);
 
 	/*
@@ -3873,10 +3875,13 @@ static void __sched notrace __schedule(bool preempt)
 	 * Also, the membarrier system call requires a full memory barrier
 	 * after coming from user-space, before storing to rq->curr.
 	 */
+	// 锁定本 cpu 的运行队列，确保在调度过程中不会被其它 cpu 修改
+	// 执行内存屏障，确保锁定后的操作不会被重新排序
 	rq_lock(rq, &rf);
 	smp_mb__after_spinlock();
 
 	/* Promote REQ to ACT */
+	// 更新运行队列时钟
 	rq->clock_update_flags <<= 1;
 	update_rq_clock(rq);
 
@@ -3889,6 +3894,7 @@ static void __sched notrace __schedule(bool preempt)
 	 *  - we form a control dependency vs deactivate_task() below.
 	 *  - ptrace_{,un}freeze_traced() can change ->state underneath us.
 	 */
+	// 当前运行任务的状态
 	prev_state = prev->state;
 	if (!preempt && prev_state) {
 		if (signal_pending_state(prev_state, prev)) {
@@ -3923,8 +3929,9 @@ static void __sched notrace __schedule(bool preempt)
 		}
 		switch_count = &prev->nvcsw;
 	}
-
+	// 选择下一个要运行的任务，这个调度器的核心，怎么选择
 	next = pick_next_task(rq, prev, &rf);
+	// 清除调度器标志，清除之前设置的重新调度标志。
 	clear_tsk_need_resched(prev);
 	clear_preempt_need_resched();
 
@@ -3954,6 +3961,7 @@ static void __sched notrace __schedule(bool preempt)
 		trace_sched_switch(preempt, prev, next);
 
 		/* Also unlocks the rq: */
+		// !! 执行实际的上下文切换
 		rq = context_switch(rq, prev, next, &rf);
 	} else {
 		rq->clock_update_flags &= ~(RQCF_ACT_SKIP | RQCF_REQ_SKIP);

@@ -15,11 +15,11 @@
  * bootup, and never changes them. This is the general layout of the
  * IDT entries:
  *
- *  Vectors   0 ...  31 : system traps and exceptions - hardcoded events 系统陷阱和异常中断向量，intel保留，不分配IRQ
- *  Vectors  32 ... 127 : device interrupts，设备终端向量，可分配IRQ，
- *  Vector  128         : legacy int80 syscall interface 系统调用中断向量
+ *  Vectors   0 ...  31 : system traps and exceptions - hardcoded events
+ *  Vectors  32 ... 127 : device interrupts
+ *  Vector  128         : legacy int80 syscall interface
  *  Vectors 129 ... LOCAL_TIMER_VECTOR-1
- *  Vectors LOCAL_TIMER_VECTOR ... 255 : special interrupts 特殊中断向量
+ *  Vectors LOCAL_TIMER_VECTOR ... 255 : special interrupts
  *
  * 64-bit x86 has per CPU IDT tables, 32-bit has one shared IDT table.
  *
@@ -32,7 +32,6 @@
 /*
  * IDT vectors usable for external interrupt sources start at 0x20.
  * (0x80 is the syscall vector, 0x30-0x3f are for ISA)
- * 第一个外部中断向量
  */
 #define FIRST_EXTERNAL_VECTOR		0x20
 
