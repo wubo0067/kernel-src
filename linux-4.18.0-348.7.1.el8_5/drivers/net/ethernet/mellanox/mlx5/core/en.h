@@ -198,6 +198,9 @@ static inline u16 mlx5_min_rx_wqes(int wq_type, u32 wq_size)
 /* Use this function to get max num channels (rxqs/txqs) only to create netdev */
 static inline int mlx5e_get_max_num_channels(struct mlx5_core_dev *mdev)
 {
+	// 这个函数返回设备支持的完成向量（completion vectors）的数量。
+	// 完成向量通常与可用的硬件中断线数量相关。
+	// 这反映了硬件能够支持的并行处理能力。
 	return is_kdump_kernel() ? MLX5E_MIN_NUM_CHANNELS :
 				   min_t(int, mlx5_comp_vectors_count(mdev),
 					 MLX5E_MAX_NUM_CHANNELS);

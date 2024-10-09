@@ -10793,7 +10793,7 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 		dev->priv_flags |= IFF_NO_QUEUE;
 		dev->tx_queue_len = DEFAULT_TX_QUEUE_LEN;
 	}
-
+	// 在这里设置队列数量
 	dev->num_tx_queues = txqs;
 	dev->real_num_tx_queues = txqs;
 	if (netif_alloc_netdev_queues(dev))

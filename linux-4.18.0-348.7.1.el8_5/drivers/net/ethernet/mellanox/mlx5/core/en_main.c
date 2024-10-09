@@ -2752,6 +2752,7 @@ static void mlx5e_set_default_xps_cpumasks(struct mlx5e_priv *priv,
 	}
 }
 
+// 修改 ringbuf 队列数量
 int mlx5e_num_channels_changed(struct mlx5e_priv *priv)
 {
 	u16 count = priv->channels.params.num_channels;
@@ -5518,7 +5519,7 @@ static int mlx5e_probe(struct auxiliary_device *adev,
 
 	if (mlx5_qos_is_supported(mdev))
 		qos_sqs = mlx5e_qos_max_leaf_nodes(mdev);
-
+	// 获得最大队列数量
 	nch = mlx5e_get_max_num_channels(mdev);
 	txqs = nch * profile->max_tc + ptp_txqs + qos_sqs;
 	rxqs = nch * profile->rq_groups;
@@ -5535,6 +5536,7 @@ static int mlx5e_probe(struct auxiliary_device *adev,
 
 	priv->profile = profile;
 	priv->ppriv = NULL;
+	// 在这里初始化驱动参数
 	err = profile->init(mdev, netdev);
 	if (err) {
 		mlx5_core_err(mdev, "mlx5e_nic_profile init failed, %d\n", err);

@@ -904,6 +904,7 @@ EXPORT_SYMBOL(mlx5_vector2eqn);
 
 unsigned int mlx5_comp_vectors_count(struct mlx5_core_dev *dev)
 {
+	// 在这里初始化 mlx5_eq_table_create
 	return dev->priv.eq_table->num_comp_eqs;
 }
 EXPORT_SYMBOL(mlx5_comp_vectors_count);
@@ -956,12 +957,13 @@ void mlx5_core_eq_free_irqs(struct mlx5_core_dev *dev)
 
 int mlx5_eq_table_create(struct mlx5_core_dev *dev)
 {
+	// mlx5_irq_table_create
 	struct mlx5_eq_table *eq_table = dev->priv.eq_table;
 	int num_eqs = MLX5_CAP_GEN(dev, max_num_eqs) ?
 			      MLX5_CAP_GEN(dev, max_num_eqs) :
 			      1 << MLX5_CAP_GEN(dev, log_max_eq);
 	int err;
-
+	// mlx5_irq_get_num_comp，返回可用于完成事件队列的中断向量数量，它考虑了系统中可用的 MSI-X 向量数量
 	eq_table->num_comp_eqs =
 		min_t(int, mlx5_irq_get_num_comp(eq_table->irq_table),
 		      num_eqs - MLX5_MAX_ASYNC_EQS);

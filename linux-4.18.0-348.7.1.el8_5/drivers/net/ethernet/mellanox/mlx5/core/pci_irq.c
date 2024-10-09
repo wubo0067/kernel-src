@@ -292,6 +292,7 @@ int mlx5_irq_table_create(struct mlx5_core_dev *dev)
 {
 	struct mlx5_priv *priv = &dev->priv;
 	struct mlx5_irq_table *table = priv->irq_table;
+	// 这是设备支持的最大事件队列（Event Queue, EQ）数量。它是从设备的能力寄存器（Capability Register）中读取的
 	int num_eqs = MLX5_CAP_GEN(dev, max_num_eqs) ?
 			      MLX5_CAP_GEN(dev, max_num_eqs) :
 			      1 << MLX5_CAP_GEN(dev, log_max_eq);
