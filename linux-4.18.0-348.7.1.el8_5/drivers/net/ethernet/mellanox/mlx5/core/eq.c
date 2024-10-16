@@ -475,7 +475,7 @@ int mlx5_eq_table_init(struct mlx5_core_dev *dev)
 		return -ENOMEM;
 
 	dev->priv.eq_table = eq_table;
-
+	// 创建/sys/kernel/debufs/mlx5/<ifname>/EQs
 	mlx5_eq_debugfs_init(dev);
 
 	mutex_init(&eq_table->lock);
@@ -905,6 +905,7 @@ EXPORT_SYMBOL(mlx5_vector2eqn);
 unsigned int mlx5_comp_vectors_count(struct mlx5_core_dev *dev)
 {
 	// 在这里初始化 mlx5_eq_table_create
+	// 使用 lbv_devinfo -v 查看 num_comp_vectors 的值
 	return dev->priv.eq_table->num_comp_eqs;
 }
 EXPORT_SYMBOL(mlx5_comp_vectors_count);

@@ -5,7 +5,8 @@
  */
 #include "sched.h"
 
-void __init_waitqueue_head(struct wait_queue_head *wq_head, const char *name, struct lock_class_key *key)
+void __init_waitqueue_head(struct wait_queue_head *wq_head, const char *name,
+			   struct lock_class_key *key)
 {
 	spin_lock_init(&wq_head->lock);
 	lockdep_set_class_and_name(&wq_head->lock, key, name);
@@ -14,7 +15,8 @@ void __init_waitqueue_head(struct wait_queue_head *wq_head, const char *name, st
 
 EXPORT_SYMBOL(__init_waitqueue_head);
 
-void add_wait_queue(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry)
+void add_wait_queue(struct wait_queue_head *wq_head,
+		    struct wait_queue_entry *wq_entry)
 {
 	unsigned long flags;
 
@@ -25,7 +27,8 @@ void add_wait_queue(struct wait_queue_head *wq_head, struct wait_queue_entry *wq
 }
 EXPORT_SYMBOL(add_wait_queue);
 
-void add_wait_queue_exclusive(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry)
+void add_wait_queue_exclusive(struct wait_queue_head *wq_head,
+			      struct wait_queue_entry *wq_entry)
 {
 	unsigned long flags;
 
@@ -36,7 +39,8 @@ void add_wait_queue_exclusive(struct wait_queue_head *wq_head, struct wait_queue
 }
 EXPORT_SYMBOL(add_wait_queue_exclusive);
 
-void add_wait_queue_priority(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry)
+void add_wait_queue_priority(struct wait_queue_head *wq_head,
+			     struct wait_queue_entry *wq_entry)
 {
 	unsigned long flags;
 
@@ -47,7 +51,8 @@ void add_wait_queue_priority(struct wait_queue_head *wq_head, struct wait_queue_
 }
 EXPORT_SYMBOL_GPL(add_wait_queue_priority);
 
-void remove_wait_queue(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry)
+void remove_wait_queue(struct wait_queue_head *wq_head,
+		       struct wait_queue_entry *wq_entry)
 {
 	unsigned long flags;
 
@@ -78,8 +83,8 @@ EXPORT_SYMBOL(remove_wait_queue);
  * zero in this (rare) case, and we handle it by continuing to scan the queue.
  */
 static int __wake_up_common(struct wait_queue_head *wq_head, unsigned int mode,
-			int nr_exclusive, int wake_flags, void *key,
-			wait_queue_entry_t *bookmark)
+			    int nr_exclusive, int wake_flags, void *key,
+			    wait_queue_entry_t *bookmark)
 {
 	wait_queue_entry_t *curr, *next;
 	int cnt = 0;
@@ -90,26 +95,33 @@ static int __wake_up_common(struct wait_queue_head *wq_head, unsigned int mode,
 		list_del(&bookmark->entry);
 		bookmark->flags = 0;
 	} else
-		curr = list_first_entry(&wq_head->head, wait_queue_entry_t, entry);
-
+		// 获得等待队列的第一个条目
+		// 如果 list 为空，list_first_entry 实际上会返回 list 表头本身
+		// 这是因为在空列表中，头节点的 next 指针指向自己。
+		curr = list_first_entry(&wq_head->head, wait_queue_entry_t,
+					entry);
+	// 如果等待队列为空
 	if (&curr->entry == &wq_head->head)
+		// 直接返回 nr_exclusive（可能是剩余的独占唤醒次数）
 		return nr_exclusive;
 
-	list_for_each_entry_safe_from(curr, next, &wq_head->head, entry) {
+	list_for_each_entry_safe_from (curr, next, &wq_head->head, entry) {
 		unsigned flags = curr->flags;
 		int ret;
 
 		if (flags & WQ_FLAG_BOOKMARK)
 			continue;
-
+		// default_wake_function，用来唤醒
 		ret = curr->func(curr, mode, wake_flags, key);
 		if (ret < 0)
 			break;
 		if (ret && (flags & WQ_FLAG_EXCLUSIVE) && !--nr_exclusive)
+			// 对于独占任务，使用 wake_up_all 或者队列中只有独占任务时，才会被唤醒
+			// 而且只能唤醒一个独占任务
 			break;
 
 		if (bookmark && (++cnt > WAITQUEUE_WALK_BREAK_CNT) &&
-				(&next->entry != &wq_head->head)) {
+		    (&next->entry != &wq_head->head)) {
 			bookmark->flags = WQ_FLAG_BOOKMARK;
 			list_add_tail(&bookmark->entry, &next->entry);
 			break;
@@ -119,8 +131,9 @@ static int __wake_up_common(struct wait_queue_head *wq_head, unsigned int mode,
 	return nr_exclusive;
 }
 
-static void __wake_up_common_lock(struct wait_queue_head *wq_head, unsigned int mode,
-			int nr_exclusive, int wake_flags, void *key)
+static void __wake_up_common_lock(struct wait_queue_head *wq_head,
+				  unsigned int mode, int nr_exclusive,
+				  int wake_flags, void *key)
 {
 	unsigned long flags;
 	wait_queue_entry_t bookmark;
@@ -131,7 +144,8 @@ static void __wake_up_common_lock(struct wait_queue_head *wq_head, unsigned int 
 	INIT_LIST_HEAD(&bookmark.entry);
 
 	spin_lock_irqsave(&wq_head->lock, flags);
-	nr_exclusive = __wake_up_common(wq_head, mode, nr_exclusive, wake_flags, key, &bookmark);
+	nr_exclusive = __wake_up_common(wq_head, mode, nr_exclusive, wake_flags,
+					key, &bookmark);
 	spin_unlock_irqrestore(&wq_head->lock, flags);
 
 	while (bookmark.flags & WQ_FLAG_BOOKMARK) {
@@ -144,16 +158,26 @@ static void __wake_up_common_lock(struct wait_queue_head *wq_head, unsigned int 
 
 /**
  * __wake_up - wake up threads blocked on a waitqueue.
- * @wq_head: the waitqueue
- * @mode: which threads
- * @nr_exclusive: how many wake-one or wake-many threads to wake up
+ * @wq_head: the waitqueue，等待队列的头部
+ *
+ * @mode: which threads，指定了唤醒的进程的状态模式。它决定了哪些类型的线程或进程会被唤醒
+ * 常用的模式包括：
+TASK_INTERRUPTIBLE：仅唤醒那些处于可被信号中断的睡眠状态的任务。
+TASK_UNINTERRUPTIBLE：唤醒那些不可被信号中断的睡眠状态的任务。
+TASK_KILLABLE：唤醒那些可以被特定信号（如 SIGKILL）唤醒的任务。
+
+ * @nr_exclusive: how many wake-one or wake-many threads to wake up，独占唤醒数量
+ 如果 nr_exclusive 为 0，则意味着要唤醒队列中的所有线程
+ 如果 nr_exclusive 大于 0，则会唤醒指定数量的独占等待的线程（唤醒一次或多次）。
+
  * @key: is directly passed to the wakeup function
+ key 是传递给唤醒函数的用户定义数据。这通常是一个指向特定资源或事件的指针，该事件与等待队列相关联。
  *
  * If this function wakes up a task, it executes a full memory barrier before
  * accessing the task state.
  */
 void __wake_up(struct wait_queue_head *wq_head, unsigned int mode,
-			int nr_exclusive, void *key)
+	       int nr_exclusive, void *key)
 {
 	__wake_up_common_lock(wq_head, mode, nr_exclusive, 0, key);
 }
@@ -162,20 +186,23 @@ EXPORT_SYMBOL(__wake_up);
 /*
  * Same as __wake_up but called with the spinlock in wait_queue_head_t held.
  */
-void __wake_up_locked(struct wait_queue_head *wq_head, unsigned int mode, int nr)
+void __wake_up_locked(struct wait_queue_head *wq_head, unsigned int mode,
+		      int nr)
 {
 	__wake_up_common(wq_head, mode, nr, 0, NULL, NULL);
 }
 EXPORT_SYMBOL_GPL(__wake_up_locked);
 
-void __wake_up_locked_key(struct wait_queue_head *wq_head, unsigned int mode, void *key)
+void __wake_up_locked_key(struct wait_queue_head *wq_head, unsigned int mode,
+			  void *key)
 {
 	__wake_up_common(wq_head, mode, 1, 0, key, NULL);
 }
 EXPORT_SYMBOL_GPL(__wake_up_locked_key);
 
 void __wake_up_locked_key_bookmark(struct wait_queue_head *wq_head,
-		unsigned int mode, void *key, wait_queue_entry_t *bookmark)
+				   unsigned int mode, void *key,
+				   wait_queue_entry_t *bookmark)
 {
 	__wake_up_common(wq_head, mode, 1, 0, key, bookmark);
 }
@@ -226,7 +253,7 @@ EXPORT_SYMBOL_GPL(__wake_up_sync_key);
 void __wake_up_locked_sync_key(struct wait_queue_head *wq_head,
 			       unsigned int mode, void *key)
 {
-        __wake_up_common(wq_head, mode, 1, WF_SYNC, key, NULL);
+	__wake_up_common(wq_head, mode, 1, WF_SYNC, key, NULL);
 }
 EXPORT_SYMBOL_GPL(__wake_up_locked_sync_key);
 
@@ -237,7 +264,7 @@ void __wake_up_sync(struct wait_queue_head *wq_head, unsigned int mode)
 {
 	__wake_up_sync_key(wq_head, mode, NULL);
 }
-EXPORT_SYMBOL_GPL(__wake_up_sync);	/* For internal use only */
+EXPORT_SYMBOL_GPL(__wake_up_sync); /* For internal use only */
 
 /*
  * Note: we use "set_current_state()" _after_ the wait-queue add,
@@ -251,8 +278,8 @@ EXPORT_SYMBOL_GPL(__wake_up_sync);	/* For internal use only */
  * stops them from bleeding out - it would still allow subsequent
  * loads to move into the critical region).
  */
-void
-prepare_to_wait(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry, int state)
+void prepare_to_wait(struct wait_queue_head *wq_head,
+		     struct wait_queue_entry *wq_entry, int state)
 {
 	unsigned long flags;
 
@@ -267,8 +294,9 @@ EXPORT_SYMBOL(prepare_to_wait);
 
 /* This API is RH only */
 /* Returns true if we are the first waiter in the queue, false otherwise. */
-bool
-prepare_to_wait_exclusive_return(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry, int state)
+bool prepare_to_wait_exclusive_return(struct wait_queue_head *wq_head,
+				      struct wait_queue_entry *wq_entry,
+				      int state)
 {
 	unsigned long flags;
 	bool was_empty = false;
@@ -285,8 +313,8 @@ prepare_to_wait_exclusive_return(struct wait_queue_head *wq_head, struct wait_qu
 }
 EXPORT_SYMBOL(prepare_to_wait_exclusive_return);
 
-void
-prepare_to_wait_exclusive(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry, int state)
+void prepare_to_wait_exclusive(struct wait_queue_head *wq_head,
+			       struct wait_queue_entry *wq_entry, int state)
 {
 	prepare_to_wait_exclusive_return(wq_head, wq_entry, state);
 }
@@ -301,7 +329,8 @@ void init_wait_entry(struct wait_queue_entry *wq_entry, int flags)
 }
 EXPORT_SYMBOL(init_wait_entry);
 
-long prepare_to_wait_event(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry, int state)
+long prepare_to_wait_event(struct wait_queue_head *wq_head,
+			   struct wait_queue_entry *wq_entry, int state)
 {
 	unsigned long flags;
 	long ret = 0;
@@ -387,7 +416,8 @@ EXPORT_SYMBOL(do_wait_intr_irq);
  * the wait descriptor from the given waitqueue if still
  * queued.
  */
-void finish_wait(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry)
+void finish_wait(struct wait_queue_head *wq_head,
+		 struct wait_queue_entry *wq_entry)
 {
 	unsigned long flags;
 
@@ -413,7 +443,8 @@ void finish_wait(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_en
 }
 EXPORT_SYMBOL(finish_wait);
 
-int autoremove_wake_function(struct wait_queue_entry *wq_entry, unsigned mode, int sync, void *key)
+int autoremove_wake_function(struct wait_queue_entry *wq_entry, unsigned mode,
+			     int sync, void *key)
 {
 	int ret = default_wake_function(wq_entry, mode, sync, key);
 
@@ -474,7 +505,8 @@ long wait_woken(struct wait_queue_entry *wq_entry, unsigned mode, long timeout)
 }
 EXPORT_SYMBOL(wait_woken);
 
-int woken_wake_function(struct wait_queue_entry *wq_entry, unsigned mode, int sync, void *key)
+int woken_wake_function(struct wait_queue_entry *wq_entry, unsigned mode,
+			int sync, void *key)
 {
 	/* Pairs with the smp_store_mb() in wait_woken(). */
 	smp_mb(); /* C */

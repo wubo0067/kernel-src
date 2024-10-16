@@ -298,31 +298,32 @@ extern void init_wait_entry(struct wait_queue_entry *wq_entry, int flags);
  * otherwise.
  */
 
-#define ___wait_event(wq_head, condition, state, exclusive, ret, cmd)          \
-	({                                                                     \
-		__label__ __out;                                               \
-		struct wait_queue_entry __wq_entry;                            \
-		long __ret = ret; /* explicit shadow */                        \
-                                                                               \
-		init_wait_entry(&__wq_entry,                                   \
-				exclusive ? WQ_FLAG_EXCLUSIVE : 0);            \
-		for (;;) {                                                     \
-			long __int = prepare_to_wait_event(                    \
-				&wq_head, &__wq_entry, state);                 \
-                                                                               \
-			if (condition)                                         \
-				break;                                         \
-                                                                               \
-			if (___wait_is_interruptible(state) && __int) {        \
-				__ret = __int;                                 \
-				goto __out;                                    \
-			}                                                      \
-                                                                               \
-			cmd;                                                   \
-		}                                                              \
-		finish_wait(&wq_head, &__wq_entry);                            \
-	__out:                                                                 \
-		__ret;                                                         \
+#define ___wait_event(wq_head, condition, state, exclusive, ret, cmd)                   \
+	({                                                                              \
+		__label__ __out;                                                        \
+		struct wait_queue_entry __wq_entry; /*构造一个等待队列条目*/  \
+		long __ret = ret; /* explicit shadow */                                 \
+                                                                                        \
+		init_wait_entry(&__wq_entry,                                            \
+				exclusive ? WQ_FLAG_EXCLUSIVE : 0);                     \
+		for (;;) {                                                              \
+			long __int = prepare_to_wait_event(                             \
+				&wq_head, &__wq_entry,                                  \
+				state); /*加入等待队列，调用__add_wait_queue*/ \
+                                                                                        \
+			if (condition)                                                  \
+				break;                                                  \
+                                                                                        \
+			if (___wait_is_interruptible(state) && __int) {                 \
+				__ret = __int;                                          \
+				goto __out;                                             \
+			}                                                               \
+                                                                                        \
+			cmd; /*这里调用schedule()*/                                 \
+		}                                                                       \
+		finish_wait(&wq_head, &__wq_entry); /*从等待队列中删除*/        \
+	__out:                                                                          \
+		__ret;                                                                  \
 	})
 
 #define __wait_event(wq_head, condition)                                       \

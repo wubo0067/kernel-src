@@ -305,6 +305,7 @@ int mlx5_irq_table_create(struct mlx5_core_dev *dev)
 	// CPU 核心数量
 	nvec = MLX5_CAP_GEN(dev, num_ports) * num_online_cpus() +
 	       MLX5_IRQ_VEC_COMP_BASE;
+	// event queues 和 nvec 的数量最小值
 	nvec = min_t(int, nvec, num_eqs);
 	if (nvec <= MLX5_IRQ_VEC_COMP_BASE)
 		return -ENOMEM;
