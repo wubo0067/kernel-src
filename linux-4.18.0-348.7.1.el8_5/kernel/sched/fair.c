@@ -99,7 +99,7 @@ int __weak arch_asym_cpu_priority(int cpu)
  *
  * (default: ~20%)
  */
-#define fits_capacity(cap, max) ((cap)*1280 < (max)*1024)
+#define fits_capacity(cap, max) ((cap) * 1280 < (max) * 1024)
 
 #endif
 
@@ -169,7 +169,7 @@ static void update_sysctl(void)
 {
 	unsigned int factor = get_update_sysctl_factor();
 
-#define SET_SYSCTL(name) (sysctl_##name = (factor)*normalized_sysctl_##name)
+#define SET_SYSCTL(name) (sysctl_##name = (factor) * normalized_sysctl_##name)
 	SET_SYSCTL(sched_min_granularity);
 	SET_SYSCTL(sched_latency);
 	SET_SYSCTL(sched_wakeup_granularity);
@@ -4521,20 +4521,25 @@ static void put_prev_entity(struct cfs_rq *cfs_rq, struct sched_entity *prev)
 	 * was not called and update_curr() has to be done:
 	 */
 	if (prev->on_rq)
+		// 更新当前运行队列的状态
 		update_curr(cfs_rq);
 
 	/* throttle cfs_rqs exceeding runtime */
 	check_cfs_rq_runtime(cfs_rq);
 
 	check_spread(cfs_rq, prev);
-
+	
+	// 按理说，prev 已经被调用 deactivate_task 了，应该不在运行队列中了
 	if (prev->on_rq) {
+		// 更新等待开始的统计数据
 		update_stats_wait_start(cfs_rq, prev);
-		/* Put 'current' back into the tree. */
+		/* Put 'current' back into the tree. 当前实体重新放回树中，重新平衡*/
 		__enqueue_entity(cfs_rq, prev);
 		/* in !on_rq case, update occurred at dequeue */
+		// 更新负载平均值
 		update_load_avg(cfs_rq, prev, 0);
 	}
+	// 表示当前没有正在运行的调度实体。
 	cfs_rq->curr = NULL;
 }
 
@@ -5567,11 +5572,14 @@ static void enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	if (p->in_iowait)
 		cpufreq_update_util(rq, SCHED_CPUFREQ_IOWAIT);
 
+	// 遍历调度实体链表
 	for_each_sched_entity(se)
 	{
 		if (se->on_rq)
+			// 如果调度实体已经在运行队列中，跳出循环。
 			break;
 		cfs_rq = cfs_rq_of(se);
+		// 否则，将调度实体加入到 CFS 运行队列中，并更新运行队列的统计信息。
 		enqueue_entity(cfs_rq, se, flags);
 
 		cfs_rq->h_nr_running++;
@@ -5579,16 +5587,18 @@ static void enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 
 		/* end evaluation on encountering a throttled cfs_rq */
 		if (cfs_rq_throttled(cfs_rq))
+			// 如果 CFS 运行队列被限制（throttled），跳转到 enqueue_throttle 标签。
 			goto enqueue_throttle;
 
 		flags = ENQUEUE_WAKEUP;
 	}
-
+	// 再次遍历调度实体
 	for_each_sched_entity(se)
 	{
 		cfs_rq = cfs_rq_of(se);
-
+		// 更新负载平均值、可运行状态和 CFS 组信息。
 		update_load_avg(cfs_rq, se, UPDATE_TG);
+		// 再次更新运行队列的统计信息。
 		se_update_runnable(se);
 		update_cfs_group(se);
 
@@ -7033,10 +7043,12 @@ struct task_struct *pick_next_task_fair(struct rq *rq, struct task_struct *prev,
 
 again:
 	if (!sched_fair_runnable(rq))
+		//如果 nr_running 计数器为 0，当前队列上没有可运行进程，则需要调度 idle 进程
 		goto idle;
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	if (!prev || prev->sched_class != &fair_sched_class)
+		//如果当前运行的进程 prev 不是被 fair 调度的普通非实时进程
 		goto simple;
 
 	/*
@@ -7082,6 +7094,7 @@ again:
 		cfs_rq = group_cfs_rq(se);
 	} while (cfs_rq);
 
+	//获取调度实体 se 的进程实体信息
 	p = task_of(se);
 
 	/*
@@ -7117,11 +7130,14 @@ simple:
 		put_prev_task(rq, prev);
 
 	do {
-		se = pick_next_entity(cfs_rq, NULL);
-		set_next_entity(cfs_rq, se);
-		cfs_rq = group_cfs_rq(se);
+		se = pick_next_entity(cfs_rq,
+				      NULL); //选出下一可执行的调度实体 (进程)
+		set_next_entity(
+			cfs_rq,
+			se); //把选出的进程从红黑树中移除，更新红黑树，会调用__dequeue_entity 完成此工作
+		cfs_rq = group_cfs_rq(se); //在非组调度的情况下返回 NULL
 	} while (cfs_rq);
-
+	//获取到调度实体指代的进程信息
 	p = task_of(se);
 
 done:
@@ -7175,15 +7191,21 @@ static struct task_struct *__pick_next_task_fair(struct rq *rq)
 
 /*
  * Account for a descheduled task:
+当一个任务被切出 CPU（不再运行）时，这个函数被调用来更新 CFS 的内部状态。
+
  */
 static void put_prev_task_fair(struct rq *rq, struct task_struct *prev)
 {
 	struct sched_entity *se = &prev->se;
 	struct cfs_rq *cfs_rq;
-
+	// 这个循环遍历任务的调度实体层次结构。在组调度的情况下，一个任务可能属于多个嵌套的调度组。
 	for_each_sched_entity(se)
 	{
+		// 获取 CFS 运行队列
 		cfs_rq = cfs_rq_of(se);
+		// put_prev_task_fair 函数会调用 put_prev_entity 来更新即将让出 CPU 的任务的调度实体。
+		// 如果该任务仍然处于 TASK_RUNNING 状态，put_prev_entity 会调整调度实体在 CFS 运行队列中的位置，
+		// 以便稍后可以再次调度该任务。
 		put_prev_entity(cfs_rq, se);
 	}
 }
@@ -11281,9 +11303,11 @@ const struct sched_class fair_sched_class = {
 
 	.check_preempt_curr = check_preempt_wakeup,
 
-	.pick_next_task = __pick_next_task_fair,
-	.put_prev_task = put_prev_task_fair,
-	.set_next_task = set_next_task_fair,
+	.pick_next_task =
+		__pick_next_task_fair, // 选择接下来要运行的最合适的进程
+	.put_prev_task = put_prev_task_fair, //用另外一个进程替代当前运行的进程
+	.set_next_task =
+		set_next_task_fair, //当任务修改其调度类或修改其任务组时，将调用这个函数
 
 #ifdef CONFIG_SMP
 	.balance = balance_fair,

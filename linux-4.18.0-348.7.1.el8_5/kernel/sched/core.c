@@ -430,9 +430,7 @@ static inline void hrtick_clear(struct rq *rq)
 {
 }
 
-static inline void hrtick_rq_init(struct rq *rq)
-{
-}
+static inline void hrtick_rq_init(struct rq *rq){}
 #endif /* CONFIG_SCHED_HRTICK */
 
 /*
@@ -2886,7 +2884,7 @@ static inline void finish_task(struct task_struct *prev)
 
 static void do_balance_callbacks(struct rq *rq, struct callback_head *head)
 {
-	void (*func)(struct rq * rq);
+	void (*func)(struct rq *rq);
 	struct callback_head *next;
 
 	lockdep_assert_held(&rq->lock);
@@ -3752,7 +3750,7 @@ static void put_prev_task_balance(struct rq *rq, struct task_struct *prev,
 }
 
 /*
- * Pick up the highest-prio task:
+ * Pick up the highest-prio task: 核心调度函数，调用具体调度策略来选择下一个任务
  */
 static inline struct task_struct *pick_next_task(struct rq *rq,
 						 struct task_struct *prev,
@@ -3837,6 +3835,10 @@ restart:
  *
  * WARNING: must be called with preemption disabled!
  */
+/*
+如果 preempt 为 true，则表示允许抢占。这意味着调度器可以中断当前任务，切换到一个更高优先级的任务。
+如果 preempt 为 false，则表示不允许抢占。这意味着当前任务将继续运行，直到它主动放弃 CPU 或者被其他非抢占式的调度事件中断。
+*/
 static void __sched notrace __schedule(bool preempt)
 {
 	struct task_struct *prev, *next;
@@ -3894,10 +3896,12 @@ static void __sched notrace __schedule(bool preempt)
 	 *  - we form a control dependency vs deactivate_task() below.
 	 *  - ptrace_{,un}freeze_traced() can change ->state underneath us.
 	 */
-	// 当前运行任务的状态
+	// ****这里重点处理了将要被调度出去的任务的，包括状态和移除运行队列
 	prev_state = prev->state;
 	if (!preempt && prev_state) {
 		if (signal_pending_state(prev_state, prev)) {
+			// 如果有信号未处理，那么状态还是 running，不用从调度队列中删除
+			// 这样 put_prev_entity 会将 prev 重新插入 cfs_rq，重新平衡 cfs 红黑树
 			prev->state = TASK_RUNNING;
 		} else {
 			prev->sched_contributes_to_load =
@@ -3919,6 +3923,7 @@ static void __sched notrace __schedule(bool preempt)
 			 *
 			 * After this, schedule() must not care about p->state any more.
 			 */
+			// prev 任务被移除运行队列
 			deactivate_task(rq, prev,
 					DEQUEUE_SLEEP | DEQUEUE_NOCLOCK);
 
@@ -4630,6 +4635,7 @@ static bool check_same_owner(struct task_struct *p)
 	return match;
 }
 
+// 当任务的调度策略被更改时。
 static int __sched_setscheduler(struct task_struct *p,
 				const struct sched_attr *attr, bool user,
 				bool pi)
