@@ -63,13 +63,13 @@ enum kobject_action {
 };
 
 struct kobject {
-	const char		*name;
-	struct list_head	entry;
-	struct kobject		*parent;
-	struct kset		*kset;
-	struct kobj_type	*ktype;
+	const char		*name; // 内核对象的名字，对应的 sysfs 节点名字也是该 name
+	struct list_head	entry; // entry 将作为链表单元，将 Kobject 加入所属的 kset 链表中
+	struct kobject		*parent; // 该 kobject 的上层对象，构建 kobject 之间的层次化关系
+	struct kset		*kset; // kobject 所属的 kset 对象，kset 可以理解为 subsystem
+	struct kobj_type	*ktype; // 该 Kobject 的 sysfs 文件系统相关的操作和属性
 	struct kernfs_node	*sd; /* sysfs directory entry */
-	struct kref		kref;
+	struct kref		kref; // 引用计数值，追踪被嵌入对象的声明周期，被初始化为 1
 #ifdef CONFIG_DEBUG_KOBJECT_RELEASE
 	struct delayed_work	release;
 #endif
@@ -139,7 +139,7 @@ static inline bool kobject_has_children(struct kobject *kobj)
 }
 
 struct kobj_type {
-	void (*release)(struct kobject *kobj);
+	void (*release)(struct kobject *kobj); // 是每个 kobject 必须要定义的函数，当该 Kobject 的计数变为 0 时，将会运行 kobj_type->release 函数，往往用于清除对象。
 	const struct sysfs_ops *sysfs_ops;
 	struct attribute **default_attrs;	/* use default_groups instead */
 	const struct kobj_ns_type_operations *(*child_ns_type)(struct kobject *kobj);

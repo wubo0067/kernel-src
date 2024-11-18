@@ -273,13 +273,99 @@ static inline unsigned __read_seqcount_t_begin(const seqcount_t *s)
 
 repeat:
 	ret = READ_ONCE(s->sequence);
+	// 奇数值表示有写操作正在进行，偶数值表示没有写操作在进行。
 	if (unlikely(ret & 1)) {
+		// 当序列号为奇数时（最低位为 1），表示有写者正在修改数据。
+		// 在等待时让出 CPU 资源，在 x86 上会转换为 PAUSE 指令。
 		cpu_relax();
+		// 使用 goto repeat 继续检查序列号，直到写操作完成。
+		// !! 如果写者一直不完成操作，读者会一直自旋等待，这可能导致读者线程饥饿（starvation）。
 		goto repeat;
 	}
 	kcsan_atomic_next(KCSAN_SEQLOCK_REGION_MAX);
 	return ret;
 }
+
+/*
+
+
+是的，您说得对！这是一个很好的观察。让我详细解释这种情况：
+
+1. 序列锁的读端特点：
+   ```c
+   repeat:
+       ret = READ_ONCE(s->sequence);
+       if (unlikely(ret & 1)) {
+           cpu_relax();
+           goto repeat;
+       }
+   ```
+   - 不使用自旋锁（spinlock）。
+   - 只是简单的读取和检查序列号。
+   - 使用 `cpu_relax()` 进行等待。
+
+2. `cpu_relax()` 的作用：
+   - 在不同架构上有不同实现：
+     * x86: PAUSE 指令
+     * ARM: yield 指令
+   - 目的是：
+     * 减少功耗。
+     * 降低总线争用。
+     * 提示处理器当前在自旋等待。
+
+3. 与 spinlock 的区别：
+   - spinlock 的自旋会导致更严重的 CPU 占用。
+   - 序列锁的读端使用 `cpu_relax()` 相对更友好。
+   - 但仍然会占用 CPU 时间。
+
+4. Softlockup 的触发：
+   - 虽然 `cpu_relax()` 更友好。
+   - 但如果长时间自旋，仍会被 watchdog 检测为 softlockup。
+   - 因为：
+     * 线程仍在运行状态。
+     * 没有真正的调度点。
+     * CPU 时间仍在被持续消耗。
+
+5. 实际影响：
+   ```c
+   while (1) {
+       ret = READ_ONCE(s->sequence);
+       if (!(ret & 1))
+           break;
+       cpu_relax();  // 虽然友好，但仍占用 CPU
+   }
+   ```
+   - CPU 使用率会升高。
+   - 可能影响其他任务的执行。
+   - 长时间运行会触发 watchdog。
+
+6. 建议的使用方式：
+   ```c
+   unsigned long start = jiffies;
+   while (1) {
+       ret = READ_ONCE(s->sequence);
+       if (!(ret & 1))
+           break;
+       if (time_after(jiffies, start + HZ)) {
+           // 超时处理
+           return -EBUSY;
+       }
+       cpu_relax();
+       if (need_resched())
+           schedule();
+   }
+   ```
+
+7. 序列锁的适用场景：
+   - 读多写少的场景。
+   - 写操作快速完成的场景。
+   - 不适合写操作可能长时间进行的场景。
+
+总结：
+虽然序列锁的读端比 spinlock 的自旋更友好（通过 `cpu_relax()`），但如果写端长时间不完成，
+读端的持续循环仍然会占用 CPU 时间，最终可能触发 softlockup 检测。
+这再次强调了序列锁应该用在写操作快速完成的场景，并在必要时添加适当的超时和调度机制。
+*/
 
 /**
  * raw_read_seqcount_begin() - begin a seqcount_t read section w/o lockdep
@@ -306,9 +392,12 @@ static inline unsigned raw_read_seqcount_t_begin(const seqcount_t *s)
 #define read_seqcount_begin(s)						\
 	read_seqcount_t_begin(__seqcount_ptr(s))
 
+// 这个函数的主要作用是 开始一个对共享数据的读取操作，并记录下当前的序列号。它为后续的读取操作提供了一个基准，以便判断数据是否在读取期间被修改过。
 static inline unsigned read_seqcount_t_begin(const seqcount_t *s)
 {
+	// 这个函数主要用于内核的锁依赖性检测。它会记录当前线程正在访问一个 seqlock，以便在发生死锁等问题时进行调试。这个函数本身不会对 seqlock 的状态产生影响。
 	seqcount_lockdep_reader_access(s);
+	// 它会返回当前的序列号
 	return raw_read_seqcount_t_begin(s);
 }
 
@@ -384,6 +473,7 @@ static inline unsigned raw_seqcount_t_begin(const seqcount_t *s)
 static inline int __read_seqcount_t_retry(const seqcount_t *s, unsigned start)
 {
 	kcsan_atomic_next(0);
+	// 不期望不想等，如果不等返回 true
 	return unlikely(READ_ONCE(s->sequence) != start);
 }
 
@@ -403,6 +493,7 @@ static inline int __read_seqcount_t_retry(const seqcount_t *s, unsigned start)
 
 static inline int read_seqcount_t_retry(const seqcount_t *s, unsigned start)
 {
+	// 该函数保证了在该指令之后的读取的数据都是最新的
 	smp_rmb();
 	return __read_seqcount_t_retry(s, start);
 }
@@ -440,8 +531,12 @@ do {									\
 
 static inline void raw_write_seqcount_t_end(seqcount_t *s)
 {
+	//  一个内存屏障，确保在该指令之前的写操作都对其他处理器可见，也就是 smp_wmb 之前的写，所有 cpu 都是可见的
+	// 保证在该指令之前的任何写操作在执行之后，屏障之后的所有写操作才能开始执行。那么 s->sequence++ 才会顺序递增
 	smp_wmb();
+	// 递增序列号。
 	s->sequence++;
+	// 一个内核静态分析工具（kasan）使用的函数，通知 kasan 这个嵌套原子操作已经结束。
 	kcsan_nestable_atomic_end();
 }
 

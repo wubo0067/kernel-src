@@ -76,6 +76,8 @@ void rcu_read_unlock_strict(void);
 
 static inline void __rcu_read_lock(void)
 {
+	// preempt_disable() 关闭内核可抢占性
+	// 因为它使得即便在临界区中发生了中断，当前进程也不可能被切换除去。
 	preempt_disable();
 }
 
@@ -740,9 +742,18 @@ static inline void rcu_read_unlock(void)
  */
 static inline void rcu_read_lock_bh(void)
 {
+	// 这个调用会禁用底半部（Bottom Half）。通过屏蔽本地 CPU 的软中断，确保在当前代码执行期间不会有软中断打断。
+	// 保证了 RCU 临界区的执行不受软中断的干扰。
 	local_bh_disable();
+	// 这个宏是供静态分析工具（如 sparse）使用的，它表示在逻辑上“获取”了 RCU_BH 锁。
+	// 并不真正影响运行时逻辑，仅供工具检测锁的正确性。
 	__acquire(RCU_BH);
+	// 这个调用用于锁定 rcu_bh_lock_map，并向内核的锁依赖性检查器（Lockdep）报告 RCU 读锁已经被获取。
+	// rcu_bh_lock_map 是一个全局对象，用于表示 RCU 底半部的锁依赖信息。
 	rcu_lock_acquire(&rcu_bh_lock_map);
+	// 这个宏用来在锁依赖性检查的上下文中发出警告。
+	// rcu_is_watching() 检查 RCU 是否处于激活状态。如果 RCU 机制未激活（例如在某些低功耗模式或特定的初始化阶段），
+	// 则说明调用 rcu_read_lock_bh 是非法的。
 	RCU_LOCKDEP_WARN(!rcu_is_watching(),
 			 "rcu_read_lock_bh() used illegally while idle");
 }

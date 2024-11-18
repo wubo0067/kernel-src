@@ -1186,6 +1186,7 @@ EXPORT_SYMBOL_GPL(subsys_virtual_register);
 
 int __init buses_init(void)
 {
+	// 创建了 bus kset, 又在 sysfs 目录下建立了 bus 目录，bus kset 的热插拔操作为 bus_uevent_ops.
 	bus_kset = kset_create_and_add("bus", &bus_uevent_ops, NULL);
 	if (!bus_kset)
 		return -ENOMEM;

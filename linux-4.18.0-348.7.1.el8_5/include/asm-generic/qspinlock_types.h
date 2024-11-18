@@ -31,12 +31,12 @@ typedef struct qspinlock {
 		 */
 #ifdef __LITTLE_ENDIAN
 		struct {
-			u8	locked;
-			u8	pending;
+			u8	locked;   // locked=1 说明锁当前被某个 CPU 持有
+			u8	pending;  // pending=0 表示没有其他 CPU 正在等待获取锁
 		};
 		struct {
-			u16	locked_pending;
-			u16	tail;
+			u16	locked_pending; // 确认了 locked=1 且 pending=0 的状态
+			u16	tail; // tail=0 表示没有等待队列（没有其他 CPU 在排队等待）
 		};
 #else
 		struct {

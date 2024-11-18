@@ -682,9 +682,12 @@ static void mlx5e_sq_xmit_mpwqe(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	struct mlx5_wqe_ctrl_seg *cseg;
 	struct mlx5e_xmit_data txd;
 
+	// 检查会话状态
 	if (!mlx5e_tx_mpwqe_session_is_active(sq)) {
+		// 没有活动会话，开启新会话
 		mlx5e_tx_mpwqe_session_start(sq, eseg);
 	} else if (!mlx5e_tx_mpwqe_same_eseg(sq, eseg)) {
+		// eseg 不同，结束当前会话并开启新会话
 		mlx5e_tx_mpwqe_session_complete(sq);
 		mlx5e_tx_mpwqe_session_start(sq, eseg);
 	}
@@ -786,7 +789,7 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 			if (unlikely(!mlx5e_txwqe_build_eseg(
 				    priv, sq, skb, &accel, &eseg, attr.ihs)))
 				return NETDEV_TX_OK;
-			// 核心传送函数
+			// 核心传送函数，Multi-Packet WQE 模式，一个 WQE 可以发送多个数据包，优化小包发送性能
 			mlx5e_sq_xmit_mpwqe(sq, skb, &eseg, netdev_xmit_more());
 			return NETDEV_TX_OK;
 		}
@@ -807,6 +810,7 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 					     attr.ihs)))
 		return NETDEV_TX_OK;
 
+	// 普通单包发送模式，每个 WQE 发送一个数据包，适用于所有场景
 	mlx5e_sq_xmit_wqe(sq, skb, &attr, &wqe_attr, wqe, pi,
 			  netdev_xmit_more());
 

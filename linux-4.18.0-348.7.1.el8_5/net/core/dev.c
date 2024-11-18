@@ -3706,6 +3706,7 @@ static int xmit_one(struct sk_buff *skb, struct net_device *dev,
 		dev_queue_xmit_nit(skb, dev);
 
 	len = skb->len;
+	// 下面两个 tracepoint 可以判断 skb 发送到驱动是否成功
 	trace_net_dev_start_xmit(skb, dev);
 	// dev 都有一个 operator，决定了包在网卡设备怎么走
 	rc = netdev_start_xmit(skb, dev, txq, more);
@@ -3939,6 +3940,8 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 		rc = NET_XMIT_DROP;
 	} else if ((q->flags & TCQ_F_CAN_BYPASS) && !qdisc_qlen(q) &&
 		   qdisc_run_begin(q)) {
+			// qdisc_run_begin: 如果 qdisc 已在运行，则返回 false
+			// 如果 qdisc 中 skb 队列的长度为 0，并且可以忽略 qdisc 规则 (pfifo_fast 设置有这个标志), 尝试直接发送
 		/*
 		 * q-> flags＆TCQ_F_CAN_BYPASS：qdisc 允许数据包绕过排队系统
 		 * !qdisc_qlen(q)：qdisc 的队列中没有待发送的数据
@@ -3946,6 +3949,9 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 		 * This is a work-conserving queue; there are no old skbs
 		 * waiting to be sent out; and the qdisc is not running -
 		 * xmit the skb directly.
+		 * 1.flag 必须有 TCQ_F_CAN_BYPASS，默认条件下是有的，表明可以 By PASS Qdisc 规则
+		 * 2.q 的 len 为 0，也就是说 Qdisc 中一个包也没有
+		 * 3.Qdisc 起初并没有处于 running 的状态，然后置位 Running！
 		 */
 
 		qdisc_bstats_update(q, skb);
@@ -3976,11 +3982,15 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 		rc = q->enqueue(skb, q, &to_free) & NET_XMIT_MASK;
 		// qdisc_run_begin(p) 将 qdisc 标记为正在运行
 		if (qdisc_run_begin(q)) {
+			// 之前 qdisc 没有运行，返回 true，已经在运行返回 false
+			//之前 qdisc 在 running，现在停了 (有其他人在 dequeue 这个 qdisc)* 也就是如果 q 不是运行状态，
+			// 就设置成运行状况，如果一直是运行状态，那么就不用管了！
 			if (unlikely(contended)) {
 				// 不期望为 0
 				spin_unlock(&q->busylock);
 				contended = false;
 			}
+			// 出队并发送
 			__qdisc_run(q);
 			qdisc_run_end(q);
 		}
@@ -4224,12 +4234,9 @@ struct netdev_queue *netdev_pick_tx(struct net_device *dev, struct sk_buff *skb,
 
 		queue_index = netdev_cap_txqueue(dev, queue_index);
 	}
-<<<<<<< HEAD
 	// 设置 skb 映射的队列 id
-	== == == =
-			 // 队列号缓存到 skb->queue_mapping 中
->>>>>>> e8746f93e3402ca6d871b1ef5429d6bce4a1469a
-		skb_set_queue_mapping(skb, queue_index);
+	// 队列号缓存到 skb->queue_mapping 中
+	skb_set_queue_mapping(skb, queue_index);
 	// 返回队列指针
 	return netdev_get_tx_queue(dev, queue_index);
 }
@@ -4313,6 +4320,7 @@ static int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 	trace_net_dev_queue(skb);
 	if (q->enqueue) {
 		// 检查 disc 是否有合适的队列来存放 packet, 如果该设备有队列可用，就调用__dev_xmit_skb
+		//
 		rc = __dev_xmit_skb(skb, q, dev, txq);
 		goto out;
 	}

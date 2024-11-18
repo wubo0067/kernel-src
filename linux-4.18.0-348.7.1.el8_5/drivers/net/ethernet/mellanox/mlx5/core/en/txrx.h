@@ -221,17 +221,21 @@ static inline void
 mlx5e_notify_hw(struct mlx5_wq_cyc *wq, u16 pc, void __iomem *uar_map,
 		struct mlx5_wqe_ctrl_seg *ctrl)
 {
+	// 这行代码设置 WQE 控制段中的 CQ_UPDATE 标志位，表示需要更新完成队列（CQ）。
 	ctrl->fm_ce_se |= MLX5_WQE_CTRL_CQ_UPDATE;
 	/* ensure wqe is visible to device before updating doorbell record */
+	// dma_wmb() 是 DMA 写内存屏障，确保在屏障之前的所有写操作在屏障之后的写操作之前完成。
+	// 这确保了 WQE 在更新 doorbell 记录前对设备可见。
 	dma_wmb();
-
+	// 更新工作队列中的 doorbell 记录，将生产者索引（pc）写入 doorbell 寄存器。cpu_to_be32 确保数据按大端格式存储。
 	*wq->db = cpu_to_be32(pc);
 
 	/* ensure doorbell record is visible to device before ringing the
 	 * doorbell
 	 */
+	// wmb() 是普通的写内存屏障，确保在屏障之前的所有写操作在屏障之后的写操作之前完成。这确保了 doorbell 记录在实际发送之前对设备可见。
 	wmb();
-
+	// 将 WQE 控制段的内容写入设备的 UAR（用户访问寄存器）区域，实际上通知设备有新的 WQE 可以处理。
 	mlx5_write64((__be32 *)ctrl, uar_map);
 }
 

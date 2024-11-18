@@ -442,6 +442,7 @@ static int nmi_create_files(struct dentry *root)
 
 static enum cpuhp_state cpuhp_nmi_online;
 
+// nmi_setup 函数来注册的。这个函数通常在内核启动时被调用。
 static int nmi_setup(void)
 {
 	int err = 0;

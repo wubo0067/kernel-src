@@ -3279,12 +3279,17 @@ EXPORT_SYMBOL_GPL(device_find_child);
 
 int __init devices_init(void)
 {
+	// 创建名为 devices 的 kset，会在 sysfs 的根目录下建立 devices 目录，并且其 uevent_ops 被指定为 device_uevent_ops.
 	devices_kset = kset_create_and_add("devices", &device_uevent_ops, NULL);
 	if (!devices_kset)
 		return -ENOMEM;
+	// 创建名为 dev 的 kobject, 会在 sysfs 根目录下建立 dev 目录。
 	dev_kobj = kobject_create_and_add("dev", NULL);
 	if (!dev_kobj)
 		goto dev_kobj_err;
+
+	// 创建名为 block 和 char 的 kobject，它们的 parent kobject 是 dev kobject，
+	// 所以对应的目录在 dev 目录下创建，分别是 block 和 char 目录。
 	sysfs_dev_block_kobj = kobject_create_and_add("block", dev_kobj);
 	if (!sysfs_dev_block_kobj)
 		goto block_kobj_err;

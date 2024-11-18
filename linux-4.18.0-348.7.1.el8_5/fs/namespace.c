@@ -2278,19 +2278,23 @@ static int do_change_type(struct path *path, int ms_flags)
 {
 	struct mount *m;
 	struct mount *mnt = real_mount(path->mnt);
-	int recurse = ms_flags & MS_REC;
+	int recurse = ms_flags & MS_REC; // 遍历挂载点及其子挂载点
 	int type;
 	int err = 0;
 
+	// 首先检查路径是否指向挂载点本身
 	if (path->dentry != path->mnt->mnt_root)
 		return -EINVAL;
 
+	// 将 ms_flags 转换为一个类型值 type。
 	type = flags_to_propagation_type(ms_flags);
 	if (!type)
 		return -EINVAL;
 
+	// 函数锁定 namespace，以防止其他进程同时改变挂载点的类型
 	namespace_lock();
 	if (type == MS_SHARED) {
+		// 如果类型值为 MS_SHARED，函数调用 invent_group_ids 函数来生成一个新的组 ID。否则，函数直接改变挂载点的类型。
 		err = invent_group_ids(mnt, recurse);
 		if (err)
 			goto out_unlock;

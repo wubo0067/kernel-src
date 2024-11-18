@@ -74,14 +74,17 @@ int get_dominating_id(struct mount *mnt, const struct path *root)
 static int do_make_slave(struct mount *mnt)
 {
 	struct mount *master, *slave_mnt;
-
+	// 如果当前挂载点没有任何共享（即 mnt_share 为空）
 	if (list_empty(&mnt->mnt_share)) {
+		// 如果挂载点是共享的，清除共享标记并释放共享组 ID
 		if (IS_MNT_SHARED(mnt)) {
 			mnt_release_group_id(mnt);
 			CLEAR_MNT_SHARED(mnt);
 		}
+
+		// 获取挂载点的主挂载点
 		master = mnt->mnt_master;
-		if (!master) {
+		if (!master) { // 没有主挂载点，解除所有从属关系
 			struct list_head *p = &mnt->mnt_slave_list;
 			while (!list_empty(p)) {
 				slave_mnt = list_first_entry(p,
@@ -93,6 +96,7 @@ static int do_make_slave(struct mount *mnt)
 		}
 	} else {
 		struct mount *m;
+		// 将当前挂载点设置为从属关系，寻找一个共享的“主挂载点”
 		/*
 		 * slave 'mnt' to a peer mount that has the
 		 * same root dentry. If none is available then
@@ -258,7 +262,7 @@ static int propagate_one(struct mount *m)
 		if (IS_MNT_SHARED(m))
 			type |= CL_MAKE_SHARED;
 	}
-		
+
 	child = copy_tree(last_source, last_source->mnt.mnt_root, type);
 	if (IS_ERR(child))
 		return PTR_ERR(child);

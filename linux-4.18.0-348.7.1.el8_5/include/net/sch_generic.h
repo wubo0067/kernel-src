@@ -197,6 +197,7 @@ static inline bool qdisc_run_begin(struct Qdisc *qdisc)
 	nolock_empty:
 		WRITE_ONCE(qdisc->empty, false);
 	} else if (qdisc_is_running(qdisc)) {
+		// 如果已经在运行，返回 false
 		return false;
 	}
 	/* Variant of write_seqcount_begin() telling lockdep a trylock
