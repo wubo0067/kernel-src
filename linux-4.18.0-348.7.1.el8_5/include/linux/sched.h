@@ -455,8 +455,10 @@ struct sched_entity {
 	unsigned int on_rq;
 
 	u64 exec_start;
+	// 进程从创建开始的总运行时间
 	u64 sum_exec_runtime;
 	u64 vruntime;
+	// 上次被调度时的总运行时间
 	u64 prev_sum_exec_runtime;
 
 	u64 nr_migrations;

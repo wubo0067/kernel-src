@@ -841,6 +841,7 @@ static void update_curr(struct cfs_rq *cfs_rq)
 	schedstat_set(curr->statistics.exec_max,
 		      max(delta_exec, curr->statistics.exec_max));
 
+	// 累加到总运行时间，在 cpu 上的时间
 	curr->sum_exec_runtime += delta_exec;
 	schedstat_add(cfs_rq->exec_clock, delta_exec);
 	// 更新当前进程的虚拟运行时间，更进程实际运行时间和权重，更新进程的虚拟运行时间
@@ -3811,6 +3812,7 @@ static inline void update_load_avg(struct cfs_rq *cfs_rq,
 				   struct sched_entity *se, int flags)
 {
 	u64 now = cfs_rq_clock_pelt(cfs_rq);
+	//衰变的
 	int decayed;
 
 	/*
@@ -3818,8 +3820,10 @@ static inline void update_load_avg(struct cfs_rq *cfs_rq,
 	 * track group sched_entity load average for task_h_load calc in migration
 	 */
 	if (se->avg.last_update_time && !(flags & SKIP_AGE_LOAD))
+		/* 更新调度实体负载 */
 		__update_load_avg_se(now, cfs_rq, se);
 
+	/*更新 CFS 队列负载*/
 	decayed = update_cfs_rq_load_avg(now, cfs_rq);
 	decayed |= propagate_entity_load_avg(se);
 
@@ -4387,9 +4391,18 @@ static void check_preempt_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 	struct sched_entity *se;
 	s64 delta;
 
+	// 根据当前负载情况，计算进程在本次调度周期内应该运行的时间。这是一个"公平"分配的时间片。
 	ideal_runtime = sched_slice(cfs_rq, curr);
+
+	// 表示本次调度周期内进程已经运行的时间，而不是进程的总运行时间。
+	// sum_exec_runtime 指进程总共执行的实际时间，
+	// prev_sum_exec_runtime 指上次该进程被调度时已经占用的实际时间
+	// 每次在调度一个新的进程时都会把它的 se->prev_sum_exec_runtime = se->sum_exec_runtime
 	delta_exec = curr->sum_exec_runtime - curr->prev_sum_exec_runtime;
 	if (delta_exec > ideal_runtime) {
+		//  如果进程运行时间超过了应得的时间片。
+		// 只是设置重调度标志
+		// !! 当发现当前进程应该被抢占，不能直接把它踢下来，而是把它标记为应该被抢占
 		resched_curr(rq_of(cfs_rq));
 		/*
 		 * The current task ran long enough, ensure it doesn't get
@@ -4406,14 +4419,18 @@ static void check_preempt_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 	 */
 	if (delta_exec < sysctl_sched_min_granularity)
 		return;
-
+	// 取出红黑树中最小的进程
 	se = __pick_first_entity(cfs_rq);
+	// 实际的 vruntime
 	delta = curr->vruntime - se->vruntime;
 
 	if (delta < 0)
 		return;
-
+	// 如果当前进程的 vruntime 大于红黑树中最小的进程的 vruntime，且差值大于 ideal_runtime，也应该被抢占了。
 	if (delta > ideal_runtime)
+		// 这个进程应该被抢占
+		// !! 当发现当前进程应该被抢占，不能直接把它踢下来，而是把它标记为应该被抢占，
+		// !! 因为所有进程切换都必须等待正在运行的进程调用__schedule 才行，所以这里只能先标记一下。
 		resched_curr(rq_of(cfs_rq));
 }
 
@@ -4446,7 +4463,7 @@ static void set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 			max((u64)schedstat_val(se->statistics.slice_max),
 			    se->sum_exec_runtime - se->prev_sum_exec_runtime));
 	}
-
+	// 记录上次的总运行时间
 	se->prev_sum_exec_runtime = se->sum_exec_runtime;
 }
 
@@ -4471,6 +4488,7 @@ static struct sched_entity *pick_next_entity(struct cfs_rq *cfs_rq,
 	 * still in the tree, provided there was anything in the tree at all.
 	 */
 	if (!left || (curr && entity_before(curr, left)))
+	// 如果当前实体的 vruntime 小于红黑树中最左节点
 		left = curr;
 
 	se = left; /* ideally we run the leftmost entity */
@@ -4528,7 +4546,7 @@ static void put_prev_entity(struct cfs_rq *cfs_rq, struct sched_entity *prev)
 	check_cfs_rq_runtime(cfs_rq);
 
 	check_spread(cfs_rq, prev);
-	
+
 	// 按理说，prev 已经被调用 deactivate_task 了，应该不在运行队列中了
 	if (prev->on_rq) {
 		// 更新等待开始的统计数据
@@ -4548,6 +4566,7 @@ static void entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr,
 {
 	/*
 	 * Update run-time statistics of the 'current'.
+	 * update_curr 更新当前进程的 vruntime
 	 */
 	update_curr(cfs_rq);
 
@@ -6895,14 +6914,20 @@ static unsigned long wakeup_gran(struct sched_entity *se)
  *  w(c, s1) = -1
  *  w(c, s2) =  0
  *  w(c, s3) =  1
+ * 返回 -1：表示新调度实体不需要抢占当前调度实体。
+   返回 1：表示新调度实体需要抢占当前调度实体。
+   返回 0：表示当前调度实体继续运行。
  *
  */
 static int wakeup_preempt_entity(struct sched_entity *curr,
 				 struct sched_entity *se)
 {
+	// 计算当前调度实体（curr）和新调度实体（se）的虚拟运行时间差（vdiff）。
+	// vruntime 是调度实体的虚拟运行时间，用于跟踪进程在系统中的调度历史
 	s64 gran, vdiff = curr->vruntime - se->vruntime;
 
 	if (vdiff <= 0)
+	// 如果虚拟运行时间差（vdiff）小于或等于零，表示当前调度实体的虚拟运行时间没有超过新调度实体，不需要抢占，函数返回 -1
 		return -1;
 
 	gran = wakeup_gran(se);
@@ -10796,10 +10821,12 @@ static void rq_offline_fair(struct rq *rq)
 static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
 {
 	struct cfs_rq *cfs_rq;
+	// 根据当前进程的 task_struct，找到对应的调度实体 sched_entity
 	struct sched_entity *se = &curr->se;
 
 	for_each_sched_entity(se)
 	{
+		// 根据调度实体获取 cfs_rq 队列，也就是这个调度器的运行队列，调用 entity_tick：
 		cfs_rq = cfs_rq_of(se);
 		entity_tick(cfs_rq, se, queued);
 	}

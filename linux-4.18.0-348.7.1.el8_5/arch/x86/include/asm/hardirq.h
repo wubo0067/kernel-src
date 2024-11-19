@@ -11,7 +11,7 @@ typedef struct {
 #endif
 	unsigned int __nmi_count;	/* arch dependent */
 #ifdef CONFIG_X86_LOCAL_APIC
-	unsigned int apic_timer_irqs;	/* arch dependent */
+	unsigned int apic_timer_irqs;	/* arch dependent 统计APIC定时器中断的次数 */
 	unsigned int irq_spurious_count;
 	unsigned int icr_read_retry_count;
 #endif

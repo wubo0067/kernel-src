@@ -3412,8 +3412,9 @@ unsigned long long task_sched_runtime(struct task_struct *p)
 void scheduler_tick(void)
 {
 	int cpu = smp_processor_id();
+	// 获取当前 cpu 的 runqueue
 	struct rq *rq = cpu_rq(cpu);
-	// 当前正在执行的 task_struct
+	// 从 runqueue 获取当前正在执行的 task_struct
 	struct task_struct *curr = rq->curr;
 	struct rq_flags rf;
 
@@ -3423,7 +3424,7 @@ void scheduler_tick(void)
 	rq_lock(rq, &rf);
 
 	update_rq_clock(rq);
-	// 调度器的 tick 函数
+	// 调度类的 tick 函数，如果当前进程是普通进程调度类是 fair_sched_class，调用的处理时钟的函数为 task_tick_fair
 	curr->sched_class->task_tick(rq, curr, 0);
 	calc_global_load_tick(rq);
 	psi_task_tick(rq);
@@ -3714,9 +3715,16 @@ static inline void schedule_debug(struct task_struct *prev)
 	if (task_stack_end_corrupted(prev))
 		panic("corrupted stack end detected inside scheduler\n");
 #endif
+	// in_atomic_preempt_off() 检查当前环境是否属于原子操作，
+	// 主要通过 preempt_count() != PREEMPT_DISABLE_OFFSET 进行判断，
+	// 只有 preempt_count 计数等于 PREEMPT_DISABLE_OFFSET（等于 1）时，才能发生任务切换，否则认为处于原子操作中（in_atomic_preempt_off）
 
+	// 为什么要将 preempt_count 计数与“1”进行对比，而不是“0”，
+	// 原因就是__schedule() 执行前，执行了禁止抢占操作，preempt_count 进行了加“1”操作。
 	if (unlikely(in_atomic_preempt_off())) {
+		// 检查是否在原子上下文中调度
 		__schedule_bug(prev);
+		// 将抢占计数器重置为 PREEMPT_DISABLED（禁止抢占状态）
 		preempt_count_set(PREEMPT_DISABLED);
 	}
 	rcu_sleep_check();
@@ -3836,8 +3844,8 @@ restart:
  * WARNING: must be called with preemption disabled!
  */
 /*
-如果 preempt 为 true，则表示允许抢占。这意味着调度器可以中断当前任务，切换到一个更高优先级的任务。
-如果 preempt 为 false，则表示不允许抢占。这意味着当前任务将继续运行，直到它主动放弃 CPU 或者被其他非抢占式的调度事件中断。
+如果 preempt 为 true，表示这是一个抢占式调度的场景，发生在中断/异常处理时的重新调度
+如果 preempt 为 false，表示这是一个主动调度的场景，任务主动调用 schedule() 让出 CPU
 */
 static void __sched notrace __schedule(bool preempt)
 {
@@ -3898,10 +3906,11 @@ static void __sched notrace __schedule(bool preempt)
 	 */
 	// ****这里重点处理了将要被调度出去的任务的，包括状态和移除运行队列
 	prev_state = prev->state;
+	// preempt = false, 表明被抢占调度的
 	if (!preempt && prev_state) {
+		// 如果是任务主动让出 cpu，且 prev 的状态不是 running
 		if (signal_pending_state(prev_state, prev)) {
-			// 如果有信号未处理，那么状态还是 running，不用从调度队列中删除
-			// 这样 put_prev_entity 会将 prev 重新插入 cfs_rq，重新平衡 cfs 红黑树
+			// 如果当前进程有非阻塞等待信号，并且它的状态是 TASK_INTERRUPTIBLE，将当前进程的状态设为：TASK_RUNNING
 			prev->state = TASK_RUNNING;
 		} else {
 			prev->sched_contributes_to_load =
@@ -3923,7 +3932,7 @@ static void __sched notrace __schedule(bool preempt)
 			 *
 			 * After this, schedule() must not care about p->state any more.
 			 */
-			// prev 任务被移除运行队列
+			// 将当前进程从 runqueue(运行队列) 中删除
 			deactivate_task(rq, prev,
 					DEQUEUE_SLEEP | DEQUEUE_NOCLOCK);
 
@@ -3936,7 +3945,7 @@ static void __sched notrace __schedule(bool preempt)
 	}
 	// 选择下一个要运行的任务，这个调度器的核心，怎么选择
 	next = pick_next_task(rq, prev, &rf);
-	// 清除调度器标志，清除之前设置的重新调度标志。
+	// 清除 TIF_NEED_RESCHED 标志。
 	clear_tsk_need_resched(prev);
 	clear_preempt_need_resched();
 
@@ -3996,7 +4005,7 @@ void __noreturn do_task_dead(void)
 static inline void sched_submit_work(struct task_struct *tsk)
 {
 	unsigned int task_flags;
-
+	// 检测 tsk->state 是否为 0（runnable）, 若为运行态时则返回
 	if (!tsk->state)
 		return;
 
@@ -4041,14 +4050,19 @@ static void sched_update_worker(struct task_struct *tsk)
 
 asmlinkage __visible void __sched schedule(void)
 {
+	// 当前在运行的 task
 	struct task_struct *tsk = current;
 
+	/*  避免死锁 */
 	sched_submit_work(tsk);
 	do {
+		/*  关闭内核抢占  */
 		preempt_disable();
+		/*  完成调度，这是让 curr 主动让出 cpu，所以在进程上下文中调用 schedule() 表明自己主动让出 cpu  */
 		__schedule(false);
+		/*  开启内核抢占  */
 		sched_preempt_enable_no_resched();
-	} while (need_resched());
+	} while (need_resched());  /*  如果该进程被其他进程设置了 TIF_NEED_RESCHED 标志，则函数重新执行进行调度    */
 	sched_update_worker(tsk);
 }
 EXPORT_SYMBOL(schedule);
@@ -4216,12 +4230,19 @@ EXPORT_SYMBOL_GPL(preempt_schedule_notrace);
  * off of irq context.
  * Note, that this is called and return with irqs disabled. This will
  * protect us against recursive calling from irq.
+ * 在中断返回时处理可能的抢占请求。确保高优先级任务能够及时得到执行。
  */
 asmlinkage __visible void __sched preempt_schedule_irq(void)
 {
 	enum ctx_state prev_state;
 
 	/* Catch callers which need to be fixed */
+	// BUG_ON 是 Linux 内核中的一个宏，用于在运行时检测程序状态是否满足预期。
+	// 当 BUG_ON 中的条件为真时（即表达式的值为非零），内核会触发一个 内核崩溃（panic），
+	// 输出相关的调试信息，帮助开发者排查问题。
+
+	// 当前抢占计数器大于 0，即发生了抢占或不允许抢占。中断未被禁用，BUG_ON 会执行
+	// !! 确保代码在非抢占状态下，中断已经被禁用下运行
 	BUG_ON(preempt_count() || !irqs_disabled());
 
 	prev_state = exception_enter();
@@ -4229,7 +4250,7 @@ asmlinkage __visible void __sched preempt_schedule_irq(void)
 	do {
 		preempt_disable();
 		local_irq_enable();
-		__schedule(true);
+		__schedule(true); // 表示本次调度是由于抢占触发的，发生在中断/异常处理时的重新调度
 		local_irq_disable();
 		sched_preempt_enable_no_resched();
 	} while (need_resched());

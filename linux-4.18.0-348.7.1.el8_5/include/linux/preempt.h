@@ -184,6 +184,7 @@ extern void preempt_count_sub(int val);
 
 #define preemptible() (preempt_count() == 0 && !irqs_disabled())
 
+// 如果配置了 CONFIG_PREEMPT_NONE 或者 CONFIG_PREEMPT_VOLUNTARY，那么就不会有抢占
 #ifdef CONFIG_PREEMPTION
 #define preempt_enable()                                                       \
 	do {                                                                   \
