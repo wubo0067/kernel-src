@@ -4163,6 +4163,7 @@ asmlinkage __visible void __sched notrace preempt_schedule(void)
 	 * If there is a non-zero preempt_count or interrupts are disabled,
 	 * we do not want to preempt the current task. Just return..
 	 */
+	// 检查 preempt_count 是否非零和 IRQ 是否处于 disabled 状态，如果是则不允许抢占
 	if (likely(!preemptible()))
 		return;
 
@@ -4243,6 +4244,7 @@ asmlinkage __visible void __sched preempt_schedule_irq(void)
 
 	// 当前抢占计数器大于 0，即发生了抢占或不允许抢占。中断未被禁用，BUG_ON 会执行
 	// !! 确保代码在非抢占状态下，中断已经被禁用下运行
+	// 类似于 preemptible()
 	BUG_ON(preempt_count() || !irqs_disabled());
 
 	prev_state = exception_enter();

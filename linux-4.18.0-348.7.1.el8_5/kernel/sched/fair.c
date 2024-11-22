@@ -826,12 +826,13 @@ static void update_tg_load_avg(struct cfs_rq *cfs_rq)
 static void update_curr(struct cfs_rq *cfs_rq)
 {
 	struct sched_entity *curr = cfs_rq->curr;
+	//获取运行队列 struct rq 的 clock_task 成员，该成员变量在每个时钟节拍到来时都会更新。
 	u64 now = rq_clock_task(rq_of(cfs_rq));
 	u64 delta_exec;
 
 	if (unlikely(!curr))
 		return;
-
+	//定义成员变量 delta_exec：该进程从上次调用 update_curr 到现在的实际运行时间差值。
 	delta_exec = now - curr->exec_start;
 	if (unlikely((s64)delta_exec <= 0))
 		return;
@@ -10817,6 +10818,7 @@ static void rq_offline_fair(struct rq *rq)
  * goes along full dynticks. Therefore no local assumption can be made
  * and everything must be accessed through the @rq and @curr passed in
  * parameters.
+ * 从 core.c 的 scheduler_tick 函数调过来
  */
 static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
 {

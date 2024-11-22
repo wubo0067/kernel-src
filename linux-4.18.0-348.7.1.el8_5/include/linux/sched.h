@@ -454,11 +454,13 @@ struct sched_entity {
 	struct list_head group_node;
 	unsigned int on_rq;
 
+	// 记录了调度实体最近一次获得 CPU 的起始运行时间
 	u64 exec_start;
-	// 进程从创建开始的总运行时间
+	// 调度实体自创建以来到目前为止的累计实际运行时间，不包括 runnable 时间
 	u64 sum_exec_runtime;
+	// vruntime 主要在 update_curr() 中进行更新，每次都是加上执行时间在自己权重上映射得到的虚拟时间
 	u64 vruntime;
-	// 上次被调度时的总运行时间
+	// 是调度实体自创建以来到上次离开 CPU 为止的累计实际运行时间
 	u64 prev_sum_exec_runtime;
 
 	u64 nr_migrations;

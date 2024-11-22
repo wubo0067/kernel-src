@@ -58,6 +58,15 @@ struct mount {
 	const char *mnt_devname;	/* Name of device e.g. /dev/dsk/hda1 */
 	struct list_head mnt_list;
 	struct list_head mnt_expire;	/* link in fs-specific expiry list */
+
+	/*
+	共享挂载指的是多个不同的挂载点可以共享同一个文件系统
+	容器化环境: 容器之间可以共享同一个数据卷，从而实现数据共享。
+	NFS挂载: 多个主机可以同时挂载同一个NFS服务器上的文件系统。
+	mnt_share 链表将所有共享同一个文件系统的挂载点连接起来，形成一个循环链表。
+	共享属性管理: 通过这个链表，内核可以方便地跟踪和管理共享挂载的各种属性，比如传播属性（propagation）、共享类型（share type）等
+	传播属性: 共享挂载的传播属性决定了对共享文件系统的修改如何传播到其他共享挂载点。常见的传播属性有：
+	*/
 	struct list_head mnt_share;	/* circular list of shared mounts */
 	struct list_head mnt_slave_list;/* list of slave mounts */
 	struct list_head mnt_slave;	/* slave list entry */
