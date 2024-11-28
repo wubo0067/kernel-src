@@ -4,7 +4,7 @@
 
 /*
  * 	genhd.h Copyright (C) 1992 Drew Eckhardt
- *	Generic hard disk header file by  
+ *	Generic hard disk header file by
  * 		Drew Eckhardt
  *
  *		<drew@colorado.edu>
@@ -21,17 +21,17 @@
 
 #ifdef CONFIG_BLOCK
 
-#define dev_to_disk(device)	container_of((device), struct gendisk, part0.__dev)
-#define dev_to_part(device)	container_of((device), struct hd_struct, __dev)
-#define disk_to_dev(disk)	(&(disk)->part0.__dev)
-#define part_to_dev(part)	(&((part)->__dev))
+#define dev_to_disk(device) container_of((device), struct gendisk, part0.__dev)
+#define dev_to_part(device) container_of((device), struct hd_struct, __dev)
+#define disk_to_dev(disk) (&(disk)->part0.__dev)
+#define part_to_dev(part) (&((part)->__dev))
 
 extern const struct device_type disk_type;
 extern struct device_type part_type;
 extern struct class block_class;
 
-#define DISK_MAX_PARTS			256
-#define DISK_NAME_LEN			32
+#define DISK_MAX_PARTS 256
+#define DISK_NAME_LEN 32
 
 #include <linux/major.h>
 #include <linux/device.h>
@@ -50,12 +50,12 @@ struct disk_stats {
 	local_t in_flight[2];
 };
 
-#define PARTITION_META_INFO_VOLNAMELTH	64
+#define PARTITION_META_INFO_VOLNAMELTH 64
 /*
  * Enough for the string representation of any kind of UUID plus NULL.
  * EFI UUID is 36 characters. MSDOS UUID is 11 characters.
  */
-#define PARTITION_META_INFO_UUIDLTH	(UUID_STRING_LEN + 1)
+#define PARTITION_META_INFO_UUIDLTH (UUID_STRING_LEN + 1)
 
 struct partition_meta_info {
 	char uuid[PARTITION_META_INFO_UUIDLTH];
@@ -81,7 +81,7 @@ struct hd_struct {
 	int make_it_fail;
 #endif
 	unsigned long stamp;
-#ifdef	CONFIG_SMP
+#ifdef CONFIG_SMP
 	struct disk_stats __percpu *dkstats;
 #else
 	struct disk_stats dkstats;
@@ -142,21 +142,21 @@ struct hd_struct {
  * ``GENHD_FL_NO_PART_SCAN``.
  * Used for multipath devices.
  */
-#define GENHD_FL_REMOVABLE			0x0001
+#define GENHD_FL_REMOVABLE 0x0001
 /* 2 is unused (used to be GENHD_FL_DRIVERFS) */
 /* 4 is unused (used to be GENHD_FL_MEDIA_CHANGE_NOTIFY) */
-#define GENHD_FL_CD				0x0008
-#define GENHD_FL_UP				0x0010
-#define GENHD_FL_SUPPRESS_PARTITION_INFO	0x0020
-#define GENHD_FL_EXT_DEVT			0x0040
-#define GENHD_FL_NATIVE_CAPACITY		0x0080
-#define GENHD_FL_BLOCK_EVENTS_ON_EXCL_WRITE	0x0100
-#define GENHD_FL_NO_PART_SCAN			0x0200
-#define GENHD_FL_HIDDEN				0x0400
+#define GENHD_FL_CD 0x0008
+#define GENHD_FL_UP 0x0010
+#define GENHD_FL_SUPPRESS_PARTITION_INFO 0x0020
+#define GENHD_FL_EXT_DEVT 0x0040
+#define GENHD_FL_NATIVE_CAPACITY 0x0080
+#define GENHD_FL_BLOCK_EVENTS_ON_EXCL_WRITE 0x0100
+#define GENHD_FL_NO_PART_SCAN 0x0200
+#define GENHD_FL_HIDDEN 0x0400
 
 enum {
-	DISK_EVENT_MEDIA_CHANGE			= 1 << 0, /* media changed */
-	DISK_EVENT_EJECT_REQUEST		= 1 << 1, /* eject requested */
+	DISK_EVENT_MEDIA_CHANGE = 1 << 0, /* media changed */
+	DISK_EVENT_EJECT_REQUEST = 1 << 1, /* eject requested */
 };
 
 struct disk_part_tbl {
@@ -170,30 +170,40 @@ struct disk_events;
 struct badblocks;
 
 struct blk_integrity {
-	const struct blk_integrity_profile	*profile;
-	unsigned char				flags;
-	unsigned char				tuple_size;
-	unsigned char				interval_exp;
-	unsigned char				tag_size;
+	const struct blk_integrity_profile *profile;
+	unsigned char flags;
+	unsigned char tuple_size;
+	unsigned char interval_exp;
+	unsigned char tag_size;
 
 	RH_KABI_RESERVE(1)
 	RH_KABI_RESERVE(2)
 };
 
+/*
+结构体表示 Linux 内核中的一个通用磁盘对象，用于描述块设备（如硬盘、SSD 等）。
+它包含了块设备的各种信息和操作函数指针。以下是 gendisk 结构体的一些关键字段
+
+gendisk 对象表示整个磁盘，而不是单个分区。单个分区的信息会存储在 gendisk 对象的分区表中。
+
+gendisk 对象和 /sys/block/sda 目录中的 kobject 是对应的。
+当内核为块设备（如 sda）创建 gendisk 对象时，
+它会在 /sys/block 目录下创建一个对应的目录（如 /sys/block/sda），并将 gendisk 对象与该目录中的 kobject 关联起来。
+*/
 struct gendisk {
 	/* major, first_minor and minors are input parameters only,
 	 * don't use directly.  Use disk_devt() and disk_max_parts().
 	 */
-	int major;			/* major number of driver */
+	int major; /* major number of driver */
 	int first_minor;
-	int minors;                     /* maximum number of minors, =1 for
+	int minors; /* maximum number of minors, =1 for
                                          * disks that can't be partitioned. */
 
-	char disk_name[DISK_NAME_LEN];	/* name of major driver */
+	char disk_name[DISK_NAME_LEN]; /* name of major driver */
 	RH_KABI_DEPRECATE_FN(char *, devnode, struct gendisk *gd, umode_t *mode)
 
-	unsigned int events;		/* supported events */
-	unsigned int async_events;	/* async events, subset of all */
+	unsigned int events; /* supported events */
+	unsigned int async_events; /* async events, subset of all */
 
 	/* Array of pointers to partitions indexed by partno.
 	 * Protected with matching bdev lock but stat and other
@@ -204,36 +214,45 @@ struct gendisk {
 	struct hd_struct part0;
 
 	const struct block_device_operations *fops;
-	struct request_queue *queue;
+	struct request_queue
+		*queue; // 请求队列，用于处理 I/O 请求，用来存放 request 对象，
+	// queue 是支持硬件多队列的
 	void *private_data;
 
 	int flags;
+	/*
+	保护分区表：在访问或修改 gendisk 结构体中的 part_tbl（分区表）时，需要使用 lookup_sem 进行同步。
+	读操作可以并发进行，但写操作需要独占访问，以防止数据竞争和不一致。l
+
+	同步磁盘操作：在执行涉及磁盘的操作（如添加、删除分区，重新扫描分区表等）时，
+	需要使用 lookup_sem 进行同步，确保这些操作不会被其他并发操作打断。
+	*/
 	struct rw_semaphore lookup_sem;
 	struct kobject *slave_dir;
 
 	struct timer_rand_state *random;
-	atomic_t sync_io;		/* RAID */
+	atomic_t sync_io; /* RAID */
 	struct disk_events *ev;
-#ifdef  CONFIG_BLK_DEV_INTEGRITY
+#ifdef CONFIG_BLK_DEV_INTEGRITY
 	struct kobject integrity_kobj;
-#endif	/* CONFIG_BLK_DEV_INTEGRITY */
+#endif /* CONFIG_BLK_DEV_INTEGRITY */
 	int node_id;
 	struct badblocks *bb;
 	struct lockdep_map lockdep_map;
 
 	RH_KABI_USE(1, struct cdrom_device_info *cdi)
 	RH_KABI_USE(2, unsigned long state)
-#define GD_NEED_PART_SCAN		0
-#define GD_READ_ONLY			1
+#define GD_NEED_PART_SCAN 0
+#define GD_READ_ONLY 1
 
 	RH_KABI_RESERVE(3)
 	RH_KABI_RESERVE(4)
 };
 
 #if IS_REACHABLE(CONFIG_CDROM)
-#define disk_to_cdi(disk)	((disk)->cdi)
+#define disk_to_cdi(disk) ((disk)->cdi)
 #else
-#define disk_to_cdi(disk)	NULL
+#define disk_to_cdi(disk) NULL
 #endif
 
 static inline struct gendisk *part_to_disk(struct hd_struct *part)
@@ -257,7 +276,7 @@ static inline int disk_max_parts(struct gendisk *disk)
 static inline bool disk_part_scan_enabled(struct gendisk *disk)
 {
 	return disk_max_parts(disk) > 1 &&
-		!(disk->flags & GENHD_FL_NO_PART_SCAN);
+	       !(disk->flags & GENHD_FL_NO_PART_SCAN);
 }
 
 static inline dev_t disk_devt(struct gendisk *disk)
@@ -280,7 +299,7 @@ static inline void disk_put_part(struct hd_struct *part)
 
 static inline void hd_sects_seq_init(struct hd_struct *p)
 {
-#if BITS_PER_LONG==32 && defined(CONFIG_SMP)
+#if BITS_PER_LONG == 32 && defined(CONFIG_SMP)
 	seqcount_init(&p->nr_sects_seq);
 #endif
 }
@@ -288,20 +307,20 @@ static inline void hd_sects_seq_init(struct hd_struct *p)
 /*
  * Smarter partition iterator without context limits.
  */
-#define DISK_PITER_REVERSE	(1 << 0) /* iterate in the reverse direction */
-#define DISK_PITER_INCL_EMPTY	(1 << 1) /* include 0-sized parts */
-#define DISK_PITER_INCL_PART0	(1 << 2) /* include partition 0 */
+#define DISK_PITER_REVERSE (1 << 0) /* iterate in the reverse direction */
+#define DISK_PITER_INCL_EMPTY (1 << 1) /* include 0-sized parts */
+#define DISK_PITER_INCL_PART0 (1 << 2) /* include partition 0 */
 #define DISK_PITER_INCL_EMPTY_PART0 (1 << 3) /* include empty partition 0 */
 
 struct disk_part_iter {
-	struct gendisk		*disk;
-	struct hd_struct	*part;
-	int			idx;
-	unsigned int		flags;
+	struct gendisk *disk;
+	struct hd_struct *part;
+	int idx;
+	unsigned int flags;
 };
 
 extern void disk_part_iter_init(struct disk_part_iter *piter,
-				 struct gendisk *disk, unsigned int flags);
+				struct gendisk *disk, unsigned int flags);
 extern struct hd_struct *disk_part_iter_next(struct disk_part_iter *piter);
 extern void disk_part_iter_exit(struct disk_part_iter *piter);
 
@@ -319,32 +338,32 @@ bool disk_has_partitions(struct gendisk *disk);
  * part_stat_{add|set_all}() and {init|free}_part_stats are for
  * internal use only.
  */
-#ifdef	CONFIG_SMP
-#define part_stat_lock()	preempt_disable()
-#define part_stat_unlock()	preempt_enable()
+#ifdef CONFIG_SMP
+#define part_stat_lock() preempt_disable()
+#define part_stat_unlock() preempt_enable()
 
-#define part_stat_get_cpu(part, field, cpu)					\
+#define part_stat_get_cpu(part, field, cpu)                                    \
 	(per_cpu_ptr((part)->dkstats, (cpu))->field)
 
-#define part_stat_get(part, field)					\
+#define part_stat_get(part, field)                                             \
 	part_stat_get_cpu(part, field, smp_processor_id())
 
-#define part_stat_read(part, field)					\
-({									\
-	typeof((part)->dkstats->field) res = 0;				\
-	unsigned int _cpu;						\
-	for_each_possible_cpu(_cpu)					\
-		res += per_cpu_ptr((part)->dkstats, _cpu)->field;	\
-	res;								\
-})
+#define part_stat_read(part, field)                                            \
+	({                                                                     \
+		typeof((part)->dkstats->field) res = 0;                        \
+		unsigned int _cpu;                                             \
+		for_each_possible_cpu (_cpu)                                   \
+			res += per_cpu_ptr((part)->dkstats, _cpu)->field;      \
+		res;                                                           \
+	})
 
 static inline void part_stat_set_all(struct hd_struct *part, int value)
 {
 	int i;
 
-	for_each_possible_cpu(i)
+	for_each_possible_cpu (i)
 		memset(per_cpu_ptr(part->dkstats, i), value,
-				sizeof(struct disk_stats));
+		       sizeof(struct disk_stats));
 }
 
 static inline int init_part_stats(struct hd_struct *part)
@@ -361,12 +380,16 @@ static inline void free_part_stats(struct hd_struct *part)
 }
 
 #else /* !CONFIG_SMP */
-#define part_stat_lock()	({ rcu_read_lock(); 0; })
-#define part_stat_unlock()	rcu_read_unlock()
+#define part_stat_lock()                                                       \
+	({                                                                     \
+		rcu_read_lock();                                               \
+		0;                                                             \
+	})
+#define part_stat_unlock() rcu_read_unlock()
 
-#define part_stat_get(part, field)		((part)->dkstats.field)
-#define part_stat_get_cpu(part, field, cpu)	part_stat_get(part, field)
-#define part_stat_read(part, field)		part_stat_get(part, field)
+#define part_stat_get(part, field) ((part)->dkstats.field)
+#define part_stat_get_cpu(part, field, cpu) part_stat_get(part, field)
+#define part_stat_read(part, field) part_stat_get(part, field)
 
 static inline void part_stat_set_all(struct hd_struct *part, int value)
 {
@@ -384,35 +407,34 @@ static inline void free_part_stats(struct hd_struct *part)
 
 #endif /* CONFIG_SMP */
 
-#define part_stat_read_accum(part, field)				\
-	(part_stat_read(part, field[STAT_READ]) +			\
-	 part_stat_read(part, field[STAT_WRITE]) +			\
+#define part_stat_read_accum(part, field)                                      \
+	(part_stat_read(part, field[STAT_READ]) +                              \
+	 part_stat_read(part, field[STAT_WRITE]) +                             \
 	 part_stat_read(part, field[STAT_DISCARD]))
 
-#define __part_stat_add(part, field, addnd)				\
+#define __part_stat_add(part, field, addnd)                                    \
 	__this_cpu_add((part)->dkstats->field, addnd)
 
-#define part_stat_add(part, field, addnd)	do {			\
-	__part_stat_add((part), field, addnd);				\
-	if ((part)->partno)						\
-		__part_stat_add(&part_to_disk((part))->part0,		\
-				field, addnd);				\
-} while (0)
+#define part_stat_add(part, field, addnd)                                      \
+	do {                                                                   \
+		__part_stat_add((part), field, addnd);                         \
+		if ((part)->partno)                                            \
+			__part_stat_add(&part_to_disk((part))->part0, field,   \
+					addnd);                                \
+	} while (0)
 
-#define part_stat_dec(gendiskp, field)					\
-	part_stat_add(gendiskp, field, -1)
-#define part_stat_inc(gendiskp, field)					\
-	part_stat_add(gendiskp, field, 1)
-#define part_stat_sub(gendiskp, field, subnd)				\
+#define part_stat_dec(gendiskp, field) part_stat_add(gendiskp, field, -1)
+#define part_stat_inc(gendiskp, field) part_stat_add(gendiskp, field, 1)
+#define part_stat_sub(gendiskp, field, subnd)                                  \
 	part_stat_add(gendiskp, field, -subnd)
 
-#define part_stat_local_dec(gendiskp, field)				\
+#define part_stat_local_dec(gendiskp, field)                                   \
 	local_dec(&(part_stat_get(gendiskp, field)))
-#define part_stat_local_inc(gendiskp, field)				\
+#define part_stat_local_inc(gendiskp, field)                                   \
 	local_inc(&(part_stat_get(gendiskp, field)))
-#define part_stat_local_read(gendiskp, field)				\
+#define part_stat_local_read(gendiskp, field)                                  \
 	local_read(&(part_stat_get(gendiskp, field)))
-#define part_stat_local_read_cpu(gendiskp, field, cpu)			\
+#define part_stat_local_read_cpu(gendiskp, field, cpu)                         \
 	local_read(&(part_stat_get_cpu(gendiskp, field, cpu)))
 
 /* block/genhd.c */
@@ -422,7 +444,8 @@ static inline void add_disk(struct gendisk *disk)
 {
 	device_add_disk(NULL, disk, NULL);
 }
-extern void device_add_disk_no_queue_reg(struct device *parent, struct gendisk *disk);
+extern void device_add_disk_no_queue_reg(struct device *parent,
+					 struct gendisk *disk);
 static inline void add_disk_no_queue_reg(struct gendisk *disk)
 {
 	device_add_disk_no_queue_reg(NULL, disk);
@@ -449,7 +472,7 @@ extern void disk_block_events(struct gendisk *disk);
 extern void disk_unblock_events(struct gendisk *disk);
 extern void disk_flush_events(struct gendisk *disk, unsigned int mask);
 bool set_capacity_revalidate_and_notify(struct gendisk *disk, sector_t size,
-		bool update_bdev);
+					bool update_bdev);
 
 /* drivers/char/random.c */
 extern void add_disk_randomness(struct gendisk *disk) __latent_entropy;
@@ -479,27 +502,28 @@ extern struct gendisk *__alloc_disk_node(int minors, int node_id);
 extern void put_disk(struct gendisk *disk);
 extern void put_disk_and_module(struct gendisk *disk);
 
-#define alloc_disk_node(minors, node_id)				\
-({									\
-	static struct lock_class_key __key;				\
-	const char *__name;						\
-	struct gendisk *__disk;						\
-									\
-	__name = "(gendisk_completion)"#minors"("#node_id")";		\
-									\
-	__disk = __alloc_disk_node(minors, node_id);			\
-									\
-	if (__disk)							\
-		lockdep_init_map(&__disk->lockdep_map, __name, &__key, 0); \
-									\
-	__disk;								\
-})
+#define alloc_disk_node(minors, node_id)                                       \
+	({                                                                     \
+		static struct lock_class_key __key;                            \
+		const char *__name;                                            \
+		struct gendisk *__disk;                                        \
+                                                                               \
+		__name = "(gendisk_completion)" #minors "(" #node_id ")";      \
+                                                                               \
+		__disk = __alloc_disk_node(minors, node_id);                   \
+                                                                               \
+		if (__disk)                                                    \
+			lockdep_init_map(&__disk->lockdep_map, __name, &__key, \
+					 0);                                   \
+                                                                               \
+		__disk;                                                        \
+	})
 
 #define alloc_disk(minors) alloc_disk_node(minors, NUMA_NO_NODE)
 
 int register_blkdev(unsigned int major, const char *name);
 int __register_blkdev(unsigned int major, const char *name,
-		void (*probe)(dev_t devt));
+		      void (*probe)(dev_t devt));
 void unregister_blkdev(unsigned int major, const char *name);
 
 void revalidate_disk_size(struct gendisk *disk, bool verbose);
@@ -531,7 +555,9 @@ static inline void bd_unlink_disk_holder(struct block_device *bdev,
 
 #else /* CONFIG_BLOCK */
 
-static inline void printk_all_partitions(void) { }
+static inline void printk_all_partitions(void)
+{
+}
 
 static inline dev_t blk_lookup_devt(const char *name, int partno)
 {

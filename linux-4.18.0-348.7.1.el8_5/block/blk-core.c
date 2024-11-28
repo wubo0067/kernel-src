@@ -1012,6 +1012,7 @@ blk_qc_t generic_make_request(struct bio *bio)
 	bio_list_init(&bio_list_on_stack[0]);
 	current->bio_list = bio_list_on_stack;
 	do {
+		// 在这里获取了快设备的队列
 		struct request_queue *q = bio->bi_disk->queue;
 
 		if (likely(bio_queue_enter(bio) == 0)) {
@@ -1120,7 +1121,7 @@ blk_qc_t submit_bio(struct bio *bio)
 			       bio_devname(bio, b), count);
 		}
 	}
-
+    // 构造 request 对象
 	return generic_make_request(bio);
 }
 EXPORT_SYMBOL(submit_bio);

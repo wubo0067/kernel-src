@@ -124,6 +124,16 @@ struct xfs_buf_ops {
 	xfs_failaddr_t (*verify_struct)(struct xfs_buf *bp);
 };
 
+/*
+结构体通常用于 XFS 文件系统中的缓冲区管理。它代表一个缓冲区对象，用于在内存中临时存储文件系统的数据块。
+这个结构体可能包含以下信息：
+
+缓冲区的数据指针：指向实际存储数据的内存区域。
+缓冲区的大小：表示缓冲区的大小。
+状态标志：表示缓冲区的状态，例如是否被修改、是否在使用等。
+引用计数：表示有多少个进程或线程正在使用这个缓冲区。
+其他元数据：例如与文件系统块相关的元数据。
+*/
 typedef struct xfs_buf {
 	/*
 	 * first cacheline holds all the fields needed for an uncontended cache

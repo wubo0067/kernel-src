@@ -1498,6 +1498,7 @@ STATIC void _xfs_buf_ioapply(struct xfs_buf *bp)
 	// 这里应该将元数据写入磁盘，例如 agf 的元数据
 	blk_start_plug(&plug);
 	for (i = 0; i < bp->b_map_count; i++) {
+		// 这里会创建bio，调用submit_bio
 		xfs_buf_ioapply_map(bp, i, &offset, &size, op);
 		if (bp->b_error)
 			break;

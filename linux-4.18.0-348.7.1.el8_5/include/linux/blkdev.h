@@ -417,7 +417,7 @@ struct request_queue {
 	RH_KABI_DEPRECATE(struct list_head,	queue_head)
 	struct request		*last_merge;
 	struct elevator_queue	*elevator;
-
+	// /sys/block/<dev>/stat
 	struct blk_queue_stats	*stats;
 	struct rq_qos		*rq_qos;
 
@@ -426,13 +426,23 @@ struct request_queue {
 
 	const struct blk_mq_ops	*mq_ops;
 
-	/* sw queues */
+	/* sw queues 软件队列上下文 */
+	/*
+	blk_mq_ctx 结构体表示软件队列上下文，每个 CPU 核心通常对应一个软件队列上下文。
+	软件队列上下文用于在 CPU 核心之间分配和管理 I/O 请求，减少锁争用和上下文切换。
+    通过将 I/O 请求分配到不同的 CPU 核心，可以提高 I/O 请求的并发处理能力。
+	*/
 	struct blk_mq_ctx __percpu	*queue_ctx;
 	RH_KABI_DEPRECATE(unsigned int,            nr_queues)
 
 	unsigned int		queue_depth;
 
-	/* hw dispatch queues */
+	/* hw dispatch queues 硬件队列上下文 */
+	/*
+	blk_mq_hw_ctx 结构体表示硬件队列上下文，每个硬件队列对应一个硬件队列上下文。
+	硬件队列上下文用于与底层硬件设备（如 NVMe 控制器）进行交互，直接将 I/O 请求发送到硬件队列。
+	通过使用多个硬件队列，可以充分利用现代存储设备的并行处理能力，提高 I/O 吞吐量
+	*/
 	struct blk_mq_hw_ctx	**queue_hw_ctx;
 	unsigned int		nr_hw_queues;
 
