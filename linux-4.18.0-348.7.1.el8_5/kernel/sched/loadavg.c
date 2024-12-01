@@ -56,7 +56,8 @@
  */
 
 /* Variables and functions for calc_load */
-atomic_long_t calc_load_tasks;
+atomic_long_t
+	calc_load_tasks; // 但计算的是所有 CPU 上所有 runqueue 对应字段的总和
 unsigned long calc_load_update;
 unsigned long avenrun[3];
 EXPORT_SYMBOL(avenrun); /* should be removed */
@@ -76,18 +77,27 @@ void get_avenrun(unsigned long *loads, unsigned long offset, int shift)
 	loads[2] = (avenrun[2] + offset) << shift;
 }
 
+/*
+主要作用是计算当前运行队列（runqueue）中的活动负载，并将其与上次计算的活动负载进行比较。如果有变化，
+则更新活动负载并返回变化量（delta）。这个函数在负载计算过程中起到了关键作用，帮助内核调度器定期更新系统的负载信息。
+*/
 long calc_load_fold_active(struct rq *this_rq, long adjust)
 {
 	long nr_active, delta = 0;
 
+	// 计算当前活动负载，nr_running 表示当前运行队列中的可运行任务数，并减去调整值（adjust）
 	nr_active = this_rq->nr_running - adjust;
+	// nr_uninterruptible 表示当前运行队列中的不可中断任务数
 	nr_active += (long)this_rq->nr_uninterruptible;
 
+	// 如果当前活动负载与上次计算的活动负载不同
 	if (nr_active != this_rq->calc_load_active) {
+		// 计算负载变化量
 		delta = nr_active - this_rq->calc_load_active;
+		// 更新当前活动负载
 		this_rq->calc_load_active = nr_active;
 	}
-
+	// 返回负载变化量
 	return delta;
 }
 
@@ -106,8 +116,8 @@ long calc_load_fold_active(struct rq *this_rq, long adjust)
  * of course trivially computable in O(log_2 n), the length of our binary
  * vector.
  */
-static unsigned long
-fixed_power_int(unsigned long x, unsigned int frac_bits, unsigned int n)
+static unsigned long fixed_power_int(unsigned long x, unsigned int frac_bits,
+				     unsigned int n)
 {
 	unsigned long result = 1UL << frac_bits;
 
@@ -153,9 +163,8 @@ fixed_power_int(unsigned long x, unsigned int frac_bits, unsigned int n)
  *     S_n := \Sum x^i = -------------
  *             i=0          1 - x
  */
-unsigned long
-calc_load_n(unsigned long load, unsigned long exp,
-	    unsigned long active, unsigned int n)
+unsigned long calc_load_n(unsigned long load, unsigned long exp,
+			  unsigned long active, unsigned int n)
 {
 	return calc_load(load, fixed_power_int(exp, FSHIFT, n), active);
 }
@@ -231,14 +240,22 @@ static inline int calc_load_read_idx(void)
 	return calc_load_idx & 1;
 }
 
+/*
+更新在使用了 "nohz"（no scheduler timer tick，无调度器定时器滴答）模式下的 CPU 的负载信息。
+这个函数特别针对那些处于空闲状态且不频繁触发定时器中断的 CPU，确保它们的负载统计信息能够正确更新。
+*/
 static void calc_load_nohz_fold(struct rq *rq)
 {
 	long delta;
 
+	// 调用 calc_load_fold_active 函数计算当前运行队列（runqueue）中的活动负载，并将其与上次计算的活动负载进行比较。
+	// 如果有变化，则返回变化量（delta）。adjust 参数为 0，表示不进行调整
 	delta = calc_load_fold_active(rq, 0);
 	if (delta) {
+		// int idx = calc_load_write_idx();：调用 calc_load_write_idx 函数获取当前的写入索引。
+		// 这个索引用于确定将负载变化量写入到哪个 calc_load_nohz 数组元素中
 		int idx = calc_load_write_idx();
-
+		// 负载变化量 delta 添加到全局的 calc_load_nohz 数组的对应元素中
 		atomic_long_add(delta, &calc_load_nohz[idx]);
 	}
 }
@@ -336,8 +353,13 @@ static void calc_global_nohz(void)
 }
 #else /* !CONFIG_NO_HZ_COMMON */
 
-static inline long calc_load_nohz_read(void) { return 0; }
-static inline void calc_global_nohz(void) { }
+static inline long calc_load_nohz_read(void)
+{
+	return 0;
+}
+static inline void calc_global_nohz(void)
+{
+}
 
 #endif /* CONFIG_NO_HZ_COMMON */
 
@@ -390,7 +412,7 @@ void calc_global_load_tick(struct rq *this_rq)
 	if (time_before(jiffies, this_rq->calc_load_update))
 		return;
 
-	delta  = calc_load_fold_active(this_rq, 0);
+	delta = calc_load_fold_active(this_rq, 0);
 	if (delta)
 		atomic_long_add(delta, &calc_load_tasks);
 

@@ -520,7 +520,8 @@ static inline void set_task_rq_fair(struct sched_entity *se,
 
 #else /* CONFIG_CGROUP_SCHED */
 
-struct cfs_bandwidth {};
+struct cfs_bandwidth {
+};
 
 #endif /* CONFIG_CGROUP_SCHED */
 
@@ -979,8 +980,8 @@ struct rq {
 #endif
 
 	/* calc_load related fields */
-	unsigned long calc_load_update;
-	long calc_load_active;
+	unsigned long calc_load_update; // 上次计算 load 的时刻
+	long calc_load_active; // 用于记录当前活动的负载，活动负载通常是指当前正在运行或准备运行的任务数量
 
 #ifdef CONFIG_SCHED_HRTICK
 #ifdef CONFIG_SMP
