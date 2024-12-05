@@ -67,11 +67,13 @@ void complete_all(struct completion *x)
 }
 EXPORT_SYMBOL(complete_all);
 
-static inline long __sched
-do_wait_for_common(struct completion *x,
-		   long (*action)(long), long timeout, int state)
+static inline long __sched do_wait_for_common(struct completion *x,
+					      long (*action)(long),
+					      long timeout, int state)
 {
 	if (!x->done) {
+		// 如果 done = 0，那么就声明一个等待队列
+		// done 如果为正整数，不会等待，立即返回
 		DECLARE_SWAITQUEUE(wait);
 
 		do {
@@ -84,19 +86,22 @@ do_wait_for_common(struct completion *x,
 			raw_spin_unlock_irq(&x->wait.lock);
 			timeout = action(timeout);
 			raw_spin_lock_irq(&x->wait.lock);
+			// done = 0 就继续等待，直到 done 为正整数
 		} while (!x->done && timeout);
 		__finish_swait(&x->wait, &wait);
 		if (!x->done)
 			return timeout;
 	}
 	if (x->done != UINT_MAX)
+		// 被唤醒后 done 递减
 		x->done--;
+	// timeout 非零返回 timeout
 	return timeout ?: 1;
 }
 
-static inline long __sched
-__wait_for_common(struct completion *x,
-		  long (*action)(long), long timeout, int state)
+static inline long __sched __wait_for_common(struct completion *x,
+					     long (*action)(long), long timeout,
+					     int state)
 {
 	might_sleep();
 
@@ -111,14 +116,14 @@ __wait_for_common(struct completion *x,
 	return timeout;
 }
 
-static long __sched
-wait_for_common(struct completion *x, long timeout, int state)
+static long __sched wait_for_common(struct completion *x, long timeout,
+				    int state)
 {
 	return __wait_for_common(x, schedule_timeout, timeout, state);
 }
 
-static long __sched
-wait_for_common_io(struct completion *x, long timeout, int state)
+static long __sched wait_for_common_io(struct completion *x, long timeout,
+				       int state)
 {
 	return __wait_for_common(x, io_schedule_timeout, timeout, state);
 }
@@ -151,8 +156,8 @@ EXPORT_SYMBOL(wait_for_completion);
  * Return: 0 if timed out, and positive (at least 1, or number of jiffies left
  * till timeout) if completed.
  */
-unsigned long __sched
-wait_for_completion_timeout(struct completion *x, unsigned long timeout)
+unsigned long __sched wait_for_completion_timeout(struct completion *x,
+						  unsigned long timeout)
 {
 	return wait_for_common(x, timeout, TASK_UNINTERRUPTIBLE);
 }
@@ -185,8 +190,8 @@ EXPORT_SYMBOL(wait_for_completion_io);
  * Return: 0 if timed out, and positive (at least 1, or number of jiffies left
  * till timeout) if completed.
  */
-unsigned long __sched
-wait_for_completion_io_timeout(struct completion *x, unsigned long timeout)
+unsigned long __sched wait_for_completion_io_timeout(struct completion *x,
+						     unsigned long timeout)
 {
 	return wait_for_common_io(x, timeout, TASK_UNINTERRUPTIBLE);
 }
@@ -221,9 +226,8 @@ EXPORT_SYMBOL(wait_for_completion_interruptible);
  * Return: -ERESTARTSYS if interrupted, 0 if timed out, positive (at least 1,
  * or number of jiffies left till timeout) if completed.
  */
-long __sched
-wait_for_completion_interruptible_timeout(struct completion *x,
-					  unsigned long timeout)
+long __sched wait_for_completion_interruptible_timeout(struct completion *x,
+						       unsigned long timeout)
 {
 	return wait_for_common(x, timeout, TASK_INTERRUPTIBLE);
 }
@@ -259,9 +263,8 @@ EXPORT_SYMBOL(wait_for_completion_killable);
  * Return: -ERESTARTSYS if interrupted, 0 if timed out, positive (at least 1,
  * or number of jiffies left till timeout) if completed.
  */
-long __sched
-wait_for_completion_killable_timeout(struct completion *x,
-				     unsigned long timeout)
+long __sched wait_for_completion_killable_timeout(struct completion *x,
+						  unsigned long timeout)
 {
 	return wait_for_common(x, timeout, TASK_KILLABLE);
 }
@@ -317,6 +320,7 @@ bool completion_done(struct completion *x)
 	unsigned long flags;
 
 	if (!READ_ONCE(x->done))
+		// 如果 done 为 0，表明有线程等待完成
 		return false;
 
 	/*

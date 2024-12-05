@@ -825,6 +825,7 @@ static void update_tg_load_avg(struct cfs_rq *cfs_rq)
  */
 static void update_curr(struct cfs_rq *cfs_rq)
 {
+	// 获得当前正在运行的调度实体
 	struct sched_entity *curr = cfs_rq->curr;
 	//获取运行队列 struct rq 的 clock_task 成员，该成员变量在每个时钟节拍到来时都会更新。
 	u64 now = rq_clock_task(rq_of(cfs_rq));
@@ -4489,7 +4490,7 @@ static struct sched_entity *pick_next_entity(struct cfs_rq *cfs_rq,
 	 * still in the tree, provided there was anything in the tree at all.
 	 */
 	if (!left || (curr && entity_before(curr, left)))
-	// 如果当前实体的 vruntime 小于红黑树中最左节点
+		// 如果当前实体的 vruntime 小于红黑树中最左节点
 		left = curr;
 
 	se = left; /* ideally we run the leftmost entity */
@@ -6928,7 +6929,7 @@ static int wakeup_preempt_entity(struct sched_entity *curr,
 	s64 gran, vdiff = curr->vruntime - se->vruntime;
 
 	if (vdiff <= 0)
-	// 如果虚拟运行时间差（vdiff）小于或等于零，表示当前调度实体的虚拟运行时间没有超过新调度实体，不需要抢占，函数返回 -1
+		// 如果虚拟运行时间差（vdiff）小于或等于零，表示当前调度实体的虚拟运行时间没有超过新调度实体，不需要抢占，函数返回 -1
 		return -1;
 
 	gran = wakeup_gran(se);
@@ -8708,7 +8709,7 @@ static int idle_cpu_without(int cpu, struct task_struct *p)
 	if (rq->curr != rq->idle && rq->curr != p)
 		return 0;
 
-		/*
+	/*
 	 * rq->nr_running can't be used but an updated version without the
 	 * impact of p on cpu must be used instead. The updated nr_running
 	 * be computed and tested before calling idle_cpu_without().

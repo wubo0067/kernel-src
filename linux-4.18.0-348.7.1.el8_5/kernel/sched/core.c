@@ -1797,6 +1797,7 @@ static void ttwu_do_wakeup(struct rq *rq, struct task_struct *p, int wake_flags,
 			   struct rq_flags *rf)
 {
 	check_preempt_curr(rq, p, wake_flags);
+	// wakeup 的时候状态就是 RUNNING
 	p->state = TASK_RUNNING;
 	trace_sched_wakeup(p);
 
@@ -3910,7 +3911,7 @@ static void __sched notrace __schedule(bool preempt)
 	if (!preempt && prev_state) {
 		// 如果是任务主动让出 cpu，且 prev 的状态不是 running
 		if (signal_pending_state(prev_state, prev)) {
-			// 如果当前进程有非阻塞等待信号，并且它的状态是 TASK_INTERRUPTIBLE，将当前进程的状态设为：TASK_RUNNING
+			// 如果当前进程有非阻塞等待信号，将当前进程的状态设为：TASK_RUNNING
 			prev->state = TASK_RUNNING;
 		} else {
 			prev->sched_contributes_to_load =
@@ -4062,7 +4063,8 @@ asmlinkage __visible void __sched schedule(void)
 		__schedule(false);
 		/*  开启内核抢占  */
 		sched_preempt_enable_no_resched();
-	} while (need_resched());  /*  如果该进程被其他进程设置了 TIF_NEED_RESCHED 标志，则函数重新执行进行调度    */
+	} while (
+		need_resched()); /*  如果该进程被其他进程设置了 TIF_NEED_RESCHED 标志，则函数重新执行进行调度    */
 	sched_update_worker(tsk);
 }
 EXPORT_SYMBOL(schedule);
@@ -4252,7 +4254,8 @@ asmlinkage __visible void __sched preempt_schedule_irq(void)
 	do {
 		preempt_disable();
 		local_irq_enable();
-		__schedule(true); // 表示本次调度是由于抢占触发的，发生在中断/异常处理时的重新调度
+		__schedule(
+			true); // 表示本次调度是由于抢占触发的，发生在中断/异常处理时的重新调度
 		local_irq_disable();
 		sched_preempt_enable_no_resched();
 	} while (need_resched());
