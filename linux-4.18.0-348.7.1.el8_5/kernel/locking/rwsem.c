@@ -261,7 +261,8 @@ static inline bool rwsem_read_trylock(struct rw_semaphore *sem, long *cntp)
 static inline bool rwsem_write_trylock(struct rw_semaphore *sem)
 {
 	long tmp = RWSEM_UNLOCKED_VALUE;
-
+	// 将 count 最低位设置为 1，表示被 writer 锁定了
+	// #define RWSEM_WRITER_LOCKED 1
 	if (atomic_long_try_cmpxchg_acquire(&sem->count, &tmp,
 					    RWSEM_WRITER_LOCKED)) {
 		rwsem_set_owner(sem);
@@ -1257,8 +1258,10 @@ static inline int __down_read_trylock(struct rw_semaphore *sem)
 	/*
 	 * Optimize for the case when the rwsem is not locked at all.
 	 */
-	tmp = RWSEM_UNLOCKED_VALUE;
+	tmp = RWSEM_UNLOCKED_VALUE; // 0
 	do {
+		// 尝试将 sem->count 的值从 tmp 更新为 tmp + RWSEM_READER_BIAS
+		// 成功条件：如果 sem->count 的值确实等于 tmp，则交换成功，表示成功获取读锁。
 		if (atomic_long_try_cmpxchg_acquire(&sem->count, &tmp,
 						    tmp + RWSEM_READER_BIAS)) {
 			rwsem_set_reader_owned(sem);

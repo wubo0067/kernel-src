@@ -430,7 +430,9 @@ static inline void hrtick_clear(struct rq *rq)
 {
 }
 
-static inline void hrtick_rq_init(struct rq *rq){}
+static inline void hrtick_rq_init(struct rq *rq)
+{
+}
 #endif /* CONFIG_SCHED_HRTICK */
 
 /*
@@ -2885,7 +2887,7 @@ static inline void finish_task(struct task_struct *prev)
 
 static void do_balance_callbacks(struct rq *rq, struct callback_head *head)
 {
-	void (*func)(struct rq *rq);
+	void (*func)(struct rq * rq);
 	struct callback_head *next;
 
 	lockdep_assert_held(&rq->lock);
@@ -3845,8 +3847,8 @@ restart:
  * WARNING: must be called with preemption disabled!
  */
 /*
-如果 preempt 为 true，表示这是一个抢占式调度的场景，发生在中断/异常处理时的重新调度
-如果 preempt 为 false，表示这是一个主动调度的场景，任务主动调用 schedule() 让出 CPU
+如果 preempt 为 true，表示发生的是内核抢占。这意味着当前正在内核态执行的进程被更高优先级的进程抢占了 CPU
+如果 preempt 为 false，当前进程主动放弃 CPU
 */
 static void __sched notrace __schedule(bool preempt)
 {
@@ -4059,7 +4061,8 @@ asmlinkage __visible void __sched schedule(void)
 	do {
 		/*  关闭内核抢占  */
 		preempt_disable();
-		/*  完成调度，这是让 curr 主动让出 cpu，所以在进程上下文中调用 schedule() 表明自己主动让出 cpu  */
+		/*  完成调度，这是让 curr 主动让出 cpu，
+		所以在进程上下文中调用 schedule() 表明自己主动让出 cpu  */
 		__schedule(false);
 		/*  开启内核抢占  */
 		sched_preempt_enable_no_resched();
@@ -5581,6 +5584,8 @@ SYSCALL_DEFINE0(sched_yield)
 #ifndef CONFIG_PREEMPTION
 int __sched _cond_resched(void)
 {
+	//  函数用于检查当前是否需要进行调度。它会根据当前的调度状态和条件返回一个布尔值。
+	// 如果需要调度，则返回非零值。
 	if (should_resched(0)) {
 		preempt_schedule_common();
 		return 1;

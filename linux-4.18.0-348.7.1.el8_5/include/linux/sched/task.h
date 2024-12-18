@@ -39,20 +39,20 @@ void __noreturn do_task_dead(void);
 
 extern void proc_caches_init(void);
 
-extern void release_task(struct task_struct * p);
+extern void release_task(struct task_struct *p);
 
 #ifdef CONFIG_HAVE_COPY_THREAD_TLS
 extern int copy_thread_tls(unsigned long, unsigned long, unsigned long,
-			struct task_struct *, unsigned long);
+			   struct task_struct *, unsigned long);
 #else
 extern int copy_thread(unsigned long, unsigned long, unsigned long,
-			struct task_struct *);
+		       struct task_struct *);
 
 /* Architectures that haven't opted into copy_thread_tls get the tls argument
  * via pt_regs, so ignore the tls argument passed via C. */
-static inline int copy_thread_tls(
-		unsigned long clone_flags, unsigned long sp, unsigned long arg,
-		struct task_struct *p, unsigned long tls)
+static inline int copy_thread_tls(unsigned long clone_flags, unsigned long sp,
+				  unsigned long arg, struct task_struct *p,
+				  unsigned long tls)
 {
 	return copy_thread(clone_flags, sp, arg, p);
 }
@@ -71,8 +71,10 @@ extern void do_group_exit(int);
 extern void exit_files(struct task_struct *);
 extern void exit_itimers(struct signal_struct *);
 
-extern long _do_fork(unsigned long, unsigned long, unsigned long, int __user *, int __user *, unsigned long);
-extern long do_fork(unsigned long, unsigned long, unsigned long, int __user *, int __user *);
+extern long _do_fork(unsigned long, unsigned long, unsigned long, int __user *,
+		     int __user *, unsigned long);
+extern long do_fork(unsigned long, unsigned long, unsigned long, int __user *,
+		    int __user *);
 struct task_struct *fork_idle(int);
 struct mm_struct *copy_init_mm(void);
 extern pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
@@ -85,7 +87,9 @@ extern void free_task(struct task_struct *tsk);
 #ifdef CONFIG_SMP
 extern void sched_exec(void);
 #else
-#define sched_exec()   {}
+#define sched_exec()                                                           \
+	{                                                                      \
+	}
 #endif
 
 static inline struct task_struct *get_task_struct(struct task_struct *t)
@@ -107,7 +111,7 @@ void put_task_struct_rcu_user(struct task_struct *task);
 #ifdef CONFIG_ARCH_WANTS_DYNAMIC_TASK_STRUCT
 extern int arch_task_struct_size __read_mostly;
 #else
-# define arch_task_struct_size (sizeof(struct task_struct))
+#define arch_task_struct_size (sizeof(struct task_struct))
 #endif
 
 #ifndef CONFIG_HAVE_ARCH_THREAD_STRUCT_WHITELIST

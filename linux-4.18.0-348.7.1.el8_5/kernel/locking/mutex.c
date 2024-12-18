@@ -215,7 +215,7 @@ static void __sched __mutex_add_waiter(struct mutex *lock,
 
 	list_add_tail(&waiter->list, list);
 	if (__mutex_waiter_is_first(lock, waiter))
-		// 若是第一个被阻塞的线程还会给lock->owner设置上 MUTEX_FLAG_WAITERS 标志。
+		// 若是第一个被阻塞的线程还会给 lock->owner 设置上 MUTEX_FLAG_WAITERS 标志。
 		__mutex_set_flag(lock, MUTEX_FLAG_WAITERS);
 }
 
@@ -1112,6 +1112,7 @@ static int __sched __mutex_lock(struct mutex *lock, long state,
 				   false);
 }
 
+// __ww_mutex_lock: 带有死锁检测功能的互斥锁 (ww = wound/wait)
 static int __sched __ww_mutex_lock(struct mutex *lock, long state,
 				   unsigned int subclass,
 				   struct lockdep_map *nest_lock,
