@@ -764,7 +764,10 @@ struct task_struct {
 	/* Unserialized, strictly 'current' */
 
 	/* Bit to tell LSMs we're in execve(): */
+	// 这个位域变量用于表示当前进程是否正在执行 execve 系统调用
 	unsigned in_execve : 1;
+	// 这个位域变量用于表示当前进程是否处于 I/O 等待状态
+	// 如果 in_iowait 的值为 1，表示进程正在等待 I/O 操作完成；如果为 0，表示进程没有在等待 I/O 操作。
 	unsigned in_iowait : 1;
 #ifndef TIF_RESTORE_SIGMASK
 	unsigned restore_sigmask : 1;
@@ -1116,17 +1119,33 @@ struct task_struct {
 	short pref_node_fork;
 #endif
 #ifdef CONFIG_NUMA_BALANCING
+	// 记录 NUMA 扫描的序列号
+	// 用于跟踪进程的 NUMA 扫描次数，以便在不同的扫描周期中进行内存和任务的重新分配和优化。
 	int numa_scan_seq;
+	// 记录 NUMA 扫描的周期
+	// 表示进程进行 NUMA 扫描的时间间隔。扫描周期越短，进程越频繁地检查和优化其内存和任务的 NUMA 位置。
 	unsigned int numa_scan_period;
+	// 记录 NUMA 扫描的最大周期
+	// 表示进程进行 NUMA 扫描的最大时间间隔。这个值用于限制扫描周期的最大值，防止扫描过于频繁或过于稀疏。
 	unsigned int numa_scan_period_max;
+	// 记录进程首选的 NUMA 节点 ID。
+	// 表示进程首选的 NUMA 节点，通常是进程访问内存和执行任务的最佳节点。调度器会尽量将进程的内存和任务分配到这个节点上，以优化性能。
 	int numa_preferred_nid;
+	// 记录 NUMA 迁移的重试时间戳
+	// 表示进程上次尝试迁移到首选 NUMA 节点的时间戳。用于控制进程的迁移频率，防止过于频繁的迁移操作。
 	unsigned long numa_migrate_retry;
 	/* Migration stamp: */
+	// 记录 NUMA 迁移的时间戳
+	// 表示进程上次进行 NUMA 迁移的时间戳。用于控制进程的迁移频率，防止过于频繁的迁移操作。
 	u64 node_stamp;
+	// 录进程上一次 NUMA 放置操作（如内存分配或 CPU 绑定）的时间戳，用于配合其它指标评估是否需要再次进行 NUMA 调整。
 	u64 last_task_numa_placement;
+	// 记录进程在 NUMA 节点上的累计执行时间，为后续的 NUMA 负载均衡策略提供依据。
 	u64 last_sum_exec_runtime;
+	// 用于 NUMA 相关的回调工作
 	struct callback_head numa_work;
 
+	// 用于将进程链接到 NUMA 管理系统的链表中，进行 NUMA 组管理和任务跟踪
 	struct list_head numa_entry;
 	/*
 	 * This pointer is only modified for current in syscall and
@@ -1152,6 +1171,9 @@ struct task_struct {
 	 * during the current scan window. When the scan completes, the counts
 	 * in faults_memory and faults_cpu decay and these values are copied.
 	 */
+	// [faults_memory][faults_cpu][faults_memory_buffer][faults_cpu_buffer]
+	// faults_memory: 以内存节点为视角，记录访问每个内存节点时发生的故障，用于决定内存页面是否需要迁移
+	// faults_cpu: 以 CPU 节点为视角，记录在每个 CPU 节点上运行时发生的故障，用于决定进程是否需要迁移到其他节点
 	unsigned long *numa_faults;
 	unsigned long total_numa_faults;
 

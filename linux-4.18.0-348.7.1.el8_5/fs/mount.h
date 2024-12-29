@@ -6,23 +6,23 @@
 #include <linux/fs_pin.h>
 
 struct mnt_namespace {
-	atomic_t		count;
-	struct ns_common	ns;
-	struct mount *	root;
+	atomic_t count;
+	struct ns_common ns;
+	struct mount *root;
 	/*
 	 * Traversal and modification of .list is protected by either
 	 * - taking namespace_sem for write, OR
 	 * - taking namespace_sem for read AND taking .ns_lock.
 	 */
-	struct list_head	list;
-	spinlock_t		ns_lock;
-	struct user_namespace	*user_ns;
-	struct ucounts		*ucounts;
-	u64			seq;	/* Sequence number to prevent loops */
+	struct list_head list;
+	spinlock_t ns_lock;
+	struct user_namespace *user_ns;
+	struct ucounts *ucounts;
+	u64 seq; /* Sequence number to prevent loops */
 	wait_queue_head_t poll;
 	u64 event;
-	unsigned int		mounts; /* # of mounts in the namespace */
-	unsigned int		pending_mounts;
+	unsigned int mounts; /* # of mounts in the namespace */
+	unsigned int pending_mounts;
 } __randomize_layout;
 
 struct mnt_pcp {
@@ -52,12 +52,16 @@ struct mount {
 	int mnt_count;
 	int mnt_writers;
 #endif
-	struct list_head mnt_mounts;	/* list of children, anchored here */
-	struct list_head mnt_child;	/* and going through their mnt_child */
-	struct list_head mnt_instance;	/* mount instance on sb->s_mounts */
-	const char *mnt_devname;	/* Name of device e.g. /dev/dsk/hda1 */
+	// 子挂载点怎么来的，
+	// mount /dev/sda1 /home        // 创建 /home 子挂载点
+	// mount /dev/sdb1 /home/data   // 创建 /home/data 子挂载点
+	// 使用命令 findmnt -R /
+	struct list_head mnt_mounts; /* list of children, anchored here */
+	struct list_head mnt_child; /* and going through their mnt_child */
+	struct list_head mnt_instance; /* mount instance on sb->s_mounts */
+	const char *mnt_devname; /* Name of device e.g. /dev/dsk/hda1 */
 	struct list_head mnt_list;
-	struct list_head mnt_expire;	/* link in fs-specific expiry list */
+	struct list_head mnt_expire; /* link in fs-specific expiry list */
 
 	/*
 	共享挂载指的是多个不同的挂载点可以共享同一个文件系统
@@ -67,21 +71,21 @@ struct mount {
 	共享属性管理: 通过这个链表，内核可以方便地跟踪和管理共享挂载的各种属性，比如传播属性（propagation）、共享类型（share type）等
 	传播属性: 共享挂载的传播属性决定了对共享文件系统的修改如何传播到其他共享挂载点。常见的传播属性有：
 	*/
-	struct list_head mnt_share;	/* circular list of shared mounts */
-	struct list_head mnt_slave_list;/* list of slave mounts */
-	struct list_head mnt_slave;	/* slave list entry */
-	struct mount *mnt_master;	/* slave is on master->mnt_slave_list */
-	struct mnt_namespace *mnt_ns;	/* containing namespace */
-	struct mountpoint *mnt_mp;	/* where is it mounted */
-	struct hlist_node mnt_mp_list;	/* list mounts with the same mountpoint */
+	struct list_head mnt_share; /* circular list of shared mounts */
+	struct list_head mnt_slave_list; /* list of slave mounts */
+	struct list_head mnt_slave; /* slave list entry */
+	struct mount *mnt_master; /* slave is on master->mnt_slave_list */
+	struct mnt_namespace *mnt_ns; /* containing namespace */
+	struct mountpoint *mnt_mp; /* where is it mounted */
+	struct hlist_node mnt_mp_list; /* list mounts with the same mountpoint */
 	struct list_head mnt_umounting; /* list entry for umount propagation */
 #ifdef CONFIG_FSNOTIFY
 	struct fsnotify_mark_connector __rcu *mnt_fsnotify_marks;
 	__u32 mnt_fsnotify_mask;
 #endif
-	int mnt_id;			/* mount identifier */
-	int mnt_group_id;		/* peer group identifier */
-	int mnt_expiry_mark;		/* true if marked for expiry */
+	int mnt_id; /* mount identifier */
+	int mnt_group_id; /* peer group identifier */
+	int mnt_expiry_mark; /* true if marked for expiry */
 	struct hlist_head mnt_pins;
 	struct fs_pin mnt_umount;
 	struct dentry *mnt_ex_mountpoint;
