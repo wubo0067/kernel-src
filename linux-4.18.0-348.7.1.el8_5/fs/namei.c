@@ -501,7 +501,7 @@ struct nameidata {
 		struct delayed_call done;
 		const char *name;
 		unsigned seq;
-	} *stack, internal[EMBEDDED_LEVELS];
+	} * stack, internal[EMBEDDED_LEVELS];
 	struct filename *name;
 	struct nameidata *saved;
 	struct inode *link_inode;
@@ -1036,7 +1036,7 @@ static int may_create_in_sticky(umode_t dir_mode, kuid_t dir_uid,
 	      (sysctl_protected_regular >= 2 && S_ISREG(inode->i_mode))))) {
 		const char *operation = S_ISFIFO(inode->i_mode) ?
 						"sticky_create_fifo" :
-						"sticky_create_regular";
+						      "sticky_create_regular";
 		audit_log_path_denied(AUDIT_ANOM_CREAT, operation);
 		return -EACCES;
 	}
@@ -1303,7 +1303,7 @@ static inline int managed_dentry_rcu(const struct path *path)
 {
 	return (path->dentry->d_flags & DCACHE_MANAGE_TRANSIT) ?
 		       path->dentry->d_op->d_manage(path, true) :
-		       0;
+			     0;
 }
 
 /*
@@ -3547,6 +3547,16 @@ static int do_o_path(struct nameidata *nd, unsigned flags, struct file *file)
 	return error;
 }
 
+// findmnt -R /sys
+/*
+ => path_openat
+ => do_filp_open
+ => do_sys_openat2
+ => do_sys_open
+ => __x64_sys_openat
+ => do_syscall_64
+ => entry_SYSCALL_64_after_hwframe
+*/
 static struct file *path_openat(struct nameidata *nd,
 				const struct open_flags *op, unsigned flags)
 {

@@ -1055,8 +1055,8 @@ EXPORT_SYMBOL_GPL(vfs_submount);
 容器环境下，大量使用 mount --bind
 # 将宿主机目录挂载到容器内
 docker run -v /host/data:/container/data ...
-*/ * / static struct mount *clone_mnt(struct mount *old, struct dentry *root,
-				       int flag)
+*/
+static struct mount *clone_mnt(struct mount *old, struct dentry *root, int flag)
 {
 	struct super_block *sb = old->mnt.mnt_sb;
 	struct mount *mnt;
@@ -2273,11 +2273,13 @@ static int flags_to_propagation_type(int ms_flags)
 
 /*
  * recursively change the type of the mountpoint.
+ * path 表示文件系统中的一个位置，"/home/user/file.txt" 这样的路径
+ * mnt 表示具体的文件系统挂载点，
  */
 static int do_change_type(struct path *path, int ms_flags)
 {
 	struct mount *m;
-	struct mount *mnt = real_mount(path->mnt);
+	struct mount *mnt = real_mount(path->mnt); // 得到文件路径对应的挂载点
 	int recurse = ms_flags & MS_REC; // 遍历挂载点及其子挂载点
 	int type;
 	int err = 0;
