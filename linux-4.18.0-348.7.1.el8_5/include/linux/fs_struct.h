@@ -9,7 +9,8 @@
 struct fs_struct {
 	int users;
 	spinlock_t lock;
-	seqcount_t seq;
+	seqcount_t
+		seq; // 用于实现对并发访问的保护，特别是在读取 pwd（当前工作目录）和 root（根目录）这样的路径信息时
 	int umask;
 	int in_exec;
 	struct path root, pwd;

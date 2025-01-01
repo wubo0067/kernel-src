@@ -1051,6 +1051,11 @@ struct vfsmount *vfs_submount(const struct dentry *mountpoint,
 }
 EXPORT_SYMBOL_GPL(vfs_submount);
 
+/*
+容器环境下，大量使用 mount --bind
+# 将宿主机目录挂载到容器内
+docker run -v /host/data:/container/data ...
+*/
 static struct mount *clone_mnt(struct mount *old, struct dentry *root, int flag)
 {
 	struct super_block *sb = old->mnt.mnt_sb;
@@ -3153,6 +3158,14 @@ long do_mount(const char *dev_name, const char __user *dir_name,
 	else if (flags & MS_BIND)
 		retval = do_loopback(&path, dev_name, flags & MS_REC);
 	else if (flags & (MS_SHARED | MS_PRIVATE | MS_SLAVE | MS_UNBINDABLE))
+		/*
+	当传入的挂载标志（flags）包含 MS_SHARED、MS_PRIVATE、MS_SLAVE 或 MS_UNBINDABLE 时，
+	会调用 do_change_type 来修改该挂载点的“传播类型”（Propagation Type）。
+	这主要与 Linux 的“共享子树”（Shared Subtree）机制有关，允许挂载点在不同的命名空间或层次间共享、
+	隔离或从属。通过调用 do_change_type，可以将当前挂载点设置为“共享”（shared）、“私有”（private）、
+	“从属”（slave）或“不可绑定”（unbindable）等不同模式，
+	从而影响该挂载点及其子树在系统中的可见性与传播行为。
+	*/
 		retval = do_change_type(&path, flags);
 	else if (flags & MS_MOVE)
 		retval = do_move_mount_old(&path, dev_name);
@@ -3688,8 +3701,7 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root, const char __user *,
 	if (!mnt_has_parent(root_mnt))
 		goto out4; /* not attached */
 	root_mp = root_mnt->mnt_mp;
-	if (new.mnt->mnt_root != new.dentry)
-		goto out4; /* not a mountpoint */
+	t if (new.mnt->mnt_root != new.dentry) goto out4; /* not a mountpoint */
 	if (!mnt_has_parent(new_mnt))
 		goto out4; /* not attached */
 	/* make sure we can reach put_old from new_root */

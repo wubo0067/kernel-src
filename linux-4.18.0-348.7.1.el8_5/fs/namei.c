@@ -2196,7 +2196,11 @@ static const char *path_init(struct nameidata *nd, unsigned flags)
 		rcu_read_unlock();
 		return ERR_PTR(-ECHILD);
 	} else if (nd->dfd == AT_FDCWD) {
+		// 这段代码的主要功能是根据 nd->dfd 和 flags 的值，获取当前工作目录的路径和 inode 信息。具体逻辑如下
+		// 如果是当前目录
 		if (flags & LOOKUP_RCU) {
+			// 使用 rcu 机制
+			// 每个进程都有其独立视角来观察文件系统，包括它所认为的根目录和当前目录
 			struct fs_struct *fs = current->fs;
 			unsigned seq;
 
@@ -2204,6 +2208,7 @@ static const char *path_init(struct nameidata *nd, unsigned flags)
 
 			do {
 				seq = read_seqcount_begin(&fs->seq);
+				// 将当前工作目录的路径和 inode 信息存储到 nd->path 和 nd->inode 中。
 				nd->path = fs->pwd;
 				nd->inode = nd->path.dentry->d_inode;
 				nd->seq = __read_seqcount_begin(
