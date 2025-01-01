@@ -606,7 +606,7 @@ static inline struct list_head *ptype_head(const struct packet_type *pt)
 		return pt->dev ? &pt->dev->ptype_all : &ptype_all;
 	else
 		return pt->dev ? &pt->dev->ptype_specific :
-				 &ptype_base[ntohs(pt->type) & PTYPE_HASH_MASK];
+				       &ptype_base[ntohs(pt->type) & PTYPE_HASH_MASK];
 }
 
 /**
@@ -2780,7 +2780,7 @@ int __netif_set_xps_queue(struct net_device *dev, const unsigned long *mask,
 
 		tci = j * num_tc + tc;
 		map = dev_maps ? xmap_dereference(dev_maps->attr_map[tci]) :
-				 NULL;
+				       NULL;
 
 		map = expand_xps_map(map, j, index, is_rxqs_map);
 		if (!map)
@@ -2910,7 +2910,7 @@ error:
 			new_map = xmap_dereference(new_dev_maps->attr_map[tci]);
 			map = dev_maps ? xmap_dereference(
 						 dev_maps->attr_map[tci]) :
-					 NULL;
+					       NULL;
 			if (new_map && new_map != map)
 				kfree(new_map);
 		}
@@ -3139,7 +3139,7 @@ EXPORT_SYMBOL(netif_set_real_num_rx_queues);
 int netif_get_num_default_rss_queues(void)
 {
 	return is_kdump_kernel() ? 1 :
-				   min_t(int, DEFAULT_MAX_NUM_RSS_QUEUES,
+					 min_t(int, DEFAULT_MAX_NUM_RSS_QUEUES,
 					 num_online_cpus());
 }
 EXPORT_SYMBOL(netif_get_num_default_rss_queues);
@@ -3763,7 +3763,7 @@ int skb_csum_hwoffload_help(struct sk_buff *skb,
 	if (unlikely(skb_csum_is_sctp(skb)))
 		return !!(features & NETIF_F_SCTP_CRC) ?
 			       0 :
-			       skb_crc32c_csum_help(skb);
+				     skb_crc32c_csum_help(skb);
 
 	return !!(features & NETIF_F_CSUM_MASK) ? 0 : skb_checksum_help(skb);
 }
@@ -3940,8 +3940,8 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 		rc = NET_XMIT_DROP;
 	} else if ((q->flags & TCQ_F_CAN_BYPASS) && !qdisc_qlen(q) &&
 		   qdisc_run_begin(q)) {
-			// qdisc_run_begin: 如果 qdisc 已在运行，则返回 false
-			// 如果 qdisc 中 skb 队列的长度为 0，并且可以忽略 qdisc 规则 (pfifo_fast 设置有这个标志), 尝试直接发送
+		// qdisc_run_begin: 如果 qdisc 已在运行，则返回 false
+		// 如果 qdisc 中 skb 队列的长度为 0，并且可以忽略 qdisc 规则 (pfifo_fast 设置有这个标志), 尝试直接发送
 		/*
 		 * q-> flags＆TCQ_F_CAN_BYPASS：qdisc 允许数据包绕过排队系统
 		 * !qdisc_qlen(q)：qdisc 的队列中没有待发送的数据
@@ -6489,12 +6489,16 @@ bool napi_complete_done(struct napi_struct *n, int work_done)
 		return false;
 
 	if (work_done) {
+		// 如果本轮 NAPI poll 处理了数据包
 		if (!list_empty(&n->gro_list))
 			timeout = READ_ONCE(n->dev->gro_flush_timeout);
+		// 从设备获取延迟中断计数值
 		n->defer_hard_irqs_count =
 			READ_ONCE(n->dev->napi_defer_hard_irqs);
 	}
 	if (n->defer_hard_irqs_count > 0) {
+		// 如果还有延迟中断计数。
+		// 递减计数
 		n->defer_hard_irqs_count--;
 		timeout = READ_ONCE(n->dev->gro_flush_timeout);
 		if (timeout)
@@ -6928,7 +6932,7 @@ static int __napi_poll(struct napi_struct *n, bool *repoll)
 	 */
 	work = 0;
 	if (test_bit(NAPI_STATE_SCHED, &n->state)) {
-		// 实际在这里调用了 netvsc_poll
+		// 实际在这里调用了 netvsc_poll 或 mlx5e_napi_poll
 		work = n->poll(n, weight);
 		trace_napi_poll(n, work, weight);
 	}
@@ -6936,6 +6940,7 @@ static int __napi_poll(struct napi_struct *n, bool *repoll)
 	WARN_ON_ONCE(work > weight);
 
 	if (likely(work < weight))
+		// 如果少于权重的数量，直接返回
 		return work;
 
 	/* Drivers must not modify the NAPI state if they
@@ -6950,6 +6955,10 @@ static int __napi_poll(struct napi_struct *n, bool *repoll)
 
 	/* The NAPI context has more processing work, but busy-polling
 	 * is preferred. Exit early.
+	 napi_prefer_busy_poll 返回 true 表示当前 NAPI 实例倾向于使用 busy polling 方式处理数据包
+	 busy polling 是一种轮询模式，CPU 不断检查网卡是否有新数据到达
+	 适用于低延迟场景，但会消耗更多 CPU 资源
+	 判断：/proc/sys/net/core/busy_poll
 	 */
 	if (napi_prefer_busy_poll(n)) {
 		if (napi_complete_done(n, work)) {
@@ -7068,6 +7077,7 @@ static __latent_entropy void net_rx_action(struct softirq_action *h)
 	LIST_HEAD(repoll);
 
 	local_irq_disable();
+	// 将 poll_list 合并到 list，位置在 list 头部
 	list_splice_init(&sd->poll_list, &list);
 	local_irq_enable();
 

@@ -310,7 +310,7 @@ restart:
 		kstat_incr_softirqs_this_cpu(vec_nr);
 
 		trace_softirq_entry(vec_nr);
-		// 调用例如 NET_RX_ACTION, NET_TX_ACTION 函数
+		// 调用例如 NET_RX_ACTION(net_rx_action), NET_TX_ACTION 函数
 		h->action(h);
 		trace_softirq_exit(vec_nr);
 		if (unlikely(prev_count != preempt_count())) {
