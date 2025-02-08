@@ -1051,11 +1051,6 @@ struct vfsmount *vfs_submount(const struct dentry *mountpoint,
 }
 EXPORT_SYMBOL_GPL(vfs_submount);
 
-/*
-容器环境下，大量使用 mount --bind
-# 将宿主机目录挂载到容器内
-docker run -v /host/data:/container/data ...
-*/
 static struct mount *clone_mnt(struct mount *old, struct dentry *root, int flag)
 {
 	struct super_block *sb = old->mnt.mnt_sb;
@@ -2273,30 +2268,24 @@ static int flags_to_propagation_type(int ms_flags)
 
 /*
  * recursively change the type of the mountpoint.
- * path 表示文件系统中的一个位置，"/home/user/file.txt" 这样的路径
- * mnt 表示具体的文件系统挂载点，
  */
 static int do_change_type(struct path *path, int ms_flags)
 {
 	struct mount *m;
-	struct mount *mnt = real_mount(path->mnt); // 得到文件路径对应的挂载点
-	int recurse = ms_flags & MS_REC; // 遍历挂载点及其子挂载点
+	struct mount *mnt = real_mount(path->mnt);
+	int recurse = ms_flags & MS_REC;
 	int type;
 	int err = 0;
 
-	// 首先检查路径是否指向挂载点本身
 	if (path->dentry != path->mnt->mnt_root)
 		return -EINVAL;
 
-	// 将 ms_flags 转换为一个类型值 type。
 	type = flags_to_propagation_type(ms_flags);
 	if (!type)
 		return -EINVAL;
 
-	// 函数锁定 namespace，以防止其他进程同时改变挂载点的类型
 	namespace_lock();
 	if (type == MS_SHARED) {
-		// 如果类型值为 MS_SHARED，函数调用 invent_group_ids 函数来生成一个新的组 ID。否则，函数直接改变挂载点的类型。
 		err = invent_group_ids(mnt, recurse);
 		if (err)
 			goto out_unlock;
@@ -3701,7 +3690,8 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root, const char __user *,
 	if (!mnt_has_parent(root_mnt))
 		goto out4; /* not attached */
 	root_mp = root_mnt->mnt_mp;
-	t if (new.mnt->mnt_root != new.dentry) goto out4; /* not a mountpoint */
+	if (new.mnt->mnt_root != new.dentry)
+		goto out4; /* not a mountpoint */
 	if (!mnt_has_parent(new_mnt))
 		goto out4; /* not attached */
 	/* make sure we can reach put_old from new_root */
