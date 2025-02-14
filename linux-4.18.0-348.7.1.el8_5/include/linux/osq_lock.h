@@ -7,9 +7,10 @@
  * lock implementations (mutex, rwsem, etc).
  */
 struct optimistic_spin_node {
-	struct optimistic_spin_node *next, *prev;
-	int locked; /* 1 if lock acquired */
-	int cpu; /* encoded CPU # + 1 value */
+	struct optimistic_spin_node *next,
+		*prev; // next 和 prev 指针可以组成一个双向链表
+	int locked; /* 1 if lock acquired 表示加锁状态。 */
+	int cpu; /* encoded CPU # + 1 value 用于重新编码CPU编号，表示该node在那个CPU上。 */
 };
 
 struct optimistic_spin_queue {
@@ -23,10 +24,14 @@ struct optimistic_spin_queue {
 #define OSQ_UNLOCKED_VAL (0)
 
 /* Init macro and function. */
-#define OSQ_LOCK_UNLOCKED { ATOMIC_INIT(OSQ_UNLOCKED_VAL) }
+#define OSQ_LOCK_UNLOCKED                                                      \
+	{                                                                      \
+		ATOMIC_INIT(OSQ_UNLOCKED_VAL)                                  \
+	}
 
 static inline void osq_lock_init(struct optimistic_spin_queue *lock)
 {
+	// 把队列 tail 设置为 OSQ_UNLOCKED_VAL，即 0。
 	atomic_set(&lock->tail, OSQ_UNLOCKED_VAL);
 }
 
