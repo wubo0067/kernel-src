@@ -68,7 +68,7 @@ static __always_inline int queued_spin_is_contended(struct qspinlock *lock)
 static __always_inline int queued_spin_trylock(struct qspinlock *lock)
 {
 	if (!atomic_read(&lock->val) &&
-	   (atomic_cmpxchg_acquire(&lock->val, 0, _Q_LOCKED_VAL) == 0))
+	    (atomic_cmpxchg_acquire(&lock->val, 0, _Q_LOCKED_VAL) == 0))
 		return 1;
 	return 0;
 }
@@ -82,10 +82,12 @@ extern void queued_spin_lock_slowpath(struct qspinlock *lock, u32 val);
 static __always_inline void queued_spin_lock(struct qspinlock *lock)
 {
 	u32 val;
-
+	//和当前 lock->val 的值进行比较，如果是 0，则将其设置为_Q_LOCKED_VAL，表示获取锁成功
 	val = atomic_cmpxchg_acquire(&lock->val, 0, _Q_LOCKED_VAL);
+	// 判断原始值是否为 0，如果是 0，则表示获取锁成功
 	if (likely(val == 0))
 		return;
+	// 否则，调用 queued_spin_lock_slowpath 函数进行获取锁
 	queued_spin_lock_slowpath(lock, val);
 }
 
@@ -114,11 +116,11 @@ static __always_inline bool virt_spin_lock(struct qspinlock *lock)
  * Remapping spinlock architecture specific functions to the corresponding
  * queued spinlock functions.
  */
-#define arch_spin_is_locked(l)		queued_spin_is_locked(l)
-#define arch_spin_is_contended(l)	queued_spin_is_contended(l)
-#define arch_spin_value_unlocked(l)	queued_spin_value_unlocked(l)
-#define arch_spin_lock(l)		queued_spin_lock(l)
-#define arch_spin_trylock(l)		queued_spin_trylock(l)
-#define arch_spin_unlock(l)		queued_spin_unlock(l)
+#define arch_spin_is_locked(l) queued_spin_is_locked(l)
+#define arch_spin_is_contended(l) queued_spin_is_contended(l)
+#define arch_spin_value_unlocked(l) queued_spin_value_unlocked(l)
+#define arch_spin_lock(l) queued_spin_lock(l)
+#define arch_spin_trylock(l) queued_spin_trylock(l)
+#define arch_spin_unlock(l) queued_spin_unlock(l)
 
 #endif /* __ASM_GENERIC_QSPINLOCK_H */

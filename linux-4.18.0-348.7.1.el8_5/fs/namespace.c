@@ -2283,7 +2283,7 @@ static int do_change_type(struct path *path, int ms_flags)
 	type = flags_to_propagation_type(ms_flags);
 	if (!type)
 		return -EINVAL;
-
+	// 获取命名空间锁，用于同步命名空间相关的操作
 	namespace_lock();
 	if (type == MS_SHARED) {
 		err = invent_group_ids(mnt, recurse);
@@ -2292,7 +2292,9 @@ static int do_change_type(struct path *path, int ms_flags)
 	}
 
 	lock_mount_hash();
+	// 如果设置了 MS_REC（递归标志）,会遍历所有子挂载点并调用
 	for (m = mnt; m; m = (recurse ? next_mnt(m, mnt) : NULL))
+		// 修改单个挂载点 mnt 的传播类型
 		change_mnt_propagation(m, type);
 	unlock_mount_hash();
 

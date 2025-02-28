@@ -43,7 +43,8 @@ static struct mount *get_peer_under_root(struct mount *mnt,
 
 	do {
 		/* Check the namespace first for optimization */
-		if (m->mnt_ns == ns && is_path_reachable(m, m->mnt.mnt_root, root))
+		if (m->mnt_ns == ns &&
+		    is_path_reachable(m, m->mnt.mnt_root, root))
 			return m;
 
 		m = next_peer(m);
@@ -71,6 +72,11 @@ int get_dominating_id(struct mount *mnt, const struct path *root)
 	return 0;
 }
 
+/*
+将挂载点转换为从属类型的核心逻辑
+如果挂载点没有共享 (mnt_share 为空)，则处理简单
+如果挂载点有共享，则需要找到一个适合的主挂载点，这就是问题发生的地方
+*/
 static int do_make_slave(struct mount *mnt)
 {
 	struct mount *master, *slave_mnt;
@@ -87,14 +93,32 @@ static int do_make_slave(struct mount *mnt)
 		if (!master) { // 没有主挂载点，解除所有从属关系
 			struct list_head *p = &mnt->mnt_slave_list;
 			while (!list_empty(p)) {
-				slave_mnt = list_first_entry(p,
-						struct mount, mnt_slave);
+				slave_mnt = list_first_entry(p, struct mount,
+							     mnt_slave);
 				list_del_init(&slave_mnt->mnt_slave);
 				slave_mnt->mnt_master = NULL;
 			}
 			return 0;
 		}
 	} else {
+		/*
+		系统中存在三个共享挂载点，组成一个共享组：
+		挂载点 A：/mnt/shared/A
+		挂载点 B：/mnt/shared/B
+		挂载点 C：/mnt/shared/C
+
+		1. 控制挂载事件的传播方向
+		从共享变为从属，挂载点 B 的挂载事件不再传播到共享组的其他挂载点。
+		挂载点 B 仍然可以接收主挂载点 C 的挂载事件，实现单向传播。
+
+		2. 实现挂载点的隔离与依赖
+		隔离：防止自身的挂载事件影响其他挂载点，增强系统的稳定性和安全性。
+		依赖：仍然能继承主挂载点的挂载变化，确保必要的功能正常运行。
+
+		3. 符合特定的应用需求
+		在容器化环境或多租户系统中，不同的应用可能需要不同的挂载传播策略。
+		将挂载点设置为从属，可以满足应用对挂载事件传播的特定要求。
+		*/
 		struct mount *m;
 		// 将当前挂载点设置为从属关系，寻找一个共享的“主挂载点”
 		/*
@@ -102,21 +126,32 @@ static int do_make_slave(struct mount *mnt)
 		 * same root dentry. If none is available then
 		 * slave it to anything that is available.
 		 */
+		/*
+		该函数通过遍历 mnt->mnt_share 链表获取下一个对等挂载点。
+		若链表被破坏（如指针指向自身或其他无效节点），会导致死循环。
+		*/
+		// 这个循环假设 mnt_share 链表中的所有挂载点形成一个环，终止条件是遍历回到起点 mnt
+		// 或者 mnt->mnt_share 是个超大的共享组
 		for (m = master = next_peer(mnt); m != mnt; m = next_peer(m)) {
+			// 寻找一个与 mnt 有相同根目录（mnt_root）的对等挂载点，作为新的主挂载点（master）
 			if (m->mnt.mnt_root == mnt->mnt.mnt_root) {
 				master = m;
 				break;
 			}
 		}
+		// 从共享组链表中删除
 		list_del_init(&mnt->mnt_share);
+		// 清除共享组 ID
 		mnt->mnt_group_id = 0;
+		// 清除共享标志
 		CLEAR_MNT_SHARED(mnt);
 	}
-	list_for_each_entry(slave_mnt, &mnt->mnt_slave_list, mnt_slave)
+	list_for_each_entry (slave_mnt, &mnt->mnt_slave_list, mnt_slave)
 		slave_mnt->mnt_master = master;
 	list_move(&mnt->mnt_slave, &master->mnt_slave_list);
 	list_splice(&mnt->mnt_slave_list, master->mnt_slave_list.prev);
 	INIT_LIST_HEAD(&mnt->mnt_slave_list);
+	// 设置主挂载点为选定的挂载点
 	mnt->mnt_master = master;
 	return 0;
 }
@@ -127,9 +162,11 @@ static int do_make_slave(struct mount *mnt)
 void change_mnt_propagation(struct mount *mnt, int type)
 {
 	if (type == MS_SHARED) {
+		// 如果是 MS_SHARED 类型，直接设置为共享
 		set_mnt_shared(mnt);
 		return;
 	}
+	// 其他情况先调用 do_make_slave 转为从属类型
 	do_make_slave(mnt);
 	if (type != MS_SLAVE) {
 		list_del_init(&mnt->mnt_slave);
@@ -151,8 +188,7 @@ void change_mnt_propagation(struct mount *mnt, int type)
  * vfsmount found while iterating with propagation_next() is
  * a peer of one we'd found earlier.
  */
-static struct mount *propagation_next(struct mount *m,
-					 struct mount *origin)
+static struct mount *propagation_next(struct mount *m, struct mount *origin)
 {
 	/* are there any slaves of this mount? */
 	if (!IS_MNT_NEW(m) && !list_empty(&m->mnt_slave_list))
@@ -173,7 +209,7 @@ static struct mount *propagation_next(struct mount *m,
 }
 
 static struct mount *skip_propagation_subtree(struct mount *m,
-						struct mount *origin)
+					      struct mount *origin)
 {
 	/*
 	 * Advance m such that propagation_next will not return
@@ -242,7 +278,7 @@ static int propagate_one(struct mount *m)
 	} else {
 		struct mount *n, *p;
 		bool done;
-		for (n = m; ; n = p) {
+		for (n = m;; n = p) {
 			p = n->mnt_master;
 			if (p == dest_master || IS_MNT_MARKED(p))
 				break;
@@ -292,7 +328,7 @@ static int propagate_one(struct mount *m)
  * @tree_list : list of heads of trees to be attached.
  */
 int propagate_mnt(struct mount *dest_mnt, struct mountpoint *dest_mp,
-		    struct mount *source_mnt, struct hlist_head *tree_list)
+		  struct mount *source_mnt, struct hlist_head *tree_list)
 {
 	struct mount *m, *n;
 	int ret = 0;
@@ -318,7 +354,7 @@ int propagate_mnt(struct mount *dest_mnt, struct mountpoint *dest_mp,
 
 	/* all slave groups */
 	for (m = next_group(dest_mnt, dest_mnt); m;
-			m = next_group(m, dest_mnt)) {
+	     m = next_group(m, dest_mnt)) {
 		/* everything in that slave group */
 		n = m;
 		do {
@@ -330,7 +366,7 @@ int propagate_mnt(struct mount *dest_mnt, struct mountpoint *dest_mp,
 	}
 out:
 	read_seqlock_excl(&mount_lock);
-	hlist_for_each_entry(n, tree_list, mnt_hash) {
+	hlist_for_each_entry (n, tree_list, mnt_hash) {
 		m = n->mnt_parent;
 		if (m->mnt_master != dest_mnt->mnt_master)
 			CLEAR_MNT_MARK(m->mnt_master);
@@ -389,7 +425,7 @@ int propagate_mount_busy(struct mount *mnt, int refcnt)
 		return 1;
 
 	for (m = propagation_next(parent, parent); m;
-	     		m = propagation_next(m, parent)) {
+	     m = propagation_next(m, parent)) {
 		int count = 1;
 		child = __lookup_mnt(&m->mnt, mnt->mnt_mountpoint);
 		if (!child)
@@ -423,7 +459,7 @@ void propagate_mount_unlock(struct mount *mnt)
 	BUG_ON(parent == mnt);
 
 	for (m = propagation_next(parent, parent); m;
-			m = propagation_next(m, parent)) {
+	     m = propagation_next(m, parent)) {
 		child = __lookup_mnt(&m->mnt, mnt->mnt_mountpoint);
 		if (child)
 			child->mnt.mnt_flags &= ~MNT_LOCKED;
@@ -443,8 +479,7 @@ static void umount_one(struct mount *mnt, struct list_head *to_umount)
  * NOTE: unmounting 'mnt' naturally propagates to all other mounts its
  * parent propagates to.
  */
-static bool __propagate_umount(struct mount *mnt,
-			       struct list_head *to_umount,
+static bool __propagate_umount(struct mount *mnt, struct list_head *to_umount,
 			       struct list_head *to_restore)
 {
 	bool progress = false;
@@ -460,7 +495,7 @@ static bool __propagate_umount(struct mount *mnt,
 	/* Verify topper is the only grandchild that has not been
 	 * speculatively unmounted.
 	 */
-	list_for_each_entry(child, &mnt->mnt_mounts, mnt_child) {
+	list_for_each_entry (child, &mnt->mnt_mounts, mnt_child) {
 		if (child->mnt_mountpoint == mnt->mnt.mnt_root)
 			continue;
 		if (!list_empty(&child->mnt_umounting) && IS_MNT_MARKED(child))
@@ -477,7 +512,7 @@ static bool __propagate_umount(struct mount *mnt,
 	if (!IS_MNT_LOCKED(mnt)) {
 		umount_one(mnt, to_umount);
 	} else {
-children:
+	children:
 		list_move_tail(&mnt->mnt_umounting, to_restore);
 	}
 out:
@@ -488,11 +523,13 @@ static void umount_list(struct list_head *to_umount,
 			struct list_head *to_restore)
 {
 	struct mount *mnt, *child, *tmp;
-	list_for_each_entry(mnt, to_umount, mnt_list) {
-		list_for_each_entry_safe(child, tmp, &mnt->mnt_mounts, mnt_child) {
+	list_for_each_entry (mnt, to_umount, mnt_list) {
+		list_for_each_entry_safe (child, tmp, &mnt->mnt_mounts,
+					  mnt_child) {
 			/* topper? */
 			if (child->mnt_mountpoint == mnt->mnt.mnt_root)
-				list_move_tail(&child->mnt_umounting, to_restore);
+				list_move_tail(&child->mnt_umounting,
+					       to_restore);
 			else
 				umount_one(child, to_umount);
 		}
@@ -546,7 +583,7 @@ int propagate_umount(struct list_head *list)
 	LIST_HEAD(visited);
 
 	/* Find candidates for unmounting */
-	list_for_each_entry_reverse(mnt, list, mnt_list) {
+	list_for_each_entry_reverse (mnt, list, mnt_list) {
 		struct mount *parent = mnt->mnt_parent;
 		struct mount *m;
 
@@ -562,8 +599,8 @@ int propagate_umount(struct list_head *list)
 		list_add_tail(&mnt->mnt_umounting, &visited);
 		for (m = propagation_next(parent, parent); m;
 		     m = propagation_next(m, parent)) {
-			struct mount *child = __lookup_mnt(&m->mnt,
-							   mnt->mnt_mountpoint);
+			struct mount *child =
+				__lookup_mnt(&m->mnt, mnt->mnt_mountpoint);
 			if (!child)
 				continue;
 
@@ -589,8 +626,8 @@ int propagate_umount(struct list_head *list)
 			}
 
 			/* Check the child and parents while progress is made */
-			while (__propagate_umount(child,
-						  &to_umount, &to_restore)) {
+			while (__propagate_umount(child, &to_umount,
+						  &to_restore)) {
 				/* Is the parent a umount candidate? */
 				child = child->mnt_parent;
 				if (list_empty(&child->mnt_umounting))

@@ -624,7 +624,7 @@ static inline bool rwsem_can_spin_on_owner(struct rw_semaphore *sem)
 	bool ret = true;
 
 	if (need_resched()) {
-		// 如果需要调度就返回 false
+		// 如果自己会被调度就返回 false，自己都要被调度出去还自旋个锤子
 		lockevent_inc(rwsem_opt_fail);
 		return false;
 	}
@@ -641,7 +641,10 @@ static inline bool rwsem_can_spin_on_owner(struct rw_semaphore *sem)
 	// ** 谁设置 RWSEM_NONSPINNABLE 这个状态位
 	if ((flags & RWSEM_NONSPINNABLE) ||
 	    (owner && !(flags & RWSEM_READER_OWNED) && !owner_on_cpu(owner)))
-		// 如果锁不可自旋，或者拥有者不在 cpu 上，就返回 false
+		/*
+		乐观自旋的理想情况是，锁的持有者在 cpu 上，执行完然后释放。
+		1：如果锁的 owner 都不在 cpu 上，说明它都调度出去，就不需要自旋等待了，它都不在家，等个锤子
+		*/
 		ret = false;
 	rcu_read_unlock();
 	preempt_enable();
@@ -1085,6 +1088,7 @@ static struct rw_semaphore *rwsem_down_write_slowpath(struct rw_semaphore *sem,
 	DEFINE_WAKE_Q(wake_q);
 
 	/* do optimistic spinning and steal lock if possible */
+	// 尝试进入 mid-path，也就是进入乐观自旋
 	if (rwsem_can_spin_on_owner(sem) && rwsem_optimistic_spin(sem)) {
 		/* rwsem_optimistic_spin() implies ACQUIRE on success */
 		return sem;
