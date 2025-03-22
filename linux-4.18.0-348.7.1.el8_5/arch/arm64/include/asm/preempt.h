@@ -4,8 +4,8 @@
 
 #include <linux/thread_info.h>
 
-#define PREEMPT_NEED_RESCHED	BIT(32)
-#define PREEMPT_ENABLED	(PREEMPT_NEED_RESCHED)
+#define PREEMPT_NEED_RESCHED BIT(32)
+#define PREEMPT_ENABLED (PREEMPT_NEED_RESCHED)
 
 static inline int preempt_count(void)
 {
@@ -18,13 +18,15 @@ static inline void preempt_count_set(u64 pc)
 	WRITE_ONCE(current_thread_info()->preempt.count, pc);
 }
 
-#define init_task_preempt_count(p) do { \
-	task_thread_info(p)->preempt_count = FORK_PREEMPT_COUNT; \
-} while (0)
+#define init_task_preempt_count(p)                                             \
+	do {                                                                   \
+		task_thread_info(p)->preempt_count = FORK_PREEMPT_COUNT;       \
+	} while (0)
 
-#define init_idle_preempt_count(p, cpu) do { \
-	task_thread_info(p)->preempt_count = PREEMPT_ENABLED; \
-} while (0)
+#define init_idle_preempt_count(p, cpu)                                        \
+	do {                                                                   \
+		task_thread_info(p)->preempt_count = PREEMPT_ENABLED;          \
+	} while (0)
 
 static inline void set_preempt_need_resched(void)
 {
@@ -76,6 +78,7 @@ static inline bool __preempt_count_dec_and_test(void)
 static inline bool should_resched(int preempt_offset)
 {
 	u64 pc = READ_ONCE(current_thread_info()->preempt_count);
+	// 只有 pc 等于 0 的时候表明当前的 task 是可以被抢占的
 	return pc == preempt_offset;
 }
 

@@ -76,7 +76,7 @@ static __always_inline bool __preempt_count_dec_and_test(void)
  */
 static __always_inline bool should_resched(int preempt_offset)
 {
-	// 判断当前cpu的抢占计数，抢占计数器用于标记当前线程是否处于不可抢占的状态。
+	// 判断当前 cpu 的抢占计数，抢占计数器用于标记当前线程是否处于不可抢占的状态。
 	// 通常，抢占计数器的值为 0 表示可以抢占，而非零值表示禁止抢占
 	// tif_need_resched 用来检查当前任务是否需要进行调度
 	return unlikely(preempt_count() == preempt_offset &&
