@@ -622,6 +622,7 @@ static inline bool owner_on_cpu(struct task_struct *owner)
 	return owner->on_cpu && !vcpu_is_preempted(task_cpu(owner));
 }
 
+// 检该函数用于判断当前尝试获取写锁的线程（任务）是否可以在锁的所有者上进行乐观自旋
 static inline bool rwsem_can_spin_on_owner(struct rw_semaphore *sem)
 {
 	struct task_struct *owner;
@@ -629,23 +630,33 @@ static inline bool rwsem_can_spin_on_owner(struct rw_semaphore *sem)
 	bool ret = true;
 
 	if (need_resched()) {
+		// 如果自己会被调度就返回 false，自己都要被调度出去还自旋个锤子
 		lockevent_inc(rwsem_opt_fail);
 		return false;
 	}
-
+	// 禁用抢占、获取 rcu 读锁
 	preempt_disable();
 	rcu_read_lock();
+	// 获取当前锁的拥有者和标志位
 	owner = rwsem_owner_flags(sem, &flags);
 	/*
 	 * Don't check the read-owner as the entry may be stale.
+	 * 不要检查 owner 字段以判断读者是否持有锁，因为该信息可能已经过期或不准确。
+	 * 避免依赖 owner 字段来做出决策，以防止错误的判断导致不正确的行为。
 	 */
+	// ** 谁设置 RWSEM_NONSPINNABLE 这个状态位
 	if ((flags & RWSEM_NONSPINNABLE) ||
 	    (owner && !(flags & RWSEM_READER_OWNED) && !owner_on_cpu(owner)))
+		/*
+		乐观自旋的理想情况是，锁的持有者在 cpu 上，执行完然后释放。
+		1：如果锁的 owner 都不在 cpu 上，说明它都调度出去，就不需要自旋等待了，它都不在家，等个锤子
+		*/
 		ret = false;
 	rcu_read_unlock();
 	preempt_enable();
 
 	lockevent_cond_inc(rwsem_opt_fail, !ret);
+	// 返回 true
 	return ret;
 }
 
@@ -682,23 +693,44 @@ static inline enum owner_state rwsem_owner_state(struct task_struct *owner,
 
 static noinline enum owner_state rwsem_spin_on_owner(struct rw_semaphore *sem)
 {
+	// owner: 当前信号量持有者的 task_struct 指针
+	// new: 用于检查信号量持有者是否发生变化
 	struct task_struct *new, *owner;
+	// 存储信号量的标志位
 	unsigned long flags, new_flags;
+	// 存储持有者状态
 	enum owner_state state;
 
+	// 通过 rwsem_owner_flags 获取当前持有者和标志位
 	owner = rwsem_owner_flags(sem, &flags);
+	// 通过 rwsem_owner_state 获取持有者状态
 	state = rwsem_owner_state(owner, flags);
 	if (state != OWNER_WRITER)
+		/*
+		如果是 OWNER_NULL：表示没有人持有锁，可以直接去获取锁，不需要自旋等待
+		如果是 OWNER_READER：表示是读者持有，其他读者可以直接共享读取，不需要自旋
+		如果是 OWNER_NONSPINNABLE：表示当前情况不适合自旋，应该直接进入睡眠状态
+		*/
 		return state;
 
 	rcu_read_lock();
+	/*
+	写者独占锁，其他线程必须等待
+	通过自旋等待可以避免立即进入睡眠状态
+	在循环中监控写者状态，等待它释放锁
+	如果写者很快释放锁，自旋等待比进入睡眠更高效
+	*/
 	for (;;) {
 		/*
-		 * When a waiting writer set the handoff flag, it may spin
-		 * on the owner as well. Once that writer acquires the lock,
-		 * we can spin on it. So we don't need to quit even when the
-		 * handoff bit is set.
-		 */
+			* When a waiting writer set the handoff flag, it may spin
+			* on the owner as well. Once that writer acquires the lock,
+			* we can spin on it. So we don't need to quit even when the
+			* handoff bit is set.
+			*/
+		/*
+		检查读写信号量（rw_semaphore）的拥有者（owner）是否发生了变化。
+		如果拥有者发生了变化，或者拥有者的标志位（flags）发生了变化，则跳出无限循环。
+		*/
 		new = rwsem_owner_flags(sem, &new_flags);
 		if ((new != owner) || (new_flags != flags)) {
 			state = rwsem_owner_state(new, new_flags);
@@ -714,6 +746,8 @@ static noinline enum owner_state rwsem_spin_on_owner(struct rw_semaphore *sem)
 		barrier();
 
 		if (need_resched() || !owner_on_cpu(owner)) {
+			// 检查是否需要调度或持有者不在 CPU 上
+			// 如果需要调度或持有者不在 CPU 上，设置为不可自旋状态
 			state = OWNER_NONSPINNABLE;
 			break;
 		}
@@ -750,16 +784,24 @@ static inline u64 rwsem_rspin_threshold(struct rw_semaphore *sem)
 	return sched_clock() + delta;
 }
 
+// 尝试通过乐观自旋获取写锁。
 static bool rwsem_optimistic_spin(struct rw_semaphore *sem)
 {
-	bool taken = false;
-	int prev_owner_state = OWNER_NULL;
-	int loop = 0;
-	u64 rspin_threshold = 0;
-
+	bool taken = false; // 是否成功获取锁
+	int prev_owner_state = OWNER_NULL; // 上一次检查时的 owner 状态
+	int loop = 0; // 循环计数器
+	u64 rspin_threshold = 0; // 读者自旋的时间阈值
+	// 禁用抢占
 	preempt_disable();
 
 	/* sem->wait_lock should not be held when doing optimistic spinning */
+	/* 尝试将当前任务加入 OSQ 队列
+	   如果加入失败 (返回 false)，直接退出优化自旋
+   	    1. 当前 CPU 已经有其他任务在自旋等待
+		2. 队列已满或系统配置不允许更多自旋等待
+		3. 系统处于不适合自旋的状态
+	   如果加入成功 (返回 true)，继续执行后续的自旋等待代码
+	*/
 	if (!osq_lock(&sem->osq))
 		goto done;
 
@@ -768,26 +810,31 @@ static bool rwsem_optimistic_spin(struct rw_semaphore *sem)
 	 * lock whenever the owner changes. Spinning will be stopped when:
 	 *  1) the owning writer isn't running; or
 	 *  2) readers own the lock and spinning time has exceeded limit.
+	 * 开始自旋
 	 */
 	for (;;) {
 		enum owner_state owner_state;
-
+		// 在自旋过程中，检查锁的拥有者状态
 		owner_state = rwsem_spin_on_owner(sem);
 		if (!(owner_state & OWNER_SPINNABLE))
+			// 如果 owner 不可自旋，退出循环
 			break;
 
 		/*
 		 * Try to acquire the lock
+		 * 如果锁的拥有者状态允许自旋，尝试获取写锁
 		 */
 		taken = rwsem_try_write_lock_unqueued(sem);
 
 		if (taken)
+			// 如果获取成功，退出循环
 			break;
 
 		/*
 		 * Time-based reader-owned rwsem optimistic spinning
 		 */
 		if (owner_state == OWNER_READER) {
+			// 如果锁被读者拥有，检查自旋时间阈值，超过阈值则停止自旋。
 			/*
 			 * Re-initialize rspin_threshold every time when
 			 * the owner state changes from non-reader to reader.
@@ -808,6 +855,11 @@ static bool rwsem_optimistic_spin(struct rw_semaphore *sem)
 			 * as to reduce the average latency between the times
 			 * when the lock becomes free and when the spinner
 			 * is ready to do a trylock.
+			 * 每 16 次循环检查一次是否超时
+			 * 结果为 0 时表示 loop 计数是 16 的倍数
+			 * sched_clock() 获取当前时间
+			 * 与 rspin_threshold(自旋阈值) 比较，如果超过阈值，说明自旋时间太长了
+			 * 这里是引入了读乐观自旋的超时机制，防止无效而且长时间自旋
 			 */
 			else if (!(++loop & 0xf) &&
 				 (sched_clock() > rspin_threshold)) {
@@ -1042,6 +1094,7 @@ static struct rw_semaphore *rwsem_down_write_slowpath(struct rw_semaphore *sem,
 	DEFINE_WAKE_Q(wake_q);
 
 	/* do optimistic spinning and steal lock if possible */
+	// 尝试进入 mid-path，也就是进入乐观自旋
 	if (rwsem_can_spin_on_owner(sem) && rwsem_optimistic_spin(sem)) {
 		/* rwsem_optimistic_spin() implies ACQUIRE on success */
 		return sem;
