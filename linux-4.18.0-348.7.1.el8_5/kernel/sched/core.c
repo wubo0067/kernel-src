@@ -3779,7 +3779,8 @@ static inline struct task_struct *pick_next_task(struct rq *rq,
 	if (likely((prev->sched_class == &idle_sched_class ||
 		    prev->sched_class == &fair_sched_class) &&
 		   rq->nr_running == rq->cfs.h_nr_running)) {
-		// 如果运行队列中进程的数量等于 cfs 运行队列中进程的数量
+		// 如果运行队列中进程的数量等于 cfs 运行队列中进程的数量，
+		// 那就是只有cfs类型的被调度ts
 		p = pick_next_task_fair(rq, prev, rf);
 		if (unlikely(p == RETRY_TASK))
 			goto restart;

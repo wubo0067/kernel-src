@@ -99,7 +99,7 @@ int __weak arch_asym_cpu_priority(int cpu)
  *
  * (default: ~20%)
  */
-#define fits_capacity(cap, max) ((cap) * 1280 < (max) * 1024)
+#define fits_capacity(cap, max) ((cap)*1280 < (max)*1024)
 
 #endif
 
@@ -169,7 +169,7 @@ static void update_sysctl(void)
 {
 	unsigned int factor = get_update_sysctl_factor();
 
-#define SET_SYSCTL(name) (sysctl_##name = (factor) * normalized_sysctl_##name)
+#define SET_SYSCTL(name) (sysctl_##name = (factor)*normalized_sysctl_##name)
 	SET_SYSCTL(sched_min_granularity);
 	SET_SYSCTL(sched_latency);
 	SET_SYSCTL(sched_wakeup_granularity);
@@ -1968,16 +1968,16 @@ static void task_numa_find_cpu(struct task_numa_env *env, long taskimp,
 static int task_numa_migrate(struct task_struct *p)
 {
 	struct task_numa_env env = {
-		.p = p,
+		.p = p, // 待迁移的任务
 
-		.src_cpu = task_cpu(p),
-		.src_nid = task_node(p),
+		.src_cpu = task_cpu(p), // 任务当前运行的 CPU
+		.src_nid = task_node(p), // 任务当前的 NUMA 节点
 
-		.imbalance_pct = 112,
+		.imbalance_pct = 112, // 默认不平衡百分比为 112%
 
-		.best_task = NULL,
-		.best_imp = 0,
-		.best_cpu = -1,
+		.best_task = NULL, // 最佳待交换任务初始为空
+		.best_imp = 0, // 最佳改进值初始为 0
+		.best_cpu = -1, // 最佳目标 CPU 初始为 -1
 	};
 	unsigned long taskweight, groupweight;
 	struct sched_domain *sd;
@@ -2011,16 +2011,24 @@ static int task_numa_migrate(struct task_struct *p)
 		return -EINVAL;
 	}
 
+	// 获取任务的首选 NUMA 节点
 	env.dst_nid = p->numa_preferred_nid;
+	// 计算源节点和目标节点之间的距离
 	dist = env.dist = node_distance(env.src_nid, env.dst_nid);
+	// 计算任务在源节点的权重
 	taskweight = task_weight(p, env.src_nid, dist);
+	// 计算任务组在源节点的权
 	groupweight = group_weight(p, env.src_nid, dist);
+	// 更新源节点的 NUMA 统计信息
 	update_numa_stats(&env, &env.src_stats, env.src_nid, false);
+	// 计算迁移到目标节点的权重改进
 	taskimp = task_weight(p, env.dst_nid, dist) - taskweight;
 	groupimp = group_weight(p, env.dst_nid, dist) - groupweight;
+	// 更新目标节点的 NUMA 统计信息
 	update_numa_stats(&env, &env.dst_stats, env.dst_nid, true);
 
 	/* Try to find a spot on the preferred nid. */
+	// 首先尝试在首选节点上找到合适的 CPU
 	task_numa_find_cpu(&env, taskimp, groupimp);
 
 	/*
@@ -2030,6 +2038,11 @@ static int task_numa_migrate(struct task_struct *p)
 	 *   multiple NUMA nodes; in order to better consolidate the group,
 	 *   we need to check other locations.
 	 */
+	/*
+     * 在以下情况下查看其他节点:
+     * 1. 首选节点没有可用空间
+     * 2. 任务是跨多个 NUMA 节点的组的一部分，需要更好地整合该组
+     */
 	ng = deref_curr_numa_group(p);
 	if (env.best_cpu == -1 || (ng && ng->active_nodes > 1)) {
 		for_each_online_node (nid) {
@@ -2050,6 +2063,7 @@ static int task_numa_migrate(struct task_struct *p)
 			if (taskimp < 0 && groupimp < 0)
 				continue;
 
+			// 更新环境并尝试在该节点找到CPU
 			env.dist = dist;
 			env.dst_nid = nid;
 			update_numa_stats(&env, &env.dst_stats, env.dst_nid,
@@ -2077,13 +2091,15 @@ static int task_numa_migrate(struct task_struct *p)
 	}
 
 	/* No better CPU than the current one was found. */
+	// 如果没找到更好的CPU,返回错误
 	if (env.best_cpu == -1) {
 		trace_sched_stick_numa(p, env.src_cpu, NULL, -1);
 		return -EAGAIN;
 	}
-
+	// 执行实际的迁移操作
 	best_rq = cpu_rq(env.best_cpu);
 	if (env.best_task == NULL) {
+		// 直接迁移到目标CPU
 		ret = migrate_task_to(p, env.best_cpu);
 		WRITE_ONCE(best_rq->numa_migrate_on, 0);
 		if (ret != 0)
@@ -2091,13 +2107,14 @@ static int task_numa_migrate(struct task_struct *p)
 					       env.best_cpu);
 		return ret;
 	}
-
+	// 与目标CPU上的任务进行交换
 	ret = migrate_swap(p, env.best_task, env.best_cpu, env.src_cpu);
 	WRITE_ONCE(best_rq->numa_migrate_on, 0);
 
 	if (ret != 0)
 		trace_sched_stick_numa(p, env.src_cpu, env.best_task,
 				       env.best_cpu);
+					   // 释放引用计数
 	put_task_struct(env.best_task);
 	return ret;
 }
@@ -2105,21 +2122,39 @@ static int task_numa_migrate(struct task_struct *p)
 /* Attempt to migrate a task to a CPU on the preferred node. */
 static void numa_migrate_preferred(struct task_struct *p)
 {
+	// 设置默认检查间隔为 1 秒 (HZ 表示 1 秒内的时钟 tick 数)
 	unsigned long interval = HZ;
 
 	/* This task has no NUMA fault statistics yet */
+	/* 检查任务是否有 NUMA 统计信息
+     * NUMA_NO_NODE(-1) 表示任务还没有首选的 NUMA 节点
+     * !p->numa_faults 表示任务还没有产生过 NUMA 访存故障
+     * 如果以上任一条件成立，说明任务太新，还没有足够的 NUMA 访问数据，直接返回
+     */
 	if (unlikely(p->numa_preferred_nid == NUMA_NO_NODE || !p->numa_faults))
 		return;
 
 	/* Periodically retry migrating the task to the preferred node */
+	/* 计算下次尝试迁移的时间间隔
+     * 将任务的 NUMA 扫描周期 (numa_scan_period) 除以 16，得到更短的检查间隔
+     * min() 确保间隔不会超过 1 秒
+     */
 	interval = min(interval, msecs_to_jiffies(p->numa_scan_period) / 16);
+	// 设置下次迁移重试时间点
 	p->numa_migrate_retry = jiffies + interval;
 
 	/* Success if task is already running on preferred CPU */
+	/* 如果任务已经在其首选节点上运行，无需迁移，直接返回
+     * task_node(p) 获取任务当前运行的节点
+     * p->numa_preferred_nid 是任务的首选 NUMA 节点
+     */
 	if (task_node(p) == p->numa_preferred_nid)
 		return;
 
 	/* Otherwise, try migrate to a CPU on the preferred node */
+	/* 如果任务不在首选节点上运行，尝试将其迁移到首选节点上的某个 CPU
+     * task_numa_migrate() 会处理具体的迁移工作
+     */
 	task_numa_migrate(p);
 }
 
@@ -8709,7 +8744,7 @@ static int idle_cpu_without(int cpu, struct task_struct *p)
 	if (rq->curr != rq->idle && rq->curr != p)
 		return 0;
 
-	/*
+		/*
 	 * rq->nr_running can't be used but an updated version without the
 	 * impact of p on cpu must be used instead. The updated nr_running
 	 * be computed and tested before calling idle_cpu_without().

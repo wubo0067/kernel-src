@@ -812,8 +812,8 @@ struct task_struct {
 
 	struct restart_block restart_block;
 
-	pid_t pid;
-	pid_t tgid;
+	pid_t pid;  // 进程 id，pid == tgid 那么就是主线程
+	pid_t tgid; // 线程组 id
 
 #if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_PPC64)
 	/* Canary value for the -fstack-protector GCC feature: */
