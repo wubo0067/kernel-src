@@ -3780,7 +3780,7 @@ static inline struct task_struct *pick_next_task(struct rq *rq,
 		    prev->sched_class == &fair_sched_class) &&
 		   rq->nr_running == rq->cfs.h_nr_running)) {
 		// 如果运行队列中进程的数量等于 cfs 运行队列中进程的数量，
-		// 那就是只有cfs类型的被调度ts
+		// 那就是只有 cfs 类型的被调度 ts
 		p = pick_next_task_fair(rq, prev, rf);
 		if (unlikely(p == RETRY_TASK))
 			goto restart;
@@ -6154,6 +6154,8 @@ int migrate_task_to(struct task_struct *p, int target_cpu)
 /*
  * Requeue a task on a given node and accurately track the number of NUMA
  * tasks on the runqueues
+ * sched_setnuma 函数用于设置任务的 NUMA（非统一内存访问）首选节点。
+ * 函数的参数包括一个指向任务结构体 task_struct 的指针 p 和一个节点 ID nid
  */
 void sched_setnuma(struct task_struct *p, int nid)
 {
@@ -6162,19 +6164,26 @@ void sched_setnuma(struct task_struct *p, int nid)
 	struct rq *rq;
 
 	rq = task_rq_lock(p, &rf);
+	// 判断任务是否在队列中
 	queued = task_on_rq_queued(p);
+	// 判断任务是否在运行
 	running = task_current(rq, p);
 
 	if (queued)
+		// 如果在队列中，就从队列中移除
 		dequeue_task(rq, p, DEQUEUE_SAVE);
 	if (running)
+		// 如果任务正在运行，函数调用 put_prev_task 保存当前任务的状态
 		put_prev_task(rq, p);
 
+	// 	函数将任务的 numa_preferred_nid 成员设置为传入的节点 ID nid
 	p->numa_preferred_nid = nid;
 
 	if (queued)
+		// 如果任务之前在运行队列中，函数调用 enqueue_task 将任务重新加入运行队列，并恢复其状态
 		enqueue_task(rq, p, ENQUEUE_RESTORE | ENQUEUE_NOCLOCK);
 	if (running)
+		// 如果任务之前正在运行，函数调用 set_next_task 设置任务为下一个要运行的任务
 		set_next_task(rq, p);
 	task_rq_unlock(rq, p, &rf);
 }

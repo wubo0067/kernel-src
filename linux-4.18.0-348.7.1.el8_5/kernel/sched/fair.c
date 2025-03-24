@@ -1121,34 +1121,47 @@ static unsigned int task_nr_scan_windows(struct task_struct *p)
 	 * by the PTE scanner and NUMA hinting faults should be trapped based
 	 * on resident pages
 	 */
+	// 扫描的 pages 数量
 	nr_scan_pages = sysctl_numa_balancing_scan_size << (20 - PAGE_SHIFT);
+	// 获得 task 的实际占用物理内存的 page 数量
 	rss = get_mm_rss(p->mm);
 	if (!rss)
 		rss = nr_scan_pages;
-
+	// rss 向上取整 nr_scan_pages 的倍数，单位是 page 数量
 	rss = round_up(rss, nr_scan_pages);
+	// 窗口时 rss 的 pages 数除以扫描的 pages 数，也就是有几个窗口
 	return rss / nr_scan_pages;
 }
 
 /* For sanitys sake, never scan more PTEs than MAX_SCAN_WINDOW MB/sec. */
 #define MAX_SCAN_WINDOW 2560
 
+/*
+task_scan_min 函数用于计算任务的最小扫描周期。
+该函数的参数是指向任务结构体 task_struct 的指针 p
+*/
 static unsigned int task_scan_min(struct task_struct *p)
 {
+	// 首先，函数通过 READ_ONCE 宏读取系统控制变量 sysctl_numa_balancing_scan_size 的值，
+	// 并将其赋值给变量 scan_size。这个变量表示 NUMA 平衡扫描的大小。
 	unsigned int scan_size = READ_ONCE(sysctl_numa_balancing_scan_size);
 	unsigned int scan, floor;
 	unsigned int windows = 1;
 
 	if (scan_size < MAX_SCAN_WINDOW)
 		windows = MAX_SCAN_WINDOW / scan_size;
+	// 最少，默认是 100 个窗口
+	// 降低 sysctl_numa_balancing_scan_size 这个值，floor 会变大，
+	// 提升 sysctl_numa_balancing_scan_size 这个值，floor 会变小
 	floor = 1000 / windows;
-
+	// 最小周期除以窗口数量，如果一个大型服务，windows 肯定很大，例如 click'ho
 	scan = sysctl_numa_balancing_scan_period_min / task_nr_scan_windows(p);
 	return max_t(unsigned int, floor, scan);
 }
 
 static unsigned int task_scan_start(struct task_struct *p)
 {
+	// smin 是窗口数量
 	unsigned long smin = task_scan_min(p);
 	unsigned long period = smin;
 	struct numa_group *ng;
@@ -1207,13 +1220,13 @@ static void account_numa_dequeue(struct rq *rq, struct task_struct *p)
 	rq->nr_preferred_running -= (p->numa_preferred_nid == task_node(p));
 }
 
-/* Shared or private faults. */
+/* Shared or private faults. 共享故障和私有故障 */
 #define NR_NUMA_HINT_FAULT_TYPES 2
 
-/* Memory and CPU locality */
+/* Memory and CPU locality 内存和 CPU 的故障统计 */
 #define NR_NUMA_HINT_FAULT_STATS (NR_NUMA_HINT_FAULT_TYPES * 2)
 
-/* Averaged statistics, and temporary buffers. */
+/* Averaged statistics, and temporary buffers. 平均统计和临时缓冲区 */
 #define NR_NUMA_HINT_FAULT_BUCKETS (NR_NUMA_HINT_FAULT_STATS * 2)
 
 pid_t task_numa_group_id(struct task_struct *p)
@@ -2095,7 +2108,7 @@ static int task_numa_migrate(struct task_struct *p)
 			if (taskimp < 0 && groupimp < 0)
 				continue;
 
-			// 更新环境并尝试在该节点找到CPU
+			// 更新环境并尝试在该节点找到 CPU
 			env.dist = dist;
 			env.dst_nid = nid;
 			update_numa_stats(&env, &env.dst_stats, env.dst_nid,
@@ -2123,7 +2136,7 @@ static int task_numa_migrate(struct task_struct *p)
 	}
 
 	/* No better CPU than the current one was found. */
-	// 如果没找到更好的CPU,返回错误
+	// 如果没找到更好的 CPU，返回错误
 	if (env.best_cpu == -1) {
 		trace_sched_stick_numa(p, env.src_cpu, NULL, -1);
 		return -EAGAIN;
@@ -2131,7 +2144,7 @@ static int task_numa_migrate(struct task_struct *p)
 	// 执行实际的迁移操作
 	best_rq = cpu_rq(env.best_cpu);
 	if (env.best_task == NULL) {
-		// 直接迁移到目标CPU
+		// 直接迁移到目标 CPU
 		ret = migrate_task_to(p, env.best_cpu);
 		WRITE_ONCE(best_rq->numa_migrate_on, 0);
 		if (ret != 0)
@@ -2139,14 +2152,14 @@ static int task_numa_migrate(struct task_struct *p)
 					       env.best_cpu);
 		return ret;
 	}
-	// 与目标CPU上的任务进行交换
+	// 与目标 CPU 上的任务进行交换
 	ret = migrate_swap(p, env.best_task, env.best_cpu, env.src_cpu);
 	WRITE_ONCE(best_rq->numa_migrate_on, 0);
 
 	if (ret != 0)
 		trace_sched_stick_numa(p, env.src_cpu, env.best_task,
 				       env.best_cpu);
-					   // 释放引用计数
+	// 释放引用计数
 	put_task_struct(env.best_task);
 	return ret;
 }
@@ -2154,7 +2167,8 @@ static int task_numa_migrate(struct task_struct *p)
 /* Attempt to migrate a task to a CPU on the preferred node. */
 static void numa_migrate_preferred(struct task_struct *p)
 {
-	// 设置默认检查间隔为 1 秒 (HZ 表示 1 秒内的时钟 tick 数)
+	// rhel 设置默认检查间隔为 1 秒 (HZ 表示 1 秒内的时钟 tick 数)
+	// 可 kylin 这里是 250，那么每个 jiffie 是 4 毫秒
 	unsigned long interval = HZ;
 
 	/* This task has no NUMA fault statistics yet */
@@ -2170,9 +2184,12 @@ static void numa_migrate_preferred(struct task_struct *p)
 	/* 计算下次尝试迁移的时间间隔
      * 将任务的 NUMA 扫描周期 (numa_scan_period) 除以 16，得到更短的检查间隔
      * min() 确保间隔不会超过 1 秒
+	 * p->numa_scan_period = sysctl_numa_balancing_scan_delay; 1 秒
+	 * 如果是 kylin 的 HZ=250 配置，interval = min(250, 250/16)
+	 * 如果是 rhel 的 HZ=1000 配置，interval = min(250, 1000/16)
      */
 	interval = min(interval, msecs_to_jiffies(p->numa_scan_period) / 16);
-	// 设置下次迁移重试时间点
+	// 设置下次迁移重试时间点，单位是 jiffes,
 	p->numa_migrate_retry = jiffies + interval;
 
 	/* Success if task is already running on preferred CPU */
@@ -2454,7 +2471,11 @@ static void task_numa_placement(struct task_struct *p)
 		group_lock = &ng->lock;
 		spin_lock_irq(group_lock);
 	}
-
+	/*
+	* 遍历所有 NUMA 节点：代码遍历系统中的所有 NUMA 节点，计算每个节点的内存访问错误数（faults）。
+	* 计算最大访问错误数：在遍历过程中，记录访问错误数最多的节点（max_nid）及其错误数（max_faults）。
+	* 更新任务的首选 NUMA 节点：如果找到的最大访问错误数节点与当前任务的首选 NUMA 节点不同，则更新任务的首选 NUMA 节点。
+	*/
 	/* Find the node with the highest number of faults */
 	for_each_online_node (nid) {
 		/* Keep track of the offsets in numa_faults array */
@@ -2462,6 +2483,7 @@ static void task_numa_placement(struct task_struct *p)
 		unsigned long faults = 0, group_faults = 0;
 		int priv;
 
+		// #define NR_NUMA_HINT_FAULT_TYPES 2  共享故障和私有故障
 		for (priv = 0; priv < NR_NUMA_HINT_FAULT_TYPES; priv++) {
 			long diff, f_diff, f_weight;
 
@@ -2694,25 +2716,31 @@ void task_numa_free(struct task_struct *p, bool final)
 
 /*
  * Got a PROT_NONE fault for a page on @node.
+ * mem_node：可能是 page 迁移前的 nodeid，也可能是迁移后的 nodeid
  */
 void task_numa_fault(int last_cpupid, int mem_node, int pages, int flags)
 {
-	struct task_struct *p = current;
-	bool migrated = flags & TNF_MIGRATED;
-	int cpu_node = task_node(current);
-	int local = !!(flags & TNF_FAULT_LOCAL);
+	struct task_struct *p = current; // 当前正在运行的任务。
+	bool migrated = flags & TNF_MIGRATED; // 标志是否发生了迁移
+	int cpu_node = task_node(current); // 当前任务所在的 NUMA 节点
+	int local = !!(flags & TNF_FAULT_LOCAL); // 标志是否是本地故障
 	struct numa_group *ng;
 	int priv;
 
 	if (!static_branch_likely(&sched_numa_balancing))
+		//检测 numa_balancing 是否开启，没有开启直接退出
 		return;
 
 	/* for example, ksmd faulting in a user's mm */
 	if (!p->mm)
+		// 内核线程的 mm 为空，直接返回
 		return;
 
 	/* Allocate buffer to track faults on a per-node basis */
 	if (unlikely(!p->numa_faults)) {
+		// 如果 task 的跟踪 numa 故障缓冲区还没有分配，则进行分配。
+		// nr_node_ids：系统 NUMA 节点的数量
+		// NR_NUMA_HINT_FAULT_BUCKETS：定义了 numa_faults 数组的 分区数量（即 4 个）。
 		int size = sizeof(*p->numa_faults) *
 			   NR_NUMA_HINT_FAULT_BUCKETS * nr_node_ids;
 
@@ -2730,10 +2758,13 @@ void task_numa_fault(int last_cpupid, int mem_node, int pages, int flags)
 	 * to be private if the accessing pid has not changed
 	 */
 	if (unlikely(last_cpupid == (-1 & LAST_CPUPID_MASK))) {
+		// 如果 last_cpupid 为特殊值，表示这是第一次访问，视为私有访问。
 		priv = 1;
 	} else {
+		// 检查 last_cpupid 是否与当前任务匹配，如果匹配，视为私有访问。
 		priv = cpupid_match_pid(p, last_cpupid);
 		if (!priv && !(flags & TNF_NO_GROUP))
+			// 如果不匹配且没有设置 TNF_NO_GROUP 标志，尝试将任务加入 NUMA 组
 			task_numa_group(p, last_cpupid, flags, &priv);
 	}
 
@@ -2747,14 +2778,24 @@ void task_numa_fault(int last_cpupid, int mem_node, int pages, int flags)
 	if (!priv && !local && ng && ng->active_nodes > 1 &&
 	    numa_is_active_node(cpu_node, ng) &&
 	    numa_is_active_node(mem_node, ng))
+		// 如果任务属于一个跨多个 NUMA 节点的组，并且故障发生在这些节点中，则将其视为本地故障
 		local = 1;
 
 	/*
 	 * Retry task to preferred node migration periodically, in case it
 	 * case it previously failed, or the scheduler moved us.
+	 * 即使页面已经迁移 (migrated=true)，任务本身可能仍然不在最优的 NUMA 节点上运行。
+	 * 后续的 task_numa_placement 和 numa_migrate_preferred 是针对任务调度位置的优化，而不是内存页的位置。
+	 * 系统需要定期重新评估任务的放置位置，因为：
+	 *   任务的内存访问模式可能随时间变化
+	 * 	 系统负载和资源状况也在不断变化
+	 *   调度器	可能因其他原因（如负载均衡）将任务移到了非优化的位置
 	 */
 	if (time_after(jiffies, p->numa_migrate_retry)) {
+		// numa_migrate_retry 是一个时间戳，用于控制尝试任务迁移的频率
+		// 计算任务的最佳 NUMA 节点。
 		task_numa_placement(p);
+		// 触发任务迁移
 		numa_migrate_preferred(p);
 	}
 
@@ -2840,8 +2881,21 @@ static void task_numa_work(struct callback_head *work)
 	p->node_stamp += 2 * TICK_NSEC;
 
 	start = mm->numa_scan_offset;
+	// pages 数量，256
+	/*
+	这行代码将 MB 为单位的值转换为页面数量
 	pages = sysctl_numa_balancing_scan_size;
+	20 代表 2^20，即 1048576，是 1MB 的字节数
+	PAGE_SHIFT 是页面大小的位移量，通常在 x86-64 系统上是 12(即 4KB 页面)
+	pages = pages * 2^(20-PAGE_SHIFT) ---- 除以 4k，其实就是减去那么多 bit 位
+	pages = 256 * 2^(20-12) = 256 * 256 = 65536 页
+	*/
 	pages <<= 20 - PAGE_SHIFT; /* MB in pages */
+	/*
+	将物理页面数量乘以 8，得到要扫描的虚拟地址空间范围
+	这意味着每次扫描将覆盖的虚拟地址空间是物理内存扫描量的 8 倍
+	在这个例子中，虚拟页面数量为：65536 * 8 = 524288 页
+	*/
 	virtpages = pages * 8; /* Scan up to this much virtual space */
 	if (!pages)
 		return;
@@ -2946,6 +3000,7 @@ void init_numa_balancing(unsigned long clone_flags, struct task_struct *p)
 	}
 	p->node_stamp = 0;
 	p->numa_scan_seq = mm ? mm->numa_scan_seq : 0;
+	// 这是第一次
 	p->numa_scan_period = sysctl_numa_balancing_scan_delay;
 	/* Protect against double add, see task_tick_numa and task_numa_work */
 	p->numa_work.next = &p->numa_work;
@@ -6106,7 +6161,7 @@ static int find_idlest_group_cpu(struct sched_group *group,
 	}
 
 	return shallowest_idle_cpu != -1 ? shallowest_idle_cpu :
-						 least_loaded_cpu;
+					   least_loaded_cpu;
 }
 
 static inline int find_idlest_cpu(struct sched_domain *sd,
@@ -11562,7 +11617,7 @@ int sched_trace_rq_cpu_capacity(struct rq *rq)
 		       SCHED_CAPACITY_SCALE
 #endif
 		       :
-			     -1;
+		       -1;
 }
 EXPORT_SYMBOL_GPL(sched_trace_rq_cpu_capacity);
 

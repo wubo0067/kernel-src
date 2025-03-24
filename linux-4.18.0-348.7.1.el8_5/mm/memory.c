@@ -4040,7 +4040,7 @@ static vm_fault_t do_numa_page(struct vm_fault *vmf)
 	// 实际执行页面迁移
 	migrated = migrate_misplaced_page(page, vma, target_nid);
 	if (migrated) {
-		// 如果迁移成功
+		// 如果迁移成功，设置为目标memory numa node id
 		page_nid = target_nid;
 		flags |= TNF_MIGRATED;
 	} else
