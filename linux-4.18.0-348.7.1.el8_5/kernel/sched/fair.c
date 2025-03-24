@@ -1414,14 +1414,28 @@ static inline unsigned long group_weight(struct task_struct *p, int nid,
 	return 1000 * faults / total_faults;
 }
 
+/*
+should_numa_migrate_memory 函数决定一个页面是否应该从源 NUMA 节点迁移到目标 NUMA 节点。
+这是 Linux 内核 NUMA（非统一内存访问）平衡机制的关键组成部分，下面是对其每一步的详细解析
+
+p: 发生 NUMA 访问错误的任务
+page: 被访问的页面
+src_nid: 页面当前所在的 NUMA 节点 ID
+dst_cpu: 任务当前运行的 CPU ID
+返回值：布尔值，表示是否应该迁移页面
+*/
 bool should_numa_migrate_memory(struct task_struct *p, struct page *page,
 				int src_nid, int dst_cpu)
 {
-	struct numa_group *ng = deref_curr_numa_group(p);
-	int dst_nid = cpu_to_node(dst_cpu);
+	struct numa_group *ng = deref_curr_numa_group(
+		p); // 获取任务的 NUMA 组（任务可能属于一个 NUMA 组，表示这些任务共享内存访问模式）
+	int dst_nid = cpu_to_node(
+		dst_cpu); // 通过 cpu_to_node 获取 CPU 所在的 NUMA 节点
 	int last_cpupid, this_cpupid;
 
+	// 计算当前的 CPU+PID 标识符
 	this_cpupid = cpu_pid_to_cpupid(dst_cpu, current->pid);
+	// 将页面的上一个 CPUPID 替换为当前值，并返回上一个值，用于跟踪页面的访问历史，交换并获取页面上次访问的 CPU+PID 标识符
 	last_cpupid = page_cpupid_xchg_last(page, this_cpupid);
 
 	/*
@@ -1429,6 +1443,11 @@ bool should_numa_migrate_memory(struct task_struct *p, struct page *page,
 	 * the lifetime of a task. The magic number 4 is based on waiting for
 	 * two full passes of the "multi-stage node selection" test that is
 	 * executed below.
+	 * 这是一个"快速路径"，允许在以下情况下立即迁移页面：
+	 * 任务还没有首选 NUMA 节点（numa_preferred_nid == NUMA_NO_NODE）或者
+	 * 任务处于生命周期的早期阶段（numa_scan_seq <= 4）
+	 * 页面是首次访问 (cpupid_pid_unset)，或者页面之前被同一进程访问 (私有页面)
+	 * !!! 该条件允许在以下情况下立即迁移内存：
 	 */
 	if ((p->numa_preferred_nid == NUMA_NO_NODE || p->numa_scan_seq <= 4) &&
 	    (cpupid_pid_unset(last_cpupid) || cpupid_match_pid(p, last_cpupid)))
@@ -1450,13 +1469,19 @@ bool should_numa_migrate_memory(struct task_struct *p, struct page *page,
 	 *
 	 * This quadric squishes small probabilities, making it less likely we
 	 * act on an unlikely task<->page relation.
+	 * 多阶段节点选择过滤器
 	 */
-	if (!cpupid_pid_unset(last_cpupid) &&
-	    cpupid_to_nid(last_cpupid) != dst_nid)
+	if (!cpupid_pid_unset(
+		    last_cpupid) && // 如果页面之前被访问过（!cpupid_pid_unset(last_cpupid)）
+	    cpupid_to_nid(last_cpupid) !=
+		    dst_nid) // 而且上次访问者不在目标节点上（cpupid_to_nid(last_cpupid) != dst_nid）
+		// 则拒绝迁移
 		return false;
 
 	/* Always allow migrate on private faults */
+	// 第四部分：特殊情况处理
 	if (cpupid_match_pid(p, last_cpupid))
+		// 如果页面之前是被同一个进程访问的（私有错误），总是允许迁移
 		return true;
 
 	/* A shared fault, but p->numa_group has not been set up yet. */
@@ -1466,6 +1491,9 @@ bool should_numa_migrate_memory(struct task_struct *p, struct page *page,
 	/*
 	 * Destination node is much more heavily used than the source
 	 * node? Allow migration.
+	 * 第五部分：基于使用情况的启发式决策
+	 * 如果目标节点比源节点被 NUMA 组更频繁地访问（超过 ACTIVE_NODE_FRACTION 倍，通常是 3 倍），则允许迁移。
+	 * 这是基于"如果任务更频繁地在目标节点上运行，那么将页面移动到那里是有意义的"这一逻辑。
 	 */
 	if (group_faults_cpu(ng, dst_nid) >
 	    group_faults_cpu(ng, src_nid) * ACTIVE_NODE_FRACTION)
@@ -1478,9 +1506,13 @@ bool should_numa_migrate_memory(struct task_struct *p, struct page *page,
 	 * faults_cpu(dst)   3   faults_cpu(src)
 	 * --------------- * - > ---------------
 	 * faults_mem(dst)   4   faults_mem(src)
+	 * 第六部分：高级均衡启发式决策
+	 * 这个公式有一个 3/4 的滞后因子，防止不必要的内存迁移。它实现了一种平衡，试图让内存分布与 CPU 使用模式相匹配，同时考虑到当前的内存分布。
 	 */
-	return group_faults_cpu(ng, dst_nid) * group_faults(p, src_nid) * 3 >
-	       group_faults_cpu(ng, src_nid) * group_faults(p, dst_nid) * 4;
+	return group_faults_cpu(ng, dst_nid) * group_faults(p, src_nid) *
+		       3 > // 目标节点上 CPU 错误与内存错误的比率
+	       group_faults_cpu(ng, src_nid) * group_faults(p, dst_nid) *
+		       4; // 源节点上 CPU 错误与内存错误的比率
 }
 
 /*
@@ -6074,7 +6106,7 @@ static int find_idlest_group_cpu(struct sched_group *group,
 	}
 
 	return shallowest_idle_cpu != -1 ? shallowest_idle_cpu :
-					   least_loaded_cpu;
+						 least_loaded_cpu;
 }
 
 static inline int find_idlest_cpu(struct sched_domain *sd,
@@ -11530,7 +11562,7 @@ int sched_trace_rq_cpu_capacity(struct rq *rq)
 		       SCHED_CAPACITY_SCALE
 #endif
 		       :
-		       -1;
+			     -1;
 }
 EXPORT_SYMBOL_GPL(sched_trace_rq_cpu_capacity);
 

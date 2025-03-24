@@ -407,6 +407,7 @@ static void rwsem_mark_wake(struct rw_semaphore *sem,
 
 	if (waiter->type == RWSEM_WAITING_FOR_WRITE) {
 		if (wake_type == RWSEM_WAKE_ANY) {
+			// 这段代码的主要目的是确保在特定条件下优先唤醒等待写入的任务
 			/*
 			 * Mark writer at the front of the queue for wakeup.
 			 * Until the task is actually later awoken later by
@@ -417,7 +418,7 @@ static void rwsem_mark_wake(struct rw_semaphore *sem,
 			wake_q_add(wake_q, waiter->task);
 			lockevent_inc(rwsem_wake_writer);
 		}
-
+		// 如果第一个等待的是 writer，那么直接返回
 		return;
 	}
 
@@ -442,6 +443,11 @@ static void rwsem_mark_wake(struct rw_semaphore *sem,
 			 * When we've been waiting "too" long (for writers
 			 * to give up the lock), request a HANDOFF to
 			 * force the issue.
+			 * 新版本通过检测 oldcount & RWSEM_WRITER_MASK 判断是否存在写者活动，
+			 * 同时利用超时判断（time_after(jiffies, waiter->timeout)）
+			 * 决定是否需要减少偏置（adjustment -= RWSEM_FLAG_HANDOFF;），从而设置 HANDOFF 标志。
+			 * 这种机制使得当有写者等待且等待时间过长时，不再给读者无限制加偏置，而是“交接”锁给写者，
+			 * 避免了读者连续抢占导致写者长时间得不到服务，从而实现了更加公平的调度策略。
 			 */
 			if (!(oldcount & RWSEM_FLAG_HANDOFF) &&
 			    time_after(jiffies, waiter->timeout)) {
@@ -1127,7 +1133,7 @@ static struct rw_semaphore *rwsem_down_write_slowpath(struct rw_semaphore *sem,
 		rwsem_mark_wake(sem,
 				(count & RWSEM_READER_MASK) ?
 					RWSEM_WAKE_READERS :
-					RWSEM_WAKE_ANY,
+					      RWSEM_WAKE_ANY,
 				&wake_q);
 
 		if (!wake_q_empty(&wake_q)) {
