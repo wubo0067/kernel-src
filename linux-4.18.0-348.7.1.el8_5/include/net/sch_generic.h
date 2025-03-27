@@ -36,6 +36,11 @@ struct qdisc_rate_table {
 enum qdisc_state_t {
 	__QDISC_STATE_SCHED,
 	__QDISC_STATE_DEACTIVATED,
+	/*
+	作用：标志当前的 qdisc 在处理过程中出现了未完成或遗漏的操作。例如：
+	某个数据包未能被立即处理（可能由于队列满或资源暂时不可用）。
+	系统计划稍后再对这些遗漏的任务进行处理（通常是通过重新调度 qdisc 来完成）。
+	*/
 	__QDISC_STATE_MISSED,
 };
 
@@ -92,6 +97,7 @@ struct Qdisc {
 
 	struct net_rate_estimator __rcu *rate_est;
 	struct gnet_stats_basic_cpu __percpu *cpu_bstats;
+	// 在多核环境中运行的复杂队列调度器（如 fq_codel 或 mq）可能使用 cpu_qstats 来统计每个 CPU 的队列状态。
 	struct gnet_stats_queue __percpu *cpu_qstats;
 	int pad;
 	refcount_t refcnt;
@@ -108,7 +114,9 @@ struct Qdisc {
 	当队列调度器完成数据包处理并退出运行状态时，qdisc->running的值也会递增。这通常发生在调用qdisc_run_end函数时1。
 	*/
 	seqcount_t running;
-	struct gnet_stats_queue qstats;
+	struct gnet_stats_queue
+		qstats; // 简单的队列调度器（如 pfifo 或 bfifo）可能直接使用 qstats 来统计队列的积压（backlog）、丢包数（drops）等信息。
+
 	unsigned long state;
 	struct Qdisc *next_sched;
 	struct sk_buff_head skb_bad_txq;
@@ -167,8 +175,11 @@ static inline bool qdisc_is_empty(const struct Qdisc *qdisc)
 
 static inline bool qdisc_run_begin(struct Qdisc *qdisc)
 {
+	// TCQ_F_NOLOCK 通常用于指示队列调度器是否是无锁的（lockless）。则采用 自旋锁 + 状态位控制 机制
+	// **检测是否为无锁队列调度器
 	if (qdisc->flags & TCQ_F_NOLOCK) {
 		if (spin_trylock(&qdisc->seqlock))
+			// 如果获取成功，说明当前 CPU 可以独占执行调度，跳转到 nolock_empty 继续执行
 			goto nolock_empty;
 
 		/* If the MISSED flag is set, it means other thread has
@@ -177,6 +188,8 @@ static inline bool qdisc_run_begin(struct Qdisc *qdisc)
 		 * the set_bit() and second spin_trylock() concurrently.
 		 */
 		if (test_bit(__QDISC_STATE_MISSED, &qdisc->state))
+			// __QDISC_STATE_MISSED 表示 有其他 CPU 线程尝试运行 qdisc 但失败。
+			// 如果标志已经设置，直接返回 false，这相当于是第三个 thread 了
 			return false;
 
 		/* Set the MISSED flag before the second spin_trylock(),
@@ -186,22 +199,27 @@ static inline bool qdisc_run_begin(struct Qdisc *qdisc)
 		 * lock and reschedule the net_tx_action() to do the
 		 * dequeuing.
 		 */
+		// set_bit(__QDISC_STATE_MISSED, &qdisc->state) 标记当前 qdisc 已有任务等待执行
 		set_bit(__QDISC_STATE_MISSED, &qdisc->state);
 
 		/* Retry again in case other CPU may not see the new flag
 		 * after it releases the lock at the end of qdisc_run_end().
 		 */
 		if (!spin_trylock(&qdisc->seqlock))
+			// *二次尝试，获取成功说明当前 cpu 可以执行 qdisc，如果失败，说明有其他 cpu 正在执行 qdisc
 			return false;
 
 	nolock_empty:
+		// 标记 qdisc 进入活跃状态（即 qdisc 不再为空）
 		WRITE_ONCE(qdisc->empty, false);
 	} else if (qdisc_is_running(qdisc)) {
 		// 如果已经在运行，返回 false
+		// 如果 qdisc 不属于无锁模式，则采用 传统的 qdisc_is_running() 方式 确保单个 CPU 运行调度器
 		return false;
 	}
 	/* Variant of write_seqcount_begin() telling lockdep a trylock
 	 * was attempted.
+	 * qdisc->running 不能防止多个线程同时执行qdisc
 	 */
 	raw_write_seqcount_begin(&qdisc->running);
 	seqcount_acquire(&qdisc->running.dep_map, 0, 1, _RET_IP_);
@@ -595,7 +613,7 @@ static inline const struct Qdisc_ops *
 	get_default_qdisc_ops(const struct net_device *dev, int ntx)
 {
 	return ntx < dev->real_num_tx_queues ? default_qdisc_ops :
-						     &pfifo_fast_ops;
+					       &pfifo_fast_ops;
 }
 
 struct Qdisc_class_common {
@@ -783,6 +801,7 @@ static inline bool qdisc_tx_is_noop(const struct net_device *dev)
 
 static inline unsigned int qdisc_pkt_len(const struct sk_buff *skb)
 {
+	// 返回数据包长度
 	return qdisc_skb_cb(skb)->pkt_len;
 }
 
@@ -982,6 +1001,7 @@ static inline void __qdisc_enqueue_tail(struct sk_buff *skb,
 		qh->tail = skb;
 		qh->head = skb;
 	}
+	// 包的数量
 	qh->qlen++;
 }
 

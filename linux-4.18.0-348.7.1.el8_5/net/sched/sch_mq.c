@@ -21,7 +21,7 @@
 #include <net/sch_generic.h>
 
 struct mq_sched {
-	struct Qdisc		**qdiscs;
+	struct Qdisc **qdiscs;
 };
 
 static int mq_offload(struct Qdisc *sch, enum tc_mq_command cmd)
@@ -90,10 +90,10 @@ static int mq_init(struct Qdisc *sch, struct nlattr *opt,
 
 	for (ntx = 0; ntx < dev->num_tx_queues; ntx++) {
 		dev_queue = netdev_get_tx_queue(dev, ntx);
-		qdisc = qdisc_create_dflt(dev_queue, get_default_qdisc_ops(dev, ntx),
-					  TC_H_MAKE(TC_H_MAJ(sch->handle),
-						    TC_H_MIN(ntx + 1)),
-					  extack);
+		qdisc = qdisc_create_dflt(
+			dev_queue, get_default_qdisc_ops(dev, ntx),
+			TC_H_MAKE(TC_H_MAJ(sch->handle), TC_H_MIN(ntx + 1)),
+			extack);
 		if (!qdisc)
 			return -ENOMEM;
 		priv->qdiscs[ntx] = qdisc;
@@ -122,7 +122,6 @@ static void mq_attach(struct Qdisc *sch)
 		if (ntx < dev->real_num_tx_queues)
 			qdisc_hash_add(qdisc, false);
 #endif
-
 	}
 	kfree(priv->qdiscs);
 	priv->qdiscs = NULL;
@@ -153,19 +152,18 @@ static int mq_dump(struct Qdisc *sch, struct sk_buff *skb)
 			__gnet_stats_copy_basic(NULL, &sch->bstats,
 						qdisc->cpu_bstats,
 						&qdisc->bstats);
-			__gnet_stats_copy_queue(&sch->qstats,
-						qdisc->cpu_qstats,
+			__gnet_stats_copy_queue(&sch->qstats, qdisc->cpu_qstats,
 						&qdisc->qstats, qlen);
-			sch->q.qlen		+= qlen;
+			sch->q.qlen += qlen;
 		} else {
-			sch->q.qlen		+= qdisc->q.qlen;
-			sch->bstats.bytes	+= qdisc->bstats.bytes;
-			sch->bstats.packets	+= qdisc->bstats.packets;
-			sch->qstats.qlen	+= qdisc->qstats.qlen;
-			sch->qstats.backlog	+= qdisc->qstats.backlog;
-			sch->qstats.drops	+= qdisc->qstats.drops;
-			sch->qstats.requeues	+= qdisc->qstats.requeues;
-			sch->qstats.overlimits	+= qdisc->qstats.overlimits;
+			sch->q.qlen += qdisc->q.qlen;
+			sch->bstats.bytes += qdisc->bstats.bytes;
+			sch->bstats.packets += qdisc->bstats.packets;
+			sch->qstats.qlen += qdisc->qstats.qlen;
+			sch->qstats.backlog += qdisc->qstats.backlog;
+			sch->qstats.drops += qdisc->qstats.drops;
+			sch->qstats.requeues += qdisc->qstats.requeues;
+			sch->qstats.overlimits += qdisc->qstats.overlimits;
 		}
 
 		spin_unlock_bh(qdisc_lock(qdisc));
@@ -187,6 +185,8 @@ static struct netdev_queue *mq_queue_get(struct Qdisc *sch, unsigned long cl)
 static struct netdev_queue *mq_select_queue(struct Qdisc *sch,
 					    struct tcmsg *tcm)
 {
+	// TC_H_MIN 宏：从流量控制句柄中提取"minor"部分的宏，流量控制句柄 (handle) 通常由 major 和 minor 两部分组成 (各 16 位)
+	// TC_H_MIN 的作用是提取 minor 部分，在 mq 调度器中通常对应具体的队列号
 	return mq_queue_get(sch, TC_H_MIN(tcm->tcm_parent));
 }
 
@@ -275,22 +275,22 @@ static void mq_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 }
 
 static const struct Qdisc_class_ops mq_class_ops = {
-	.select_queue	= mq_select_queue,
-	.graft		= mq_graft,
-	.leaf		= mq_leaf,
-	.find		= mq_find,
-	.walk		= mq_walk,
-	.dump		= mq_dump_class,
-	.dump_stats	= mq_dump_class_stats,
+	.select_queue = mq_select_queue,
+	.graft = mq_graft,
+	.leaf = mq_leaf,
+	.find = mq_find,
+	.walk = mq_walk,
+	.dump = mq_dump_class,
+	.dump_stats = mq_dump_class_stats,
 };
 
 struct Qdisc_ops mq_qdisc_ops __read_mostly = {
-	.cl_ops		= &mq_class_ops,
-	.id		= "mq",
-	.priv_size	= sizeof(struct mq_sched),
-	.init		= mq_init,
-	.destroy	= mq_destroy,
-	.attach		= mq_attach,
-	.dump		= mq_dump,
-	.owner		= THIS_MODULE,
+	.cl_ops = &mq_class_ops,
+	.id = "mq",
+	.priv_size = sizeof(struct mq_sched),
+	.init = mq_init,
+	.destroy = mq_destroy,
+	.attach = mq_attach,
+	.dump = mq_dump,
+	.owner = THIS_MODULE,
 };

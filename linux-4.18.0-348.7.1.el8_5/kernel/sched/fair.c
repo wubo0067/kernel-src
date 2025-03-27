@@ -1121,7 +1121,7 @@ static unsigned int task_nr_scan_windows(struct task_struct *p)
 	 * by the PTE scanner and NUMA hinting faults should be trapped based
 	 * on resident pages
 	 */
-	// 扫描的 pages 数量
+	// MB 转换位扫描的 pages 数量
 	nr_scan_pages = sysctl_numa_balancing_scan_size << (20 - PAGE_SHIFT);
 	// 获得 task 的实际占用物理内存的 page 数量
 	rss = get_mm_rss(p->mm);
@@ -1154,7 +1154,8 @@ static unsigned int task_scan_min(struct task_struct *p)
 	// 降低 sysctl_numa_balancing_scan_size 这个值，floor 会变大，
 	// 提升 sysctl_numa_balancing_scan_size 这个值，floor 会变小
 	floor = 1000 / windows;
-	// 最小周期除以窗口数量，如果一个大型服务，windows 肯定很大，例如 click'ho
+	// 最小周期除以窗口数量，如果一个大型服务，windows 肯定很大，例如 click'house
+	// !! 扫描周期其实是数据统计的周期，不是真正的扫描周期
 	scan = sysctl_numa_balancing_scan_period_min / task_nr_scan_windows(p);
 	return max_t(unsigned int, floor, scan);
 }
