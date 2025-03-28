@@ -4118,6 +4118,9 @@ static int __get_xps_queue_idx(struct net_device *dev, struct sk_buff *skb,
 }
 #endif
 
+// 多队列都有对应配置的 cpu，/sys/class/net/<ifdev>/queues/tx-<num>/xps_cpus,
+// 通过这个文件中的配置的 cpu bitmap 来选择队列
+// Transmit Packet Steering
 static int get_xps_queue(struct net_device *dev, struct net_device *sb_dev,
 			 struct sk_buff *skb)
 {
@@ -4193,6 +4196,7 @@ static u16 __netdev_pick_tx(struct net_device *dev, struct sk_buff *skb,
 		// XPS: Transmit Packet Steering，发送数据包控制
 		// 允许系统管理员配置哪些 CPU 可以处理网卡的哪些发送队列。
 		// XPS 的主要目的是避免处理发送请求时的锁竞争。使用 XPS 还可以减少缓存驱逐，避免 NUMA 机器上的远程内存访问等
+		// /sys/class/net/<ifdev>/queues/tx-<num>/xps_cpus
 		int new_index = get_xps_queue(dev, sb_dev, skb);
 
 		if (new_index < 0)

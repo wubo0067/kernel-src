@@ -112,7 +112,7 @@ static bool mlx5e_napi_xsk_post(struct mlx5e_xdpsq *xsksq,
 	return busy_xsk;
 }
 
-// todo: 查这个函数的调用堆栈
+// todo: 查这个函数的调用堆栈，这才是 mlx5e 的 napi 轮询函数
 int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 {
 	struct mlx5e_channel *c =
