@@ -1,10 +1,13 @@
 .vscode/
 .tmp_versions/
 .cache/
-plugin_ebpf/bpf/.output
-vendor/github.com/golang/glog/glog_file.go
-temp/
-build/
+src_rpm/
+linux-3.10.0-1160.25.1.el7/
+linux-3.10.0-1062.1.1.el7/
+kernel-developer/
+rhel8.4/
+debugging-labs/
+
 
 # Prerequisites
 #*.d
@@ -52,3 +55,4 @@ build/
 envoy
 
 *.tgz
+*.rpm

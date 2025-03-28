@@ -7071,9 +7071,11 @@ static int napi_threaded_poll(void *data)
 	return 0;
 }
 
+// 每个 cpu 都有自己的 net_rx_action
 static __latent_entropy void net_rx_action(struct softirq_action *h)
 {
 	struct softnet_data *sd = this_cpu_ptr(&softnet_data);
+	//
 	unsigned long time_limit =
 		jiffies + usecs_to_jiffies(netdev_budget_usecs);
 	int budget = netdev_budget;
