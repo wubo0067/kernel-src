@@ -4,9 +4,14 @@
 src_rpm/
 linux-3.10.0-1160.25.1.el7/
 linux-3.10.0-1062.1.1.el7/
+linux-3.10.0-1160.119.1.el7/
 kernel-developer/
 rhel8.4/
 debugging-labs/
+linux/
+4.18.0-348.20.1.el8_5.x86_64/
+linux-5.12.9/
+pax_global_header
 
 
 # Prerequisites
@@ -56,3 +61,4 @@ envoy
 
 *.tgz
 *.rpm
+*.gz
