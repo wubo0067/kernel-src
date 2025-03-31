@@ -606,7 +606,7 @@ static inline struct list_head *ptype_head(const struct packet_type *pt)
 		return pt->dev ? &pt->dev->ptype_all : &ptype_all;
 	else
 		return pt->dev ? &pt->dev->ptype_specific :
-				 &ptype_base[ntohs(pt->type) & PTYPE_HASH_MASK];
+				       &ptype_base[ntohs(pt->type) & PTYPE_HASH_MASK];
 }
 
 /**
@@ -2780,7 +2780,7 @@ int __netif_set_xps_queue(struct net_device *dev, const unsigned long *mask,
 
 		tci = j * num_tc + tc;
 		map = dev_maps ? xmap_dereference(dev_maps->attr_map[tci]) :
-				 NULL;
+				       NULL;
 
 		map = expand_xps_map(map, j, index, is_rxqs_map);
 		if (!map)
@@ -2910,7 +2910,7 @@ error:
 			new_map = xmap_dereference(new_dev_maps->attr_map[tci]);
 			map = dev_maps ? xmap_dereference(
 						 dev_maps->attr_map[tci]) :
-					 NULL;
+					       NULL;
 			if (new_map && new_map != map)
 				kfree(new_map);
 		}
@@ -3139,7 +3139,7 @@ EXPORT_SYMBOL(netif_set_real_num_rx_queues);
 int netif_get_num_default_rss_queues(void)
 {
 	return is_kdump_kernel() ? 1 :
-				   min_t(int, DEFAULT_MAX_NUM_RSS_QUEUES,
+					 min_t(int, DEFAULT_MAX_NUM_RSS_QUEUES,
 					 num_online_cpus());
 }
 EXPORT_SYMBOL(netif_get_num_default_rss_queues);
@@ -3170,6 +3170,18 @@ static void __netif_reschedule(struct Qdisc *q)
 	local_irq_restore(flags);
 }
 
+/*
+对于您的问题："相同的 qdisc 对象前 q 是否会被多次添加到 sd->output_queue_tailp 链表中？"
+答案是不会。这段代码有一个特性，可以防止相同的 qdisc 被多次添加到队列中：
+
+在 Linux 内核中，qdisc 结构体有一个__state 字段，其中包含各种标志位。
+虽然这段代码片段中没有直接显示，但在调用__netif_reschedule 之前，通常会检查 qdisc 的__state & __QDISC_STATE_SCHED 标志。
+如果该标志已设置，表示 qdisc 已经在调度队列中，函数会提前返回，避免重复添加。
+当 qdisc 被处理后（在软中断处理程序中），该标志会被清除。
+
+所以，内核中有机制防止同一个 qdisc 被多次添加到 output_queue 链表中。这种设计确保了每个 qdisc 只会被处理一次，直到它被明确地重新安排。
+这种单次入队的机制对于网络性能很重要，因为它避免了不必要的重复处理和潜在的资源浪费。
+*/
 void __netif_schedule(struct Qdisc *q)
 {
 	// 此代码检查 qdisc 状态中的__QDISC_STATE_SCHED 位，如果为该位为 0，会将其置 1。
@@ -3763,7 +3775,7 @@ int skb_csum_hwoffload_help(struct sk_buff *skb,
 	if (unlikely(skb_csum_is_sctp(skb)))
 		return !!(features & NETIF_F_SCTP_CRC) ?
 			       0 :
-			       skb_crc32c_csum_help(skb);
+				     skb_crc32c_csum_help(skb);
 
 	return !!(features & NETIF_F_CSUM_MASK) ? 0 : skb_checksum_help(skb);
 }
