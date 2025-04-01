@@ -3910,6 +3910,9 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 	// 为队列调度器提供准确的数据包长度信息，以便进行有效的队列管理和流量控制
 	qdisc_calculate_pkt_len(skb, q);
 
+	// HTB 的 flag & TCQ_F_NOLOCK 不会返回 true
+	// 因为 HTB 不是无锁（lockless）的，而是一个基于层级令牌桶的调度策略，需要维护多个队列的调度逻辑，
+	// 并且涉及定时器和借用带宽计算，通常需要加锁来保证同步
 	if (q->flags & TCQ_F_NOLOCK) {
 		// pfifo_fast 是不需要加锁的
 		rc = q->enqueue(skb, q, &to_free) & NET_XMIT_MASK;
@@ -3932,7 +3935,7 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 		// 如果 qdisc 当前正在运行，那么试图发送的其他程序将在 qdisc 的 busylock 上竞争
 		spin_lock(&q->busylock);
 
-	// 主锁
+	// 主锁，如果是多队列的话这里会影响到多队列的性能
 	spin_lock(root_lock);
 	if (unlikely(test_bit(__QDISC_STATE_DEACTIVATED, &q->state))) {
 		// 如果 qdisc 停用，则释放数据并将返回代码设置为 NET_XMIT_DROP
@@ -4093,6 +4096,11 @@ static struct sk_buff *sch_handle_egress(struct sk_buff *skb, int *ret,
 #endif /* CONFIG_NET_EGRESS */
 
 #ifdef CONFIG_XPS
+/*
+这个函数是 Linux 内核中 XPS (Transmit Packet Steering)
+系统的核心部分，用于确定数据包应该发送到哪个传输队列。
+XPS 的目的是允许管理员配置特定 CPU 处理特定网卡的发送队列，以优化多队列网卡的性能并减少锁争用。
+*/
 static int __get_xps_queue_idx(struct net_device *dev, struct sk_buff *skb,
 			       struct xps_dev_maps *dev_maps, unsigned int tci)
 {
@@ -4121,36 +4129,51 @@ static int __get_xps_queue_idx(struct net_device *dev, struct sk_buff *skb,
 // 多队列都有对应配置的 cpu，/sys/class/net/<ifdev>/queues/tx-<num>/xps_cpus,
 // 通过这个文件中的配置的 cpu bitmap 来选择队列
 // Transmit Packet Steering
+/*
+dev: 目标网络设备
+sb_dev: 从属设备，通常用于 L2 转发卸载，在多队列网络设备中，每个队列可作为一个从属设备，例如是 tx-0
+skb：待发送的数据包
+返回值：选择的传输队列索引，或者 -1（表示没有找到合适的队列）
+*/
 static int get_xps_queue(struct net_device *dev, struct net_device *sb_dev,
 			 struct sk_buff *skb)
 {
 #ifdef CONFIG_XPS
 	struct xps_dev_maps *dev_maps;
+	// 从 skb 获取关联的 socket 信息
 	struct sock *sk = skb->sk;
 	int queue_index = -1;
 
+	// 如果全局静态键 xps_needed 为 false，表示系统中没有设备需要 XPS，直接返回 -1
 	if (!static_key_false(&xps_needed))
 		return -1;
 
+	// 获取 RCU 读锁，保护对共享数据结构的访问
 	rcu_read_lock();
 	if (!static_key_false(&xps_rxqs_needed))
 		goto get_cpus_map;
-
+	// /sys/class/net/<ifname>/queues/tx-0/xps_rxqs
 	dev_maps = rcu_dereference(sb_dev->xps_rxqs_map);
 	if (dev_maps) {
+		// 获取 skb 的发送队列索引
 		int tci = sk_rx_queue_get(sk);
 
 		if (tci >= 0 && tci < dev->num_rx_queues)
+			// 如果索引有效（在设备的接收队列范围内），调用 __get_xps_queue_idx 查找对应的发送队列
 			queue_index =
 				__get_xps_queue_idx(dev, skb, dev_maps, tci);
 	}
 
 get_cpus_map:
+	// 如果基于接收队列未找到合适的发送队列，尝试基于 CPU 的映射
 	if (queue_index < 0) {
+		// 获取从属设备的 xps_cpus_map
+		// 如果 sb_dev 是 tx-0 那么/sys/class/net/<ifname>/queues/tx-0/xps_cpus
+		// xps_cpus_map 这是/sys/class/net/<ifname>/queues 目录下所有 tx 队列的 xps_cpus 文件内容吗
 		dev_maps = rcu_dereference(sb_dev->xps_cpus_map);
 		if (dev_maps) {
 			unsigned int tci = skb->sender_cpu - 1;
-
+			//调用 __get_xps_queue_idx 从 CPU 映射中查找对应的发送队列
 			queue_index =
 				__get_xps_queue_idx(dev, skb, dev_maps, tci);
 		}
@@ -4183,8 +4206,9 @@ static u16 __netdev_pick_tx(struct net_device *dev, struct sk_buff *skb,
 			    struct net_device *sb_dev)
 {
 	struct sock *sk = skb->sk;
+	// 如果 sock 没有设置队列 id，就会返回 -1
 	int queue_index = sk_tx_queue_get(sk);
-
+	// 如果 sb_dev 为空，就使用主设备的
 	sb_dev = sb_dev ?: dev;
 
 	// <0 表示尚未设置 TX queue 的情况
@@ -4205,6 +4229,7 @@ static u16 __netdev_pick_tx(struct net_device *dev, struct sk_buff *skb,
 
 		if (queue_index != new_index && sk && sk_fullsock(sk) &&
 		    rcu_access_pointer(sk->sk_dst_cache))
+			// 设置套接字映射的 tx_queue index
 			sk_tx_queue_set(sk, new_index);
 
 		queue_index = new_index;

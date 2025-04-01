@@ -80,9 +80,11 @@ static int mq_init(struct Qdisc *sch, struct nlattr *opt,
 		return -EOPNOTSUPP;
 
 	if (!netif_is_multiqueue(dev))
+		// 判断设备是否支持多队列
 		return -EOPNOTSUPP;
 
 	/* pre-allocate qdiscs, attachment can't fail */
+	// 为每个软件队列分配一个 qdisc 对象
 	priv->qdiscs = kcalloc(dev->num_tx_queues, sizeof(priv->qdiscs[0]),
 			       GFP_KERNEL);
 	if (!priv->qdiscs)
