@@ -2307,6 +2307,9 @@ static inline int netdev_get_sb_channel(struct net_device *dev)
 	return max_t(int, -dev->num_tc, 0);
 }
 
+/*
+这段代码的逻辑就是根据索引获取网络设备的某个特定硬件发送（TX）子队列
+*/
 static inline struct netdev_queue *
 	netdev_get_tx_queue(const struct net_device *dev, unsigned int index)
 {

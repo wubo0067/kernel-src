@@ -93,7 +93,7 @@ struct Qdisc {
 	u32 handle;
 	u32 parent;
 
-	struct netdev_queue *dev_queue;
+	struct netdev_queue *dev_queue; // 这是硬件发送队列，
 
 	struct net_rate_estimator __rcu *rate_est;
 	struct gnet_stats_basic_cpu __percpu *cpu_bstats;

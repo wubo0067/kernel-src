@@ -91,6 +91,7 @@ static int mq_init(struct Qdisc *sch, struct nlattr *opt,
 		return -ENOMEM;
 
 	for (ntx = 0; ntx < dev->num_tx_queues; ntx++) {
+		// 根据索引获取网络设备的某个特定硬件发送（TX）子队列
 		dev_queue = netdev_get_tx_queue(dev, ntx);
 		qdisc = qdisc_create_dflt(
 			dev_queue, get_default_qdisc_ops(dev, ntx),
@@ -98,6 +99,7 @@ static int mq_init(struct Qdisc *sch, struct nlattr *opt,
 			extack);
 		if (!qdisc)
 			return -ENOMEM;
+		// 放到私有数据中
 		priv->qdiscs[ntx] = qdisc;
 		qdisc->flags |= TCQ_F_ONETXQUEUE | TCQ_F_NOPARENT;
 	}
@@ -108,20 +110,31 @@ static int mq_init(struct Qdisc *sch, struct nlattr *opt,
 	return 0;
 }
 
+/*
+sch：指向根队列调度器的指针
+*/
 static void mq_attach(struct Qdisc *sch)
 {
+	// 获取与队列调度器 sch 关联的网络设备（net_device）
 	struct net_device *dev = qdisc_dev(sch);
+	// 获取队列调度器的私有数据（mq_sched）。priv 包含了每个发送队列对应的队列调度器数组 qdiscs。
 	struct mq_sched *priv = qdisc_priv(sch);
 	struct Qdisc *qdisc, *old;
 	unsigned int ntx;
 
+	// 遍历设备的所有发送队列
 	for (ntx = 0; ntx < dev->num_tx_queues; ntx++) {
+		// 获取当前发送队列 ntx 对应的队列调度器，核心是这里有多个 qdisc，每个队列上都有个
 		qdisc = priv->qdiscs[ntx];
+		// 将新的队列调度器 qdisc 附加到发送队列 qdisc->dev_queue 上，返回的 old 是原来的队列调度器
 		old = dev_graft_qdisc(qdisc->dev_queue, qdisc);
 		if (old)
+			// 释放旧的队列调度器
 			qdisc_put(old);
 #ifdef CONFIG_NET_SCHED
+		// 表示设备的实际发送队列数量（可能小于 num_tx_queues）。
 		if (ntx < dev->real_num_tx_queues)
+			// 将队列调度器 qdisc 添加到全局哈希表中，以便快速查找。false 表示不需要锁定。
 			qdisc_hash_add(qdisc, false);
 #endif
 	}

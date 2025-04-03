@@ -1059,20 +1059,39 @@ void qdisc_put_unlocked(struct Qdisc *qdisc)
 }
 EXPORT_SYMBOL(qdisc_put_unlocked);
 
-/* Attach toplevel qdisc to device queue. */
+/* Attach toplevel qdisc to device queue.
+将一个新的排队规则（qdisc）安装到指定的网络设备队列（dev_queue）上，同时返回原来的排队规则
+*/
 struct Qdisc *dev_graft_qdisc(struct netdev_queue *dev_queue,
 			      struct Qdisc *qdisc)
 {
+	/*
+	qdisc_sleeping：表示已配置但可能尚未激活的排队规则。这是"休眠"或"非活动"状态的规则，通常在配置更改期间使用。
+	qdisc：表示当前活动的、真正处理数据包的排队规则。
+	这种设计允许在不中断网络流量的情况下修改排队规则。新的规则首先被安装为 qdisc_sleeping，
+	然后在适当的时机被激活为 qdisc。
+	*/
 	struct Qdisc *oqdisc = dev_queue->qdisc_sleeping;
 	spinlock_t *root_lock;
-
+	// 获取根锁
 	root_lock = qdisc_lock(oqdisc);
+
 	spin_lock_bh(root_lock);
 
 	/* ... and graft new one */
 	if (qdisc == NULL)
+		// 如果没有提供队列规则，就使用 noop
 		qdisc = &noop_qdisc;
+	// 更新休眠队列规则
 	dev_queue->qdisc_sleeping = qdisc;
+	// 使用 RCU 机制安全地更新活动队列规则
+	/*
+	将设备队列的活动排队规则（dev_queue->qdisc）设置为 noop_qdisc（一个特殊的无操作排队规则）
+	使用 RCU（Read-Copy-Update）机制进行这一更新，确保即使在其他 CPU 上有并发读取也能安全地进行
+    这个操作是临时的，将活动队列规则设置为 noop_qdisc 可以确保在新规则完全准备好之前，网络包处理不会受到干扰。
+	在这个函数执行完毕后，通常会有一个后续步骤（不在这个函数中）来激活新安装的规则，
+	将 qdisc_sleeping 提升为活动的 qdisc。
+	*/
 	rcu_assign_pointer(dev_queue->qdisc, &noop_qdisc);
 
 	spin_unlock_bh(root_lock);

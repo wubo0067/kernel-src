@@ -135,6 +135,7 @@ int register_qdisc(struct Qdisc_ops *qops)
 	int rc = -EEXIST;
 
 	write_lock(&qdisc_mod_lock);
+	// 这样写就节省了一个 prev 变量
 	for (qp = &qdisc_base; (q = *qp) != NULL; qp = &q->next)
 		if (!strcmp(qops->id, q->id))
 			goto out;
@@ -160,7 +161,7 @@ int register_qdisc(struct Qdisc_ops *qops)
 		if (cops->tcf_block && !(cops->bind_tcf && cops->unbind_tcf))
 			goto out_einval;
 	}
-
+	// 加到尾部
 	qops->next = NULL;
 	*qp = qops;
 	rc = 0;
