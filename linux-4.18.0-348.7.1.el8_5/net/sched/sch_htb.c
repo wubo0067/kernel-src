@@ -1186,8 +1186,14 @@ static void htb_attach_software(struct Qdisc *sch)
 	unsigned int ntx;
 
 	/* Resemble qdisc_graft behavior. */
+	/*
+	num_tx_queues这个是网卡队列数量
+	dev->real_num_tx_queues; 还有实际的数量
+    qdisc->num_direct_qdiscs还有个软件队列的数量
+	*/
 	for (ntx = 0; ntx < dev->num_tx_queues; ntx++) {
 		struct netdev_queue *dev_queue = netdev_get_tx_queue(dev, ntx);
+		//
 		struct Qdisc *old = dev_graft_qdisc(dev_queue, sch);
 
 		qdisc_refcount_inc(sch);
@@ -1371,6 +1377,7 @@ static struct netdev_queue *htb_select_queue(struct Qdisc *sch,
 	int err;
 
 	if (!q->offload)
+		// 如果不是 offload 模式，直接返回当前的 dev_queue
 		return sch->dev_queue;
 
 	offload_opt = (struct tc_htb_qopt_offload){
