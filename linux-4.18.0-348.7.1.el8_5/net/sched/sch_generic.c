@@ -306,6 +306,8 @@ trace:
  * Returns to the caller:
  *				false  - hardware queue frozen backoff
  *				true   - feel free to send more pkts
+ * 的主要目的是在某些特定条件下，允许数据包立即发送，而无需经过 Qdisc 的排队和调度。这可以降低延迟并提高吞吐量，特别是对于对延迟敏感的流量
+ * 当排队规则（Qdisc）决定某个数据包可以立即发送，而不需要进一步排队时
  */
 bool sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
 		     struct net_device *dev, struct netdev_queue *txq,

@@ -1371,22 +1371,35 @@ static int htb_dump_class_stats(struct Qdisc *sch, unsigned long arg,
 static struct netdev_queue *htb_select_queue(struct Qdisc *sch,
 					     struct tcmsg *tcm)
 {
+	// 获取设备对象
 	struct net_device *dev = qdisc_dev(sch);
+	// 定义硬件卸载配置结构体
 	struct tc_htb_qopt_offload offload_opt;
+	// 获取HTB调度器私有数据
 	struct htb_sched *q = qdisc_priv(sch);
+	// 定义错误码变量
 	int err;
 
+	// 如果不是硬件卸载模式，直接返回当前的队列
 	if (!q->offload)
-		// 如果不是 offload 模式，直接返回当前的 dev_queue
 		return sch->dev_queue;
 
+	// 配置硬件卸载操作参数，查询队列ID
 	offload_opt = (struct tc_htb_qopt_offload){
+		// 设置命令类型为"查询叶子节点队列"
 		.command = TC_HTB_LEAF_QUERY_QUEUE,
+		// 设置类ID（从父类ID中提取）
 		.classid = TC_H_MIN(tcm->tcm_parent),
 	};
+
+	// 调用网卡驱动的硬件卸载接口，获取队列ID
 	err = htb_offload(dev, &offload_opt);
+
+	// 如果出错或队列ID超出网卡队列范围，返回NULL
 	if (err || offload_opt.qid >= dev->num_tx_queues)
 		return NULL;
+
+	// 使用硬件返回的队列ID获取相应的网卡发送队列并返回
 	return netdev_get_tx_queue(dev, offload_opt.qid);
 }
 

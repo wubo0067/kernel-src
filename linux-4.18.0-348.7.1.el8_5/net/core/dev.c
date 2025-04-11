@@ -3941,10 +3941,16 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 	 * separate lock before trying to get qdisc main lock.
 	 * This permits qdisc->running owner to get the lock more
 	 * often and dequeue packets faster.
+	 * 这个函数检查给定的 Qdisc q 是否处于 "running" 状态。Qdisc 的 "running" 状态通常表示它正在被某个 CPU 核心处理，
+	 * 例如正在从队列中 dequeue（出队）数据包并发送出去。
 	 */
 	contended = qdisc_is_running(q);
 	if (unlikely(contended))
+		// 一般不太可能发生
 		// 如果 qdisc 当前正在运行，那么试图发送的其他程序将在 qdisc 的 busylock 上竞争
+		// **减少全局锁的竞争，通过让 enqueue 操作先竞争 q->busylock，可以避免大量 CPU 核心同时竞争 root_lock。
+		// **提高 dequeue 的优先级：正在运行 Qdisc (进行 dequeue) 的 CPU 更有可能更快地再次获取 root_lock，从而加速数据包的发送。
+		// **在网络流量非常大的情况下，这种策略可以显著提高数据包的入队和出队效率。
 		spin_lock(&q->busylock);
 
 	// 主锁，如果是多队列的话这里会影响到多队列的性能
@@ -4110,8 +4116,8 @@ static struct sk_buff *sch_handle_egress(struct sk_buff *skb, int *ret,
 #ifdef CONFIG_XPS
 /*
 这个函数是 Linux 内核中 XPS (Transmit Packet Steering)
-系统的核心部分，用于确定数据包应该发送到哪个传输队列。
-XPS 的目的是允许管理员配置特定 CPU 处理特定网卡的发送队列，以优化多队列网卡的性能并减少锁争用。
+系统的核心部分，基于 CPU 的映射，用于使用数据包应的发送 cpu 确定该发送到哪个传输队列。
+tci：发送 skb 的 cpu id
 */
 static int __get_xps_queue_idx(struct net_device *dev, struct sk_buff *skb,
 			       struct xps_dev_maps *dev_maps, unsigned int tci)
@@ -4120,20 +4126,34 @@ static int __get_xps_queue_idx(struct net_device *dev, struct sk_buff *skb,
 	int queue_index = -1;
 
 	if (dev->num_tc) {
+		// 检查设备是否支持 Traffic Class (QoS)。如果 num_tc 大于 0，表示设备配置了多个 Traffic Class。
 		tci *= dev->num_tc;
 		tci += netdev_get_prio_tc_map(dev, skb->priority);
 	}
 
+	// 但用于 cpu 到 tx 队列映射时，attr_map 使用 cpu 做索引
 	map = rcu_dereference(dev_maps->attr_map[tci]);
 	if (map) {
 		if (map->len == 1)
+			// 如果 map 中只配置了一个发送队列 (map->len 为 1)，则直接选择这个队列作为发送队列 ID (map->queues[0]).
 			queue_index = map->queues[0];
 		else
+			// 如果一个 cpu 对应多个队列，如果 map 中配置了多个发送队列 (map->len 大于 1)，
+			// 则需要根据数据包的哈希值来选择一个队列
+			/*
+			reciprocal_scale(skb_get_hash(skb), map->len): 这个函数使用数据包的哈希值和 map 中配置的队列数量
+			(map->len) 进行计算，得到一个 0 到 map->len - 1 之间的索引。这个索引用于从 map->queues
+			数组中选择一个发送队列 ID。
+			*/
 			queue_index = map->queues[reciprocal_scale(
 				skb_get_hash(skb), map->len)];
 		if (unlikely(queue_index >= dev->real_num_tx_queues))
 			queue_index = -1;
 	}
+	/*
+    提问：如果所有队列的/sys/class/net/eth0/queues/tx-xxx/xps_cpus 文件中都没有配置 cpu0，那么从 cpu0
+	发送的 skb 包该如何选择队列，返回是 -1
+	*/
 	return queue_index;
 }
 #endif
@@ -4184,6 +4204,7 @@ get_cpus_map:
 		// xps_cpus_map 这是/sys/class/net/<ifname>/queues 目录下所有 tx 队列的 xps_cpus 文件内容吗
 		dev_maps = rcu_dereference(sb_dev->xps_cpus_map);
 		if (dev_maps) {
+			// 获取发送该 skb 的 cpu id
 			unsigned int tci = skb->sender_cpu - 1;
 			//调用 __get_xps_queue_idx 从 CPU 映射中查找对应的发送队列
 			queue_index =
@@ -4236,7 +4257,7 @@ static u16 __netdev_pick_tx(struct net_device *dev, struct sk_buff *skb,
 		int new_index = get_xps_queue(dev, sb_dev, skb);
 
 		if (new_index < 0)
-			// 使用 skb_tx_hash 自动选择了发送队列
+			// 使用 skb_tx_hash 自动选择了发送队列，也就是 xps 中 cpu 没有对应的队列时，就使用 hash 来
 			new_index = skb_tx_hash(dev, sb_dev, skb);
 
 		if (queue_index != new_index && sk && sk_fullsock(sk) &&
@@ -5192,6 +5213,7 @@ static __latent_entropy void net_tx_action(struct softirq_action *h)
 			smp_mb__before_atomic();
 
 			if (!(q->flags & TCQ_F_NOLOCK)) {
+				// 需要先获取 tc qdisc root lock
 				root_lock = qdisc_lock(q);
 				spin_lock(root_lock);
 			} else if (unlikely(test_bit(__QDISC_STATE_DEACTIVATED,
