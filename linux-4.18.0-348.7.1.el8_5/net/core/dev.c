@@ -4349,7 +4349,7 @@ static int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 		skb_dst_force(skb);
 	/*
 	https://www.kerneltravel.net/blog/2020/network_ljr14/ */
-	// 多 tx 队列的情况下，选择合适的 tx 队列
+	// netdev_queue 多 tx 队列的情况下，选择合适的 tx 队列
 	txq = netdev_pick_tx(dev, skb, sb_dev);
 	// 从 netdev_queue 结构上获取设备的 qdisc
 
