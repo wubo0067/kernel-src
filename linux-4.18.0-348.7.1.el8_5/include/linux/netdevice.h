@@ -779,10 +779,10 @@ struct rx_queue_attribute {
  * map is an array of queues.
  */
 struct xps_map {
-	unsigned int len;
+	unsigned int len; // 实际使用的 queue 数量
 	unsigned int alloc_len;
 	struct rcu_head rcu;
-	u16 queues[0];
+	u16 queues[0]; // 保存对应 CPU 的 TX queue id，变长数组
 };
 #define XPS_MAP_SIZE(_num) (sizeof(struct xps_map) + ((_num) * sizeof(u16)))
 #define XPS_MIN_MAP_ALLOC                                                      \
@@ -795,13 +795,16 @@ struct xps_map {
  */
 struct xps_dev_maps {
 	struct rcu_head rcu;
-	struct xps_map __rcu *attr_map[0]; /* Either CPUs map or RXQs map */
+	struct xps_map __rcu
+		*attr_map[0]; /* cpu索引 Either CPUs map or RXQs map */
 };
 
+// 按 CPU 来索引
 #define XPS_CPU_DEV_MAPS_SIZE(_tcs)                                            \
 	(sizeof(struct xps_dev_maps) +                                         \
 	 (nr_cpu_ids * (_tcs) * sizeof(struct xps_map *)))
 
+// 按 RXQ 来索引
 #define XPS_RXQ_DEV_MAPS_SIZE(_tcs, _rxqs)                                     \
 	(sizeof(struct xps_dev_maps) +                                         \
 	 (_rxqs * (_tcs) * sizeof(struct xps_map *)))
