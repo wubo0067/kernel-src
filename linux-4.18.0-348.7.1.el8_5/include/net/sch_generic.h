@@ -801,7 +801,6 @@ static inline bool qdisc_tx_is_noop(const struct net_device *dev)
 
 static inline unsigned int qdisc_pkt_len(const struct sk_buff *skb)
 {
-	// 返回数据包长度
 	return qdisc_skb_cb(skb)->pkt_len;
 }
 

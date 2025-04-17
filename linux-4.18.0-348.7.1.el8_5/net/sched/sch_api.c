@@ -744,6 +744,8 @@ EXPORT_SYMBOL(qdisc_class_hash_remove);
 
 /* Allocate an unique handle from space managed by kernel
  * Possible range is [8000-FFFF]:0000 (0x8000 values)
+ * example：
+ * qdisc htb 8007: root refcnt 9 r2q 10 default 0 direct_packets_stat 13 direct_qlen 1000
  */
 static u32 qdisc_alloc_handle(struct net_device *dev)
 {
