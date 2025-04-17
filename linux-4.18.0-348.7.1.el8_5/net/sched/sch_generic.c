@@ -273,6 +273,7 @@ validate:
 	*validate = true;
 
 	if ((q->flags & TCQ_F_ONETXQUEUE) &&
+	    // 传输队列 (txq) 处于冻结或停止状态（通过调用 netif_xmit_frozen_or_stopped 函数判断）
 	    netif_xmit_frozen_or_stopped(txq)) {
 		qdisc_maybe_clear_missed(q, txq);
 		return skb;
@@ -1498,7 +1499,7 @@ void mini_qdisc_pair_swap(struct mini_Qdisc_pair *miniqp,
 	}
 
 	miniq = !miniq_old || miniq_old == &miniqp->miniq2 ? &miniqp->miniq1 :
-							     &miniqp->miniq2;
+								   &miniqp->miniq2;
 
 	/* We need to make sure that readers won't see the miniq
 	 * we are about to modify. So wait until previous call_rcu callback
