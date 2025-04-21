@@ -1,0 +1,31 @@
+--- fs/pnode.c
++++ fs/pnode.c
+@@ -606,28 +586,3 @@ int propagate_umount(struct list_head *list)
+ 
+ 	return 0;
+ }
+-
+-static int mnt_list_proc_show(struct seq_file *m, void *v)
+-{
+-	seq_printf(m, "max mnt_share: %d\n max mnt_slave: %d\n max mnt_slave_list: %d\n",
+-	  max_mnt_share_count, max_mnt_slave_count, max_mnt_slave_list_count);
+-	return 0;
+-}
+-static int mnt_list_proc_open(struct inode *inode, struct file *file)
+-{
+-	return single_open(file, mnt_list_proc_show, NULL);
+-}
+-
+-static const struct file_operations mnt_list_proc_fops = {
+-	.open		= mnt_list_proc_open,
+-	.read		= seq_read,
+-	.llseek		= seq_lseek,
+-	.release	= single_release,
+-};
+-
+-static int __init proc_mnt_list_init(void)
+-{
+-	proc_create("mnt_list", 0, NULL, &mnt_list_proc_fops);
+-	return 0;
+-}
+-fs_initcall(proc_mnt_list_init);
