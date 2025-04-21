@@ -198,21 +198,29 @@ static void try_bulk_dequeue_skb(struct Qdisc *q, struct sk_buff *skb,
 static void try_bulk_dequeue_skb_slow(struct Qdisc *q, struct sk_buff *skb,
 				      int *packets)
 {
+	// 获取映射的发送队列
 	int mapping = skb_get_queue_mapping(skb);
 	struct sk_buff *nskb;
 	int cnt = 0;
-
+	// 尝试取出 8 个包
 	do {
+		// 调用该队列规则 q 自身的 dequeue 方法（nskb = q->dequeue(q)）来获取下一个数据包。
 		nskb = q->dequeue(q);
 		if (!nskb)
 			break;
+		// 如果取出的 skb 包映射的队列和传入的 skb 的映射队列相同，那么发送到同一个硬件队列
 		if (unlikely(skb_get_queue_mapping(nskb) != mapping)) {
+			// 这是个小概率事件，如果不是同一个队列，skb 会重新放回队列中
 			qdisc_enqueue_skb_bad_txq(q, nskb);
 			break;
 		}
+		// 如果映射匹配，构建链表，则将新取出的数据包 nskb 链接到前一个数据包 skb 的 next
+		// 指针上（skb->next = nskb），形成一个临时的单向链表。
+		// 然后更新 skb 指向这个新加入的数据包（skb = nskb），为下一次链接做准备。
 		skb->next = nskb;
 		skb = nskb;
 	} while (++cnt < 8);
+	// 增加 packet 计数
 	(*packets) += cnt;
 	skb_mark_not_on_list(skb);
 }
@@ -1499,7 +1507,7 @@ void mini_qdisc_pair_swap(struct mini_Qdisc_pair *miniqp,
 	}
 
 	miniq = !miniq_old || miniq_old == &miniqp->miniq2 ? &miniqp->miniq1 :
-								   &miniqp->miniq2;
+							     &miniqp->miniq2;
 
 	/* We need to make sure that readers won't see the miniq
 	 * we are about to modify. So wait until previous call_rcu callback

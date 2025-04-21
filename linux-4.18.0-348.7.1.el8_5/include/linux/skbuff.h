@@ -719,6 +719,21 @@ struct sk_buff {
 	union {
 		struct {
 			/* These two members must be first. */
+			/*
+			sk_buff 结构中的 next 和 prev 字段确实是 Linux 内核中组织 sk_buff 链表（通常通过
+			struct sk_buff_head 管理）的标准方式。许多待发送的数据包在内核的不同阶段会通过这种方式形成链表或队列，例如：
+			套接字发送队列 (Socket Send Queue)：当应用程序调用 send() 或 write() 时，
+			数据会被封装成 sk_buff 并添加到套接字的发送队列 (sk->sk_write_queue) 中，这个队列就是使用 next/prev 链接的。
+			队列调度器 (Qdisc)：数据包从套接字发送队列取出后，会进入网络设备的队列调度器（如 pfifo_fast, HTB,
+			fq_codel 等）。许多 Qdisc 内部也会使用 sk_buff_head 或类似的基于 next/prev 的链表来管理待调度的数据包。
+	        但是，并非所有环节都如此：
+			网络设备驱动的发送环形缓冲区 (Driver TX Ring Buffer)：当 Qdisc 将数据包交给网络设备驱动程序发送时，
+			驱动程序通常会将 sk_buff 的数据映射到 DMA 区域，并将相关的描述符（包含数据地址和长度等信息）放入硬件的发送
+			环形缓冲区（TX Ring）。这个环形缓冲区本身是一个由驱动程序和硬件共享的内存区域（通常是数组），它不是通过 sk_buff 的 next/prev 指针链接的。硬件根据描述符的顺序来发送数据包。
+            总结:
+            next 和 prev 是内核软件层面组织 sk_buff 队列的主要方式，在套接字层和 Qdisc 层广泛使用。
+			但在数据包最终交给硬件发送的驱动层，通常使用的是基于描述符的环形缓冲区，而不是 sk_buff 自身的链表结构。
+			*/
 			struct sk_buff *next;
 			struct sk_buff *prev;
 
