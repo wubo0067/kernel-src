@@ -141,6 +141,10 @@ static inline void qdisc_enqueue_skb_bad_txq(struct Qdisc *q,
 		spin_unlock(lock);
 }
 
+/*
+dev_requeue_skb 的核心作用是将那些已经从 Qdisc 中取出、准备发送给驱动但最终未能成功提交给驱动的数据包，
+放回到 Qdisc 中等待下一次发送机会。
+*/
 static inline void dev_requeue_skb(struct sk_buff *skb, struct Qdisc *q)
 {
 	spinlock_t *lock = NULL;
@@ -152,7 +156,20 @@ static inline void dev_requeue_skb(struct sk_buff *skb, struct Qdisc *q)
 
 	while (skb) {
 		struct sk_buff *next = skb->next;
-
+		// **为什么将需要重新入队列的 skb 存放到 gso_skb 链表中呢？
+		/*
+        高优先级重试：gso_skb 队列是一个专门用于存放待重试数据包的队列。在 dequeue_skb 函数（qdisc_restart
+		           的一部分）中，内核会优先检查 gso_skb 队列是否为空。如果非空，它会先尝试从 gso_skb 中取出
+				   数据包进行发送，然后再去调用 Qdisc 自身的 dequeue 方法。这相当于给了这些被 requeue 的数
+				   据包更高的发送优先级，因为它们已经通过了大部分的排队和调度逻辑，只是临时发送失败，应该尽快重试。
+		避免干扰主队列逻辑：不同的 Qdisc 有各自复杂的内部逻辑（如 HTB 的分层、SFQ 的公平性算法等）。
+		           如果将发送失败的数据包简单地重新 enqueue 回 Qdisc 的主入口，可能会打乱 Qdisc 原本的调度顺序
+				   	或公平性保证。使用一个独立的 gso_skb 队列可以避免这种干扰。
+		GSO 相关性（命名来源）：虽然队列名为 gso_skb，暗示与 Generic Segmentation Offload (GSO) 相关，
+		           但实际上它用于存放所有因 NETDEV_TX_BUSY 等原因需要 requeue 的数据包。GSO 数据包因为是“大包”，
+				   在驱动层可能会消耗更多的硬件描述符资源，相对更容易导致发送队列满而触发 NETDEV_TX_BUSY，
+				   这可能是该队列命名的历史原因或主要场景。但其功能是通用的 requeue 存储。
+		*/
 		__skb_queue_tail(&q->gso_skb, skb);
 
 		/* it's still part of the queue */
@@ -236,6 +253,7 @@ static struct sk_buff *dequeue_skb(struct Qdisc *q, bool *validate,
 
 	*packets = 1;
 	if (unlikely(!skb_queue_empty(&q->gso_skb))) {
+		// 先检查重试数据包队列
 		spinlock_t *lock = NULL;
 
 		if (q->flags & TCQ_F_NOLOCK) {

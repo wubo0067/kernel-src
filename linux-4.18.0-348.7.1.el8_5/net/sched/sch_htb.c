@@ -617,6 +617,7 @@ static int htb_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 #endif
 	} else if ((ret = qdisc_enqueue(skb, cl->leaf.q, to_free)) !=
 		   NET_XMIT_SUCCESS) {
+		// 如果是叶子类，数据包会进入该类关联的队列 (默认 pfifo 或显式指定的队列)
 		if (net_xmit_drop_count(ret)) {
 			qdisc_qstats_drop(sch);
 			cl->drops++;
