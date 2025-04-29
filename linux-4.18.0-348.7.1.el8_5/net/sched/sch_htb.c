@@ -545,6 +545,9 @@ static void htb_change_class_mode(struct htb_sched *q, struct htb_class *cl,
 		return;
 
 	if (new_mode == HTB_CANT_SEND) {
+		/* 如果新模式是 HTB_CANT_SEND，意味着该类别由于超出速率限制（rate 或 ceil）而暂时无法发送数据包，
+		此时会增加该类别自身的 overlimits 计数器以及整个 HTB 调度器 q 的 overlimits 计数器，用于统计超限事件。
+		*/
 		cl->overlimits++;
 		q->overlimits++;
 	}

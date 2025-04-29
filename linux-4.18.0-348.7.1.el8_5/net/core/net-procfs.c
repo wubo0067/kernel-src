@@ -13,7 +13,8 @@
 extern struct list_head ptype_all __read_mostly;
 extern struct list_head ptype_base[PTYPE_HASH_SIZE] __read_mostly;
 
-static inline struct net_device *dev_from_same_bucket(struct seq_file *seq, loff_t *pos)
+static inline struct net_device *dev_from_same_bucket(struct seq_file *seq,
+						      loff_t *pos)
 {
 	struct net *net = seq_file_net(seq);
 	struct net_device *dev;
@@ -21,7 +22,7 @@ static inline struct net_device *dev_from_same_bucket(struct seq_file *seq, loff
 	unsigned int count = 0, offset = get_offset(*pos);
 
 	h = &net->dev_index_head[get_bucket(*pos)];
-	hlist_for_each_entry_rcu(dev, h, index_hlist) {
+	hlist_for_each_entry_rcu (dev, h, index_hlist) {
 		if (++count == offset)
 			return dev;
 	}
@@ -29,7 +30,8 @@ static inline struct net_device *dev_from_same_bucket(struct seq_file *seq, loff
 	return NULL;
 }
 
-static inline struct net_device *dev_from_bucket(struct seq_file *seq, loff_t *pos)
+static inline struct net_device *dev_from_bucket(struct seq_file *seq,
+						 loff_t *pos)
 {
 	struct net_device *dev;
 	unsigned int bucket;
@@ -50,8 +52,7 @@ static inline struct net_device *dev_from_bucket(struct seq_file *seq, loff_t *p
  *	This is invoked by the /proc filesystem handler to display a device
  *	in detail.
  */
-static void *dev_seq_start(struct seq_file *seq, loff_t *pos)
-	__acquires(RCU)
+static void *dev_seq_start(struct seq_file *seq, loff_t *pos) __acquires(RCU)
 {
 	rcu_read_lock();
 	if (!*pos)
@@ -69,33 +70,31 @@ static void *dev_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	return dev_from_bucket(seq, pos);
 }
 
-static void dev_seq_stop(struct seq_file *seq, void *v)
-	__releases(RCU)
+static void dev_seq_stop(struct seq_file *seq, void *v) __releases(RCU)
 {
 	rcu_read_unlock();
 }
 
+// /proc/net/dev文件内容
 static void dev_seq_printf_stats(struct seq_file *seq, struct net_device *dev)
 {
 	struct rtnl_link_stats64 temp;
 	const struct rtnl_link_stats64 *stats = dev_get_stats(dev, &temp);
 
-	seq_printf(seq, "%6s: %7llu %7llu %4llu %4llu %4llu %5llu %10llu %9llu "
+	seq_printf(seq,
+		   "%6s: %7llu %7llu %4llu %4llu %4llu %5llu %10llu %9llu "
 		   "%8llu %7llu %4llu %4llu %4llu %5llu %7llu %10llu\n",
 		   dev->name, stats->rx_bytes, stats->rx_packets,
 		   stats->rx_errors,
 		   stats->rx_dropped + stats->rx_missed_errors,
 		   stats->rx_fifo_errors,
 		   stats->rx_length_errors + stats->rx_over_errors +
-		    stats->rx_crc_errors + stats->rx_frame_errors,
-		   stats->rx_compressed, stats->multicast,
-		   stats->tx_bytes, stats->tx_packets,
-		   stats->tx_errors, stats->tx_dropped,
+			   stats->rx_crc_errors + stats->rx_frame_errors,
+		   stats->rx_compressed, stats->multicast, stats->tx_bytes,
+		   stats->tx_packets, stats->tx_errors, stats->tx_dropped,
 		   stats->tx_fifo_errors, stats->collisions,
-		   stats->tx_carrier_errors +
-		    stats->tx_aborted_errors +
-		    stats->tx_window_errors +
-		    stats->tx_heartbeat_errors,
+		   stats->tx_carrier_errors + stats->tx_aborted_errors +
+			   stats->tx_window_errors + stats->tx_heartbeat_errors,
 		   stats->tx_compressed);
 }
 
@@ -169,28 +168,29 @@ static int softnet_seq_show(struct seq_file *seq, void *v)
 	 * displayed, it would be othrwise not trivial for the user-space
 	 * mapping the data a specific CPU
 	 */
-	seq_printf(seq,
-		   "%08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x\n",
-		   sd->processed, sd->dropped, sd->time_squeeze, 0,
-		   0, 0, 0, 0, /* was fastroute */
-		   0,	/* was cpu_collision */
-		   sd->received_rps, flow_limit_count,
-		   softnet_backlog_len(sd), (int)seq->index);
+	seq_printf(
+		seq,
+		"%08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x\n",
+		sd->processed, sd->dropped, sd->time_squeeze, 0, 0, 0, 0,
+		0, /* was fastroute */
+		0, /* was cpu_collision */
+		sd->received_rps, flow_limit_count, softnet_backlog_len(sd),
+		(int)seq->index);
 	return 0;
 }
 
 static const struct seq_operations dev_seq_ops = {
 	.start = dev_seq_start,
-	.next  = dev_seq_next,
-	.stop  = dev_seq_stop,
-	.show  = dev_seq_show,
+	.next = dev_seq_next,
+	.stop = dev_seq_stop,
+	.show = dev_seq_show,
 };
 
 static const struct seq_operations softnet_seq_ops = {
 	.start = softnet_seq_start,
-	.next  = softnet_seq_next,
-	.stop  = softnet_seq_stop,
-	.show  = softnet_seq_show,
+	.next = softnet_seq_next,
+	.stop = softnet_seq_stop,
+	.show = softnet_seq_show,
 };
 
 static void *ptype_get_idx(loff_t pos)
@@ -199,14 +199,14 @@ static void *ptype_get_idx(loff_t pos)
 	loff_t i = 0;
 	int t;
 
-	list_for_each_entry_rcu(pt, &ptype_all, list) {
+	list_for_each_entry_rcu (pt, &ptype_all, list) {
 		if (i == pos)
 			return pt;
 		++i;
 	}
 
 	for (t = 0; t < PTYPE_HASH_SIZE; t++) {
-		list_for_each_entry_rcu(pt, &ptype_base[t], list) {
+		list_for_each_entry_rcu (pt, &ptype_base[t], list) {
 			if (i == pos)
 				return pt;
 			++i;
@@ -215,8 +215,7 @@ static void *ptype_get_idx(loff_t pos)
 	return NULL;
 }
 
-static void *ptype_seq_start(struct seq_file *seq, loff_t *pos)
-	__acquires(RCU)
+static void *ptype_seq_start(struct seq_file *seq, loff_t *pos) __acquires(RCU)
 {
 	rcu_read_lock();
 	return *pos ? ptype_get_idx(*pos - 1) : SEQ_START_TOKEN;
@@ -251,8 +250,7 @@ found:
 	return list_entry(nxt, struct packet_type, list);
 }
 
-static void ptype_seq_stop(struct seq_file *seq, void *v)
-	__releases(RCU)
+static void ptype_seq_stop(struct seq_file *seq, void *v) __releases(RCU)
 {
 	rcu_read_unlock();
 }
@@ -269,8 +267,8 @@ static int ptype_seq_show(struct seq_file *seq, void *v)
 		else
 			seq_printf(seq, "%04x", ntohs(pt->type));
 
-		seq_printf(seq, " %-8s %pf\n",
-			   pt->dev ? pt->dev->name : "", pt->func);
+		seq_printf(seq, " %-8s %pf\n", pt->dev ? pt->dev->name : "",
+			   pt->func);
 	}
 
 	return 0;
@@ -278,9 +276,9 @@ static int ptype_seq_show(struct seq_file *seq, void *v)
 
 static const struct seq_operations ptype_seq_ops = {
 	.start = ptype_seq_start,
-	.next  = ptype_seq_next,
-	.stop  = ptype_seq_stop,
-	.show  = ptype_seq_show,
+	.next = ptype_seq_next,
+	.stop = ptype_seq_stop,
+	.show = ptype_seq_show,
 };
 
 static int __net_init dev_proc_net_init(struct net *net)
@@ -288,13 +286,13 @@ static int __net_init dev_proc_net_init(struct net *net)
 	int rc = -ENOMEM;
 
 	if (!proc_create_net("dev", 0444, net->proc_net, &dev_seq_ops,
-			sizeof(struct seq_net_private)))
+			     sizeof(struct seq_net_private)))
 		goto out;
 	if (!proc_create_seq("softnet_stat", 0444, net->proc_net,
-			 &softnet_seq_ops))
+			     &softnet_seq_ops))
 		goto out_dev;
 	if (!proc_create_net("ptype", 0444, net->proc_net, &ptype_seq_ops,
-			sizeof(struct seq_net_private)))
+			     sizeof(struct seq_net_private)))
 		goto out_softnet;
 
 	if (wext_proc_init(net))
@@ -334,10 +332,9 @@ static int dev_mc_seq_show(struct seq_file *seq, void *v)
 		return 0;
 
 	netif_addr_lock_bh(dev);
-	netdev_for_each_mc_addr(ha, dev) {
-		seq_printf(seq, "%-4d %-15s %-5d %-5d %*phN\n",
-			   dev->ifindex, dev->name,
-			   ha->refcount, ha->global_use,
+	netdev_for_each_mc_addr (ha, dev) {
+		seq_printf(seq, "%-4d %-15s %-5d %-5d %*phN\n", dev->ifindex,
+			   dev->name, ha->refcount, ha->global_use,
 			   (int)dev->addr_len, ha->addr);
 	}
 	netif_addr_unlock_bh(dev);
@@ -346,15 +343,15 @@ static int dev_mc_seq_show(struct seq_file *seq, void *v)
 
 static const struct seq_operations dev_mc_seq_ops = {
 	.start = dev_seq_start,
-	.next  = dev_seq_next,
-	.stop  = dev_seq_stop,
-	.show  = dev_mc_seq_show,
+	.next = dev_seq_next,
+	.stop = dev_seq_stop,
+	.show = dev_mc_seq_show,
 };
 
 static int __net_init dev_mc_net_init(struct net *net)
 {
 	if (!proc_create_net("dev_mcast", 0, net->proc_net, &dev_mc_seq_ops,
-			sizeof(struct seq_net_private)))
+			     sizeof(struct seq_net_private)))
 		return -ENOMEM;
 	return 0;
 }
