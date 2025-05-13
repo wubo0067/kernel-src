@@ -33,40 +33,33 @@
 #ifndef __MLX5_EN_STATS_H__
 #define __MLX5_EN_STATS_H__
 
-#define MLX5E_READ_CTR64_CPU(ptr, dsc, i)                                      \
+#define MLX5E_READ_CTR64_CPU(ptr, dsc, i) \
 	(*(u64 *)((char *)ptr + dsc[i].offset))
-#define MLX5E_READ_CTR64_BE(ptr, dsc, i)                                       \
+#define MLX5E_READ_CTR64_BE(ptr, dsc, i) \
 	be64_to_cpu(*(__be64 *)((char *)ptr + dsc[i].offset))
-#define MLX5E_READ_CTR32_CPU(ptr, dsc, i)                                      \
+#define MLX5E_READ_CTR32_CPU(ptr, dsc, i) \
 	(*(u32 *)((char *)ptr + dsc[i].offset))
-#define MLX5E_READ_CTR32_BE(ptr, dsc, i)                                       \
+#define MLX5E_READ_CTR32_BE(ptr, dsc, i) \
 	be32_to_cpu(*(__be32 *)((char *)ptr + dsc[i].offset))
 
 #define MLX5E_DECLARE_STAT(type, fld) #fld, offsetof(type, fld)
-#define MLX5E_DECLARE_RX_STAT(type, fld) "rx%d_" #fld, offsetof(type, fld)
-#define MLX5E_DECLARE_TX_STAT(type, fld) "tx%d_" #fld, offsetof(type, fld)
-#define MLX5E_DECLARE_XDPSQ_STAT(type, fld)                                    \
-	"tx%d_xdp_" #fld, offsetof(type, fld)
-#define MLX5E_DECLARE_RQ_XDPSQ_STAT(type, fld)                                 \
-	"rx%d_xdp_tx_" #fld, offsetof(type, fld)
-#define MLX5E_DECLARE_XSKRQ_STAT(type, fld)                                    \
-	"rx%d_xsk_" #fld, offsetof(type, fld)
-#define MLX5E_DECLARE_XSKSQ_STAT(type, fld)                                    \
-	"tx%d_xsk_" #fld, offsetof(type, fld)
-#define MLX5E_DECLARE_CH_STAT(type, fld) "ch%d_" #fld, offsetof(type, fld)
+#define MLX5E_DECLARE_RX_STAT(type, fld) "rx%d_"#fld, offsetof(type, fld)
+#define MLX5E_DECLARE_TX_STAT(type, fld) "tx%d_"#fld, offsetof(type, fld)
+#define MLX5E_DECLARE_XDPSQ_STAT(type, fld) "tx%d_xdp_"#fld, offsetof(type, fld)
+#define MLX5E_DECLARE_RQ_XDPSQ_STAT(type, fld) "rx%d_xdp_tx_"#fld, offsetof(type, fld)
+#define MLX5E_DECLARE_XSKRQ_STAT(type, fld) "rx%d_xsk_"#fld, offsetof(type, fld)
+#define MLX5E_DECLARE_XSKSQ_STAT(type, fld) "tx%d_xsk_"#fld, offsetof(type, fld)
+#define MLX5E_DECLARE_CH_STAT(type, fld) "ch%d_"#fld, offsetof(type, fld)
 
-#define MLX5E_DECLARE_PTP_TX_STAT(type, fld)                                   \
-	"ptp_tx%d_" #fld, offsetof(type, fld)
-#define MLX5E_DECLARE_PTP_CH_STAT(type, fld) "ptp_ch_" #fld, offsetof(type, fld)
-#define MLX5E_DECLARE_PTP_CQ_STAT(type, fld)                                   \
-	"ptp_cq%d_" #fld, offsetof(type, fld)
+#define MLX5E_DECLARE_PTP_TX_STAT(type, fld) "ptp_tx%d_"#fld, offsetof(type, fld)
+#define MLX5E_DECLARE_PTP_CH_STAT(type, fld) "ptp_ch_"#fld, offsetof(type, fld)
+#define MLX5E_DECLARE_PTP_CQ_STAT(type, fld) "ptp_cq%d_"#fld, offsetof(type, fld)
 
-#define MLX5E_DECLARE_QOS_TX_STAT(type, fld)                                   \
-	"qos_tx%d_" #fld, offsetof(type, fld)
+#define MLX5E_DECLARE_QOS_TX_STAT(type, fld) "qos_tx%d_"#fld, offsetof(type, fld)
 
 struct counter_desc {
-	char format[ETH_GSTRING_LEN];
-	size_t offset; /* Byte offset */
+	char		format[ETH_GSTRING_LEN];
+	size_t		offset; /* Byte offset */
 };
 
 enum {
@@ -84,35 +77,33 @@ struct mlx5e_stats_grp {
 
 typedef const struct mlx5e_stats_grp *const mlx5e_stats_grp_t;
 
-#define MLX5E_STATS_GRP_OP(grp, name) mlx5e_stats_grp_##grp##_##name
+#define MLX5E_STATS_GRP_OP(grp, name) mlx5e_stats_grp_ ## grp ## _ ## name
 
-#define MLX5E_DECLARE_STATS_GRP_OP_NUM_STATS(grp)                              \
-	int MLX5E_STATS_GRP_OP(grp, num_stats)(struct mlx5e_priv * priv)
+#define MLX5E_DECLARE_STATS_GRP_OP_NUM_STATS(grp) \
+	int MLX5E_STATS_GRP_OP(grp, num_stats)(struct mlx5e_priv *priv)
 
-#define MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(grp)                           \
-	void MLX5E_STATS_GRP_OP(grp, update_stats)(struct mlx5e_priv * priv)
+#define MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(grp) \
+	void MLX5E_STATS_GRP_OP(grp, update_stats)(struct mlx5e_priv *priv)
 
-#define MLX5E_DECLARE_STATS_GRP_OP_FILL_STRS(grp)                              \
-	int MLX5E_STATS_GRP_OP(grp, fill_strings)(struct mlx5e_priv * priv,    \
-						  u8 * data, int idx)
+#define MLX5E_DECLARE_STATS_GRP_OP_FILL_STRS(grp) \
+	int MLX5E_STATS_GRP_OP(grp, fill_strings)(struct mlx5e_priv *priv, u8 *data, int idx)
 
-#define MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(grp)                             \
-	int MLX5E_STATS_GRP_OP(grp, fill_stats)(struct mlx5e_priv * priv,      \
-						u64 * data, int idx)
+#define MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(grp) \
+	int MLX5E_STATS_GRP_OP(grp, fill_stats)(struct mlx5e_priv *priv, u64 *data, int idx)
 
-#define MLX5E_STATS_GRP(grp) mlx5e_stats_grp_##grp
+#define MLX5E_STATS_GRP(grp) mlx5e_stats_grp_ ## grp
 
-#define MLX5E_DECLARE_STATS_GRP(grp)                                           \
+#define MLX5E_DECLARE_STATS_GRP(grp) \
 	const struct mlx5e_stats_grp MLX5E_STATS_GRP(grp)
 
-#define MLX5E_DEFINE_STATS_GRP(grp, mask)                                      \
-	MLX5E_DECLARE_STATS_GRP(grp) = {                                       \
-		.get_num_stats = MLX5E_STATS_GRP_OP(grp, num_stats),           \
-		.fill_stats = MLX5E_STATS_GRP_OP(grp, fill_stats),             \
-		.fill_strings = MLX5E_STATS_GRP_OP(grp, fill_strings),         \
-		.update_stats = MLX5E_STATS_GRP_OP(grp, update_stats),         \
-		.update_stats_mask = mask,                                     \
-	}
+#define MLX5E_DEFINE_STATS_GRP(grp, mask) \
+MLX5E_DECLARE_STATS_GRP(grp) = { \
+	.get_num_stats = MLX5E_STATS_GRP_OP(grp, num_stats), \
+	.fill_stats    = MLX5E_STATS_GRP_OP(grp, fill_stats), \
+	.fill_strings  = MLX5E_STATS_GRP_OP(grp, fill_strings), \
+	.update_stats  = MLX5E_STATS_GRP_OP(grp, update_stats), \
+	.update_stats_mask = mask, \
+}
 
 unsigned int mlx5e_stats_total_num(struct mlx5e_priv *priv);
 void mlx5e_stats_update(struct mlx5e_priv *priv);
@@ -256,31 +247,31 @@ struct mlx5e_vnic_env_stats {
 	__be64 query_vnic_env_out[MLX5_ST_SZ_QW(query_vnic_env_out)];
 };
 
-#define VPORT_COUNTER_GET(vstats, c)                                           \
-	MLX5_GET64(query_vport_counter_out, vstats->query_vport_out, c)
+#define VPORT_COUNTER_GET(vstats, c) MLX5_GET64(query_vport_counter_out, \
+						vstats->query_vport_out, c)
 
 struct mlx5e_vport_stats {
 	__be64 query_vport_out[MLX5_ST_SZ_QW(query_vport_counter_out)];
 };
 
-#define PPORT_802_3_GET(pstats, c)                                             \
-	MLX5_GET64(ppcnt_reg, pstats->IEEE_802_3_counters,                     \
+#define PPORT_802_3_GET(pstats, c) \
+	MLX5_GET64(ppcnt_reg, pstats->IEEE_802_3_counters, \
 		   counter_set.eth_802_3_cntrs_grp_data_layout.c##_high)
-#define PPORT_2863_GET(pstats, c)                                              \
-	MLX5_GET64(ppcnt_reg, pstats->RFC_2863_counters,                       \
+#define PPORT_2863_GET(pstats, c) \
+	MLX5_GET64(ppcnt_reg, pstats->RFC_2863_counters, \
 		   counter_set.eth_2863_cntrs_grp_data_layout.c##_high)
-#define PPORT_2819_GET(pstats, c)                                              \
-	MLX5_GET64(ppcnt_reg, pstats->RFC_2819_counters,                       \
+#define PPORT_2819_GET(pstats, c) \
+	MLX5_GET64(ppcnt_reg, pstats->RFC_2819_counters, \
 		   counter_set.eth_2819_cntrs_grp_data_layout.c##_high)
-#define PPORT_PHY_STATISTICAL_GET(pstats, c)                                   \
-	MLX5_GET64(ppcnt_reg, (pstats)->phy_statistical_counters,              \
+#define PPORT_PHY_STATISTICAL_GET(pstats, c) \
+	MLX5_GET64(ppcnt_reg, (pstats)->phy_statistical_counters, \
 		   counter_set.phys_layer_statistical_cntrs.c##_high)
-#define PPORT_PER_PRIO_GET(pstats, prio, c)                                    \
-	MLX5_GET64(ppcnt_reg, pstats->per_prio_counters[prio],                 \
+#define PPORT_PER_PRIO_GET(pstats, prio, c) \
+	MLX5_GET64(ppcnt_reg, pstats->per_prio_counters[prio], \
 		   counter_set.eth_per_prio_grp_data_layout.c##_high)
-#define NUM_PPORT_PRIO 8
-#define PPORT_ETH_EXT_GET(pstats, c)                                           \
-	MLX5_GET64(ppcnt_reg, (pstats)->eth_ext_counters,                      \
+#define NUM_PPORT_PRIO				8
+#define PPORT_ETH_EXT_GET(pstats, c) \
+	MLX5_GET64(ppcnt_reg, (pstats)->eth_ext_counters, \
 		   counter_set.eth_extended_cntrs_grp_data_layout.c##_high)
 
 struct mlx5e_pport_stats {
@@ -292,16 +283,15 @@ struct mlx5e_pport_stats {
 	__be64 phy_statistical_counters[MLX5_ST_SZ_QW(ppcnt_reg)];
 	__be64 eth_ext_counters[MLX5_ST_SZ_QW(ppcnt_reg)];
 	__be64 per_tc_prio_counters[NUM_PPORT_PRIO][MLX5_ST_SZ_QW(ppcnt_reg)];
-	__be64 per_tc_congest_prio_counters[NUM_PPORT_PRIO]
-					   [MLX5_ST_SZ_QW(ppcnt_reg)];
+	__be64 per_tc_congest_prio_counters[NUM_PPORT_PRIO][MLX5_ST_SZ_QW(ppcnt_reg)];
 };
 
-#define PCIE_PERF_GET(pcie_stats, c)                                           \
-	MLX5_GET(mpcnt_reg, (pcie_stats)->pcie_perf_counters,                  \
+#define PCIE_PERF_GET(pcie_stats, c) \
+	MLX5_GET(mpcnt_reg, (pcie_stats)->pcie_perf_counters, \
 		 counter_set.pcie_perf_cntrs_grp_data_layout.c)
 
-#define PCIE_PERF_GET64(pcie_stats, c)                                         \
-	MLX5_GET64(mpcnt_reg, (pcie_stats)->pcie_perf_counters,                \
+#define PCIE_PERF_GET64(pcie_stats, c) \
+	MLX5_GET64(mpcnt_reg, (pcie_stats)->pcie_perf_counters, \
 		   counter_set.pcie_perf_cntrs_grp_data_layout.c##_high)
 
 struct mlx5e_pcie_stats {
@@ -405,7 +395,7 @@ struct mlx5e_ch_stats {
 	u64 events;
 	u64 poll;
 	u64 arm;
-	u64 aff_change; // 记录通道的 CPU 亲和性（affinity）发生变化的次数。CPU 亲和性指的是通道绑定到特定 CPU 核心的情况。
+	u64 aff_change;
 	u64 force_irq;
 	u64 eq_rearm;
 };

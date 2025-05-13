@@ -51,11 +51,15 @@ enum {
 };
 
 static char *qp_fields[] = {
-	[QP_PID] = "pid",	  [QP_STATE] = "state",
-	[QP_XPORT] = "transport", [QP_MTU] = "mtu",
-	[QP_N_RECV] = "num_recv", [QP_RECV_SZ] = "rcv_wqe_sz",
-	[QP_N_SEND] = "num_send", [QP_LOG_PG_SZ] = "log2_page_sz",
-	[QP_RQPN] = "remote_qpn",
+	[QP_PID]	= "pid",
+	[QP_STATE]	= "state",
+	[QP_XPORT]	= "transport",
+	[QP_MTU]	= "mtu",
+	[QP_N_RECV]	= "num_recv",
+	[QP_RECV_SZ]	= "rcv_wqe_sz",
+	[QP_N_SEND]	= "num_send",
+	[QP_LOG_PG_SZ]	= "log2_page_sz",
+	[QP_RQPN]	= "remote_qpn",
 };
 
 enum {
@@ -65,9 +69,9 @@ enum {
 };
 
 static char *eq_fields[] = {
-	[EQ_NUM_EQES] = "num_eqes",
-	[EQ_INTR] = "intr",
-	[EQ_LOG_PG_SZ] = "log_page_size",
+	[EQ_NUM_EQES]	= "num_eqes",
+	[EQ_INTR]	= "intr",
+	[EQ_LOG_PG_SZ]	= "log_page_size",
 };
 
 enum {
@@ -77,9 +81,9 @@ enum {
 };
 
 static char *cq_fields[] = {
-	[CQ_PID] = "pid",
-	[CQ_NUM_CQES] = "num_cqes",
-	[CQ_LOG_PG_SZ] = "log_page_size",
+	[CQ_PID]	= "pid",
+	[CQ_NUM_CQES]	= "num_cqes",
+	[CQ_LOG_PG_SZ]	= "log_page_size",
 };
 
 struct dentry *mlx5_debugfs_root;
@@ -97,8 +101,7 @@ void mlx5_unregister_debugfs(void)
 
 void mlx5_qp_debugfs_init(struct mlx5_core_dev *dev)
 {
-	// 在/sys/kernel/debug/mlx5/目录下创建 QPs 目录
-	dev->priv.qp_debugfs = debugfs_create_dir("QPs", dev->priv.dbg_root);
+	dev->priv.qp_debugfs = debugfs_create_dir("QPs",  dev->priv.dbg_root);
 }
 EXPORT_SYMBOL(mlx5_qp_debugfs_init);
 
@@ -110,7 +113,7 @@ EXPORT_SYMBOL(mlx5_qp_debugfs_cleanup);
 
 void mlx5_eq_debugfs_init(struct mlx5_core_dev *dev)
 {
-	dev->priv.eq_debugfs = debugfs_create_dir("EQs", dev->priv.dbg_root);
+	dev->priv.eq_debugfs = debugfs_create_dir("EQs",  dev->priv.dbg_root);
 }
 
 void mlx5_eq_debugfs_cleanup(struct mlx5_core_dev *dev)
@@ -152,10 +155,10 @@ static ssize_t average_write(struct file *filp, const char __user *buf,
 }
 
 static const struct file_operations stats_fops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = average_read,
-	.write = average_write,
+	.owner	= THIS_MODULE,
+	.open	= simple_open,
+	.read	= average_read,
+	.write	= average_write,
 };
 
 void mlx5_cmdif_debugfs_init(struct mlx5_core_dev *dev)
@@ -188,7 +191,7 @@ void mlx5_cmdif_debugfs_cleanup(struct mlx5_core_dev *dev)
 
 void mlx5_cq_debugfs_init(struct mlx5_core_dev *dev)
 {
-	dev->priv.cq_debugfs = debugfs_create_dir("CQs", dev->priv.dbg_root);
+	dev->priv.cq_debugfs = debugfs_create_dir("CQs",  dev->priv.dbg_root);
 }
 
 void mlx5_cq_debugfs_cleanup(struct mlx5_core_dev *dev)
@@ -384,8 +387,7 @@ static ssize_t dbg_read(struct file *filp, char __user *buf, size_t count,
 	}
 
 	if (is_str)
-		ret = snprintf(tbuf, sizeof(tbuf), "%s\n",
-			       (const char *)(unsigned long)field);
+		ret = snprintf(tbuf, sizeof(tbuf), "%s\n", (const char *)(unsigned long)field);
 	else
 		ret = snprintf(tbuf, sizeof(tbuf), "0x%llx\n", field);
 
@@ -393,9 +395,9 @@ static ssize_t dbg_read(struct file *filp, char __user *buf, size_t count,
 }
 
 static const struct file_operations fops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = dbg_read,
+	.owner	= THIS_MODULE,
+	.open	= simple_open,
+	.read	= dbg_read,
 };
 
 static int add_res_tree(struct mlx5_core_dev *dev, enum dbg_rsc_type type,
@@ -414,7 +416,7 @@ static int add_res_tree(struct mlx5_core_dev *dev, enum dbg_rsc_type type,
 	d->object = data;
 	d->type = type;
 	sprintf(resn, "0x%x", rsn);
-	d->root = debugfs_create_dir(resn, root);
+	d->root = debugfs_create_dir(resn,  root);
 
 	for (i = 0; i < nfile; i++) {
 		d->fields[i].i = i;
@@ -439,8 +441,9 @@ int mlx5_debug_qp_add(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp)
 	if (!mlx5_debugfs_root)
 		return 0;
 
-	err = add_res_tree(dev, MLX5_DBG_RSC_QP, dev->priv.qp_debugfs, &qp->dbg,
-			   qp->qpn, qp_fields, ARRAY_SIZE(qp_fields), qp);
+	err = add_res_tree(dev, MLX5_DBG_RSC_QP, dev->priv.qp_debugfs,
+			   &qp->dbg, qp->qpn, qp_fields,
+			   ARRAY_SIZE(qp_fields), qp);
 	if (err)
 		qp->dbg = NULL;
 
@@ -465,8 +468,9 @@ int mlx5_debug_eq_add(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 	if (!mlx5_debugfs_root)
 		return 0;
 
-	err = add_res_tree(dev, MLX5_DBG_RSC_EQ, dev->priv.eq_debugfs, &eq->dbg,
-			   eq->eqn, eq_fields, ARRAY_SIZE(eq_fields), eq);
+	err = add_res_tree(dev, MLX5_DBG_RSC_EQ, dev->priv.eq_debugfs,
+			   &eq->dbg, eq->eqn, eq_fields,
+			   ARRAY_SIZE(eq_fields), eq);
 	if (err)
 		eq->dbg = NULL;
 
@@ -489,8 +493,9 @@ int mlx5_debug_cq_add(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq)
 	if (!mlx5_debugfs_root)
 		return 0;
 
-	err = add_res_tree(dev, MLX5_DBG_RSC_CQ, dev->priv.cq_debugfs, &cq->dbg,
-			   cq->cqn, cq_fields, ARRAY_SIZE(cq_fields), cq);
+	err = add_res_tree(dev, MLX5_DBG_RSC_CQ, dev->priv.cq_debugfs,
+			   &cq->dbg, cq->cqn, cq_fields,
+			   ARRAY_SIZE(cq_fields), cq);
 	if (err)
 		cq->dbg = NULL;
 

@@ -124,14 +124,12 @@ static struct mlx5_core_cq *mlx5_eq_cq_get(struct mlx5_eq *eq, u32 cqn)
 	return cq;
 }
 
-// Mellanox MLX5 网卡驱动中处理完成事件队列（Completion Event Queue, EQ）中断的函数
 static int mlx5_eq_comp_int(struct notifier_block *nb,
 			    __always_unused unsigned long action,
 			    __always_unused void *data)
 {
 	struct mlx5_eq_comp *eq_comp =
 		container_of(nb, struct mlx5_eq_comp, irq_nb);
-	// 完成事件队列 completion Event Queue
 	struct mlx5_eq *eq = &eq_comp->core;
 	struct mlx5_eqe *eqe;
 	int num_eqes = 0;
@@ -150,17 +148,11 @@ static int mlx5_eq_comp_int(struct notifier_block *nb,
 		dma_rmb();
 		/* Assume (eqe->type) is always MLX5_EVENT_TYPE_COMP */
 		cqn = be32_to_cpu(eqe->data.comp.cqn) & 0xffffff;
-		// 函数的目的是根据给定的完成队列号（CQN）从事件队列（EQ）相关的数据结构中获取对应的完成队列（CQ）对象。
-		// 当 EQ 接收到一个事件时，它包含了相关 CQ 的 CQN。
-		// 驱动程序使用这个 CQN 找到对应的 CQ，然后处理该 CQ 上的完成事件。
+
 		cq = mlx5_eq_cq_get(eq, cqn);
 		if (likely(cq)) {
 			++cq->arm_sn;
-			/*
-			cq->comp 是一个函数指针“mlx5_add_cq_to_tasklet”，指向处理该 CQ 完成事件的回调函数
-			void mlx5e_completion_event(struct mlx5_core_cq *mcq, struct mlx5_eqe *eqe) 调用 napi_schedule
-			poll 函数是 mlx5e_napi_poll 来执行下半段
-			*/
+			// 回调 mlx5_add_cq_to_tasklet，将完成队列加入 tasklet
 			cq->comp(cq, eqe);
 			mlx5_cq_put(cq);
 		} else {
@@ -178,6 +170,7 @@ out:
 	eq_update_ci(eq, 1);
 
 	if (cqn != -1)
+		// tasklet 的回调函数 mlx5_cq_tasklet_cb
 		tasklet_schedule(&eq_comp->tasklet_ctx.task);
 
 	return 0;
@@ -475,7 +468,7 @@ int mlx5_eq_table_init(struct mlx5_core_dev *dev)
 		return -ENOMEM;
 
 	dev->priv.eq_table = eq_table;
-	// 创建/sys/kernel/debufs/mlx5/<ifname>/EQs
+
 	mlx5_eq_debugfs_init(dev);
 
 	mutex_init(&eq_table->lock);
@@ -846,11 +839,10 @@ static int create_comp_eqs(struct mlx5_core_dev *dev)
 		INIT_LIST_HEAD(&eq->tasklet_ctx.list);
 		INIT_LIST_HEAD(&eq->tasklet_ctx.process_list);
 		spin_lock_init(&eq->tasklet_ctx.lock);
-		// 这里用了一个 tasklet 来做中断的下半部
+		// rx，tx的处理函数
 		tasklet_init(&eq->tasklet_ctx.task, mlx5_cq_tasklet_cb,
 			     (unsigned long)&eq->tasklet_ctx);
-		// 中断 notifier_call_chain 回调函数
-		// notifier_call_chain-->(nb->notifier_call)
+		// 设置通知链条回调函数
 		eq->irq_nb.notifier_call = mlx5_eq_comp_int;
 		param = (struct mlx5_eq_param){
 			.irq_index = vecidx,
@@ -904,8 +896,6 @@ EXPORT_SYMBOL(mlx5_vector2eqn);
 
 unsigned int mlx5_comp_vectors_count(struct mlx5_core_dev *dev)
 {
-	// 在这里初始化 mlx5_eq_table_create
-	// 使用 lbv_devinfo -v 查看 num_comp_vectors 的值
 	return dev->priv.eq_table->num_comp_eqs;
 }
 EXPORT_SYMBOL(mlx5_comp_vectors_count);
@@ -958,13 +948,12 @@ void mlx5_core_eq_free_irqs(struct mlx5_core_dev *dev)
 
 int mlx5_eq_table_create(struct mlx5_core_dev *dev)
 {
-	// mlx5_irq_table_create
 	struct mlx5_eq_table *eq_table = dev->priv.eq_table;
 	int num_eqs = MLX5_CAP_GEN(dev, max_num_eqs) ?
 			      MLX5_CAP_GEN(dev, max_num_eqs) :
 			      1 << MLX5_CAP_GEN(dev, log_max_eq);
 	int err;
-	// mlx5_irq_get_num_comp，返回可用于完成事件队列的中断向量数量，它考虑了系统中可用的 MSI-X 向量数量
+
 	eq_table->num_comp_eqs =
 		min_t(int, mlx5_irq_get_num_comp(eq_table->irq_table),
 		      num_eqs - MLX5_MAX_ASYNC_EQS);

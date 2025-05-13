@@ -53,8 +53,7 @@ static void mlx5e_handle_tx_dim(struct mlx5e_txqsq *sq)
 	if (unlikely(!test_bit(MLX5E_SQ_STATE_AM, &sq->state)))
 		return;
 
-	dim_update_sample(sq->cq.event_ctr, stats->packets, stats->bytes,
-			  &dim_sample);
+	dim_update_sample(sq->cq.event_ctr, stats->packets, stats->bytes, &dim_sample);
 	net_dim(&sq->dim, dim_sample);
 }
 
@@ -66,8 +65,7 @@ static void mlx5e_handle_rx_dim(struct mlx5e_rq *rq)
 	if (unlikely(!test_bit(MLX5E_RQ_STATE_AM, &rq->state)))
 		return;
 
-	dim_update_sample(rq->cq.event_ctr, stats->packets, stats->bytes,
-			  &dim_sample);
+	dim_update_sample(rq->cq.event_ctr, stats->packets, stats->bytes, &dim_sample);
 	net_dim(&rq->dim, dim_sample);
 }
 
@@ -77,8 +75,8 @@ void mlx5e_trigger_irq(struct mlx5e_icosq *sq)
 	struct mlx5e_tx_wqe *nopwqe;
 	u16 pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
 
-	sq->db.wqe_info[pi] = (struct mlx5e_icosq_wqe_info){
-		.wqe_type = MLX5E_ICOSQ_WQE_NOP,
+	sq->db.wqe_info[pi] = (struct mlx5e_icosq_wqe_info) {
+		.wqe_type   = MLX5E_ICOSQ_WQE_NOP,
 		.num_wqebbs = 1,
 	};
 
@@ -86,8 +84,7 @@ void mlx5e_trigger_irq(struct mlx5e_icosq *sq)
 	mlx5e_notify_hw(wq, sq->pc, sq->uar_map, &nopwqe->ctrl);
 }
 
-static bool mlx5e_napi_xsk_post(struct mlx5e_xdpsq *xsksq,
-				struct mlx5e_rq *xskrq)
+static bool mlx5e_napi_xsk_post(struct mlx5e_xdpsq *xsksq, struct mlx5e_rq *xskrq)
 {
 	bool busy_xsk = false, xsk_rx_alloc_err;
 
@@ -104,20 +101,19 @@ static bool mlx5e_napi_xsk_post(struct mlx5e_xdpsq *xsksq,
 	busy_xsk |= mlx5e_xsk_tx(xsksq, MLX5E_TX_XSK_POLL_BUDGET);
 	mlx5e_xsk_update_tx_wakeup(xsksq);
 
-	xsk_rx_alloc_err =
-		INDIRECT_CALL_2(xskrq->post_wqes, mlx5e_post_rx_mpwqes,
-				mlx5e_post_rx_wqes, xskrq);
+	xsk_rx_alloc_err = INDIRECT_CALL_2(xskrq->post_wqes,
+					   mlx5e_post_rx_mpwqes,
+					   mlx5e_post_rx_wqes,
+					   xskrq);
 	busy_xsk |= mlx5e_xsk_update_rx_wakeup(xskrq, xsk_rx_alloc_err);
 
 	return busy_xsk;
 }
 
-// todo: 查这个函数的调用堆栈，这才是 mlx5e 的 napi 轮询函数
 int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 {
-	struct mlx5e_channel *c =
-		container_of(napi, struct mlx5e_channel, napi);
-	// 拿到通道状态字段
+	struct mlx5e_channel *c = container_of(napi, struct mlx5e_channel,
+					       napi);
 	struct mlx5e_ch_stats *ch_stats = c->stats;
 	struct mlx5e_xdpsq *xsksq = &c->xsksq;
 	struct mlx5e_txqsq __rcu **qos_sqs;
@@ -138,7 +134,7 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	xsk_open = test_bit(MLX5E_CHANNEL_STATE_XSK, c->state);
 
 	ch_stats->poll++;
-	// 流量类的数量
+
 	for (i = 0; i < c->num_tc; i++)
 		busy |= mlx5e_poll_tx_cq(&c->sq[i].cq, budget);
 
@@ -164,8 +160,7 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 			work_done = mlx5e_poll_rx_cq(&xskrq->cq, budget);
 
 		if (likely(budget - work_done))
-			work_done +=
-				mlx5e_poll_rx_cq(&rq->cq, budget - work_done);
+			work_done += mlx5e_poll_rx_cq(&rq->cq, budget - work_done);
 
 		busy |= work_done == budget;
 	}
@@ -181,8 +176,10 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	if (unlikely(mlx5e_ktls_rx_pending_resync_list(c, budget)))
 		busy |= mlx5e_ktls_rx_handle_resync_list(c, budget);
 
-	busy |= INDIRECT_CALL_2(rq->post_wqes, mlx5e_post_rx_mpwqes,
-				mlx5e_post_rx_wqes, rq);
+	busy |= INDIRECT_CALL_2(rq->post_wqes,
+				mlx5e_post_rx_mpwqes,
+				mlx5e_post_rx_wqes,
+				rq);
 	if (xsk_open) {
 		busy |= mlx5e_poll_xdpsq_cq(&xsksq->cq);
 		busy_xsk |= mlx5e_napi_xsk_post(xsksq, xskrq);
@@ -244,50 +241,7 @@ out:
 
 	return work_done;
 }
-/*
-您的观察非常敏锐，这确实是一个有趣的问题。让我来解释一下这种设计的原因和工作方式：
 
-1. NAPI 和软中断：
-   - NAPI（New API）是 Linux 网络栈中用于高效处理网络包的机制。
-   - `napi_schedule` 确实最终会触发 `NET_RX_SOFTIRQ`，但这并不意味着它只处理接收（RX）操作。
-
-2. 统一的处理机制：
-   - MLX5 驱动使用统一的 NAPI 机制来处理 both 接收和发送完成事件。
-   - 这种设计简化了驱动结构，并提高了效率。
-
-3. NAPI poll 函数：
-   - 关键在于 NAPI 结构体中注册的 `poll` 函数。
-   - 在 MLX5 驱动中，这个 `poll` 函数通常是 `mlx5e_napi_poll`。
-
-4. mlx5e_napi_poll 的实现：
-   - 这个函数会处理 both 接收和发送完成队列。
-   - 例如：
-     ```c
-     int mlx5e_napi_poll(struct napi_struct *napi, int budget)
-     {
-         // ... 其他代码 ...
-         for (i = 0; i < c->num_tc; i++)
-             busy |= mlx5e_poll_tx_cq(&c->sq[i].cq, budget);
-         // ... 处理 RX ...
-         // ... 其他代码 ...
-     }
-     ```
-
-5. 为什么使用 NET_RX_SOFTIRQ：
-   - 虽然名字中包含 "RX"，但 `NET_RX_SOFTIRQ` 实际上是网络子系统用于所有类型网络处理的通用软中断。
-   - 使用同一个软中断简化了网络栈的设计，并允许更灵活的资源分配。
-
-6. 效率考虑：
-   - 使用单一的 NAPI 上下文处理 RX 和 TX 可以减少上下文切换，提高效率。
-   - 它允许驱动在同一个处理循环中平衡 RX 和 TX 的工作负载。
-
-7. 中断合并：
-   - 现代网卡通常支持中断合并，这意味着单个中断可能代表多个事件（包括 RX 和 TX）。
-
-总结：
-虽然 `napi_schedule` 最终触发 `NET_RX_SOFTIRQ`，但这并不限制它只处理接收操作。
-MLX5 驱动利用 NAPI 的灵活性来统一处理接收和发送完成事件。这种设计提供了更好的性能和资源利用，
-同时简化了驱动的结构。在 `mlx5e_napi_poll` 函数中，驱动会适当地处理 both 接收和发送队列，确保所有网络操作都得到及时处理。*/
 void mlx5e_completion_event(struct mlx5_core_cq *mcq, struct mlx5_eqe *eqe)
 {
 	struct mlx5e_cq *cq = container_of(mcq, struct mlx5e_cq, mcq);
@@ -302,6 +256,6 @@ void mlx5e_cq_error_event(struct mlx5_core_cq *mcq, enum mlx5_event event)
 	struct mlx5e_cq *cq = container_of(mcq, struct mlx5e_cq, mcq);
 	struct net_device *netdev = cq->netdev;
 
-	netdev_err(netdev, "%s: cqn=0x%.6x event=0x%.2x\n", __func__, mcq->cqn,
-		   event);
+	netdev_err(netdev, "%s: cqn=0x%.6x event=0x%.2x\n",
+		   __func__, mcq->cqn, event);
 }

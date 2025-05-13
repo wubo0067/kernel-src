@@ -54,9 +54,10 @@ void mlx5_cq_tasklet_cb(unsigned long data)
 	list_splice_tail_init(&ctx->list, &ctx->process_list);
 	spin_unlock_irqrestore(&ctx->lock, flags);
 
-	list_for_each_entry_safe(mcq, temp, &ctx->process_list,
-				 tasklet_ctx.list) {
+	list_for_each_entry_safe (mcq, temp, &ctx->process_list,
+				  tasklet_ctx.list) {
 		list_del_init(&mcq->tasklet_ctx.list);
+		// cq->mcq.tasklet_ctx.comp = mlx5_ib_cq_comp;
 		mcq->tasklet_ctx.comp(mcq, NULL);
 		mlx5_cq_put(mcq);
 		if (time_after(jiffies, end))
@@ -81,6 +82,7 @@ static void mlx5_add_cq_to_tasklet(struct mlx5_core_cq *cq,
 	 */
 	if (list_empty_careful(&cq->tasklet_ctx.list)) {
 		mlx5_cq_hold(cq);
+		// 将 cq 的 tasklet 节点加入 tasklet_ctx->list 链表末尾
 		list_add_tail(&cq->tasklet_ctx.list, &tasklet_ctx->list);
 	}
 	spin_unlock_irqrestore(&tasklet_ctx->lock, flags);
@@ -89,7 +91,8 @@ static void mlx5_add_cq_to_tasklet(struct mlx5_core_cq *cq,
 int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 			u32 *in, int inlen, u32 *out, int outlen)
 {
-	int eqn = MLX5_GET(cqc, MLX5_ADDR_OF(create_cq_in, in, cq_context), c_eqn);
+	int eqn = MLX5_GET(cqc, MLX5_ADDR_OF(create_cq_in, in, cq_context),
+			   c_eqn);
 	u32 din[MLX5_ST_SZ_DW(destroy_cq_in)] = {};
 	struct mlx5_eq_comp *eq;
 	int err;
@@ -106,8 +109,8 @@ int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 
 	cq->cqn = MLX5_GET(create_cq_out, out, cqn);
 	cq->cons_index = 0;
-	cq->arm_sn     = 0;
-	cq->eq         = eq;
+	cq->arm_sn = 0;
+	cq->eq = eq;
 	cq->uid = MLX5_GET(create_cq_in, in, uid);
 	refcount_set(&cq->refcount, 1);
 	init_completion(&cq->free);
@@ -130,7 +133,8 @@ int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 	cq->pid = current->pid;
 	err = mlx5_debug_cq_add(dev, cq);
 	if (err)
-		mlx5_core_dbg(dev, "failed adding CP 0x%x to debug file system\n",
+		mlx5_core_dbg(dev,
+			      "failed adding CP 0x%x to debug file system\n",
 			      cq->cqn);
 
 	cq->uar = dev->priv.uar;
@@ -196,8 +200,7 @@ int mlx5_core_modify_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 EXPORT_SYMBOL(mlx5_core_modify_cq);
 
 int mlx5_core_modify_cq_moderation(struct mlx5_core_dev *dev,
-				   struct mlx5_core_cq *cq,
-				   u16 cq_period,
+				   struct mlx5_core_cq *cq, u16 cq_period,
 				   u16 cq_max_count)
 {
 	u32 in[MLX5_ST_SZ_DW(modify_cq_in)] = {};
@@ -208,7 +211,8 @@ int mlx5_core_modify_cq_moderation(struct mlx5_core_dev *dev,
 	MLX5_SET(cqc, cqc, cq_period, cq_period);
 	MLX5_SET(cqc, cqc, cq_max_count, cq_max_count);
 	MLX5_SET(modify_cq_in, in,
-		 modify_field_select_resize_field_select.modify_field_select.modify_field_select,
+		 modify_field_select_resize_field_select.modify_field_select
+			 .modify_field_select,
 		 MLX5_CQ_MODIFY_PERIOD | MLX5_CQ_MODIFY_COUNT);
 
 	return mlx5_core_modify_cq(dev, cq, in, sizeof(in));
