@@ -51,7 +51,9 @@ struct mlx5_core_cq {
 	struct completion free;
 	unsigned vector;
 	unsigned int irqn;
-	/* 完成处理回调函数 */
+	/* 完成处理回调函数
+	mlx5_add_cq_to_tasklet，将完成队列加入
+	*/
 	void (*comp)(struct mlx5_core_cq *cq, struct mlx5_eqe *eqe);
 	void (*event)(struct mlx5_core_cq *, enum mlx5_event);
 	u32 cons_index;
@@ -60,6 +62,7 @@ struct mlx5_core_cq {
 	int pid;
 	struct {
 		struct list_head list;
+		// mlx5_cq_tasklet_cb
 		void (*comp)(struct mlx5_core_cq *cq, struct mlx5_eqe *eqe);
 		void *priv;
 	} tasklet_ctx;

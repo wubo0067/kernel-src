@@ -83,6 +83,12 @@ static irqreturn_t mlx5_irq_int_handler(int irq, void *nh)
 {
 	// 在 notifier_call_chain 函数中回调
 	// eq->irq_nb.notifier_call = mlx5_eq_comp_int;
+	/*
+	这个函数会依次调用通知链上注册的所有回调函数，并且在所有回调函数执行完成后才会返回。
+	调用者线程会被阻塞，直到整个通知链上的所有处理函数都执行完毕。
+	mlx5_eq_comp_int 的确是在硬中断上下文中被调用的，但它本身只做极少量、快速的工作（主要是分发和调度），不会做耗时的包处理。
+    真正的包处理和协议栈交互，会在 tasklet 或 NAPI poll 的软中断上下文中完成，避免阻塞硬中断。
+	*/
 	atomic_notifier_call_chain(nh, 0, NULL);
 	return IRQ_HANDLED;
 }

@@ -54,10 +54,13 @@ void mlx5_cq_tasklet_cb(unsigned long data)
 	list_splice_tail_init(&ctx->list, &ctx->process_list);
 	spin_unlock_irqrestore(&ctx->lock, flags);
 
+	// 遍历并处理所有已加入 tasklet 队列的 CQ（完成队列）
 	list_for_each_entry_safe (mcq, temp, &ctx->process_list,
 				  tasklet_ctx.list) {
 		list_del_init(&mcq->tasklet_ctx.list);
-		// cq->mcq.tasklet_ctx.comp = mlx5_ib_cq_comp;
+		// cq->mcq.tasklet_ctx.comp =
+		// mlx5_ib_cq_comp;
+		// mlx5e_completion_event
 		mcq->tasklet_ctx.comp(mcq, NULL);
 		mlx5_cq_put(mcq);
 		if (time_after(jiffies, end))

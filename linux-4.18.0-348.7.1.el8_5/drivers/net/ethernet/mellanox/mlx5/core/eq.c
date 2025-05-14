@@ -124,6 +124,7 @@ static struct mlx5_core_cq *mlx5_eq_cq_get(struct mlx5_eq *eq, u32 cqn)
 	return cq;
 }
 
+// 这个是在硬中断处理逻辑中调用，将 mlx5_core_cq 加入 tasklet
 static int mlx5_eq_comp_int(struct notifier_block *nb,
 			    __always_unused unsigned long action,
 			    __always_unused void *data)
@@ -153,6 +154,7 @@ static int mlx5_eq_comp_int(struct notifier_block *nb,
 		if (likely(cq)) {
 			++cq->arm_sn;
 			// 回调 mlx5_add_cq_to_tasklet，将完成队列加入 tasklet
+			// 最后调度 tasklet 进行后续的软中断处理（如 NAPI poll）。
 			cq->comp(cq, eqe);
 			mlx5_cq_put(cq);
 		} else {
@@ -171,6 +173,16 @@ out:
 
 	if (cqn != -1)
 		// tasklet 的回调函数 mlx5_cq_tasklet_cb
+		/*
+		当 mlx5_eq_comp_int 在 ISR（硬中断服务例程）中执行时，调用
+		tasklet_schedule(&eq_comp->tasklet_ctx.task); 实际上只是将对应的 tasklet
+		加入当前 CPU 的 tasklet 队列，并设置软中断的 pending 标志位。
+		此时不会唤醒 ksoftirqd 内核线程。
+
+		软中断的实际处理会在硬中断返回、进入软中断处理流程（如 irq_exit()）时由当前 CPU
+		直接执行。如果软中断不能及时处理（比如被禁止或延迟），才会在后续进程上下文中唤醒
+		ksoftirqd 线程来处理。
+		 */
 		tasklet_schedule(&eq_comp->tasklet_ctx.task);
 
 	return 0;
@@ -839,7 +851,7 @@ static int create_comp_eqs(struct mlx5_core_dev *dev)
 		INIT_LIST_HEAD(&eq->tasklet_ctx.list);
 		INIT_LIST_HEAD(&eq->tasklet_ctx.process_list);
 		spin_lock_init(&eq->tasklet_ctx.lock);
-		// rx，tx的处理函数
+		// rx，tx 的处理函数
 		tasklet_init(&eq->tasklet_ctx.task, mlx5_cq_tasklet_cb,
 			     (unsigned long)&eq->tasklet_ctx);
 		// 设置通知链条回调函数

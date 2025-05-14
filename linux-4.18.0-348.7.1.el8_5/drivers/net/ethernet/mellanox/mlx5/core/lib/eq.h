@@ -7,44 +7,44 @@
 #include <linux/mlx5/eq.h>
 #include <linux/mlx5/cq.h>
 
-#define MLX5_EQE_SIZE       (sizeof(struct mlx5_eqe))
+#define MLX5_EQE_SIZE (sizeof(struct mlx5_eqe))
 
 struct mlx5_eq_tasklet {
-	struct list_head      list;
-	struct list_head      process_list;
+	struct list_head list;
+	struct list_head process_list;
 	struct tasklet_struct task;
-	spinlock_t            lock; /* lock completion tasklet list */
+	spinlock_t lock; /* lock completion tasklet list */
 };
 
 struct mlx5_cq_table {
-	spinlock_t              lock;	/* protect radix tree */
-	struct radix_tree_root  tree;
+	spinlock_t lock; /* protect radix tree */
+	struct radix_tree_root tree;
 };
 
 struct mlx5_eq {
-	struct mlx5_core_dev    *dev;
-	struct mlx5_cq_table    cq_table;
-	__be32 __iomem	        *doorbell;
-	u32                     cons_index;
-	struct mlx5_frag_buf    buf;
-	unsigned int            vecidx;
-	unsigned int            irqn;
-	u8                      eqn;
-	int                     nent;
-	struct mlx5_rsc_debug   *dbg;
+	struct mlx5_core_dev *dev;
+	struct mlx5_cq_table cq_table;
+	__be32 __iomem *doorbell;
+	u32 cons_index;
+	struct mlx5_frag_buf buf;
+	unsigned int vecidx;
+	unsigned int irqn;
+	u8 eqn;
+	int nent;
+	struct mlx5_rsc_debug *dbg;
 };
-
+// 用于链路状态变化，错误等异步事件
 struct mlx5_eq_async {
-	struct mlx5_eq          core;
-	struct notifier_block   irq_nb;
-	spinlock_t              lock; /* To avoid irq EQ handle races with resiliency flows */
+	struct mlx5_eq core;
+	struct notifier_block irq_nb;
+	spinlock_t lock; /* To avoid irq EQ handle races with resiliency flows */
 };
-
+// 用于数据包收发完成事件
 struct mlx5_eq_comp {
-	struct mlx5_eq          core;
-	struct notifier_block   irq_nb;
-	struct mlx5_eq_tasklet  tasklet_ctx;
-	struct list_head        list;
+	struct mlx5_eq core;
+	struct notifier_block irq_nb;
+	struct mlx5_eq_tasklet tasklet_ctx;
+	struct list_head list;
 };
 
 static inline struct mlx5_eqe *get_eqe(struct mlx5_eq *eq, u32 entry)

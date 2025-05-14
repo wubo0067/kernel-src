@@ -404,7 +404,8 @@ void irq_enter(void)
 static inline void invoke_softirq(void)
 {
 	if (ksoftirqd_running(local_softirq_pending()))
-		// 是否有软中断内核线程（ksoftirqd）正在处理当前待执行的软中断。如果有，函数会立即返回，避免重复处理。
+		// 是否有软中断内核线程（ksoftirqd）正在处理当前待执行的软中断。
+		// 如果有，函数会立即返回，避免重复处理。
 		return;
 
 	if (!force_irqthreads) {
@@ -454,6 +455,7 @@ void irq_exit(void)
 	account_irq_exit_time(current);
 	// preempt_count_sub(HARDIRQ_OFFSET) 减少硬中断嵌套计数，表示硬中断上下文已退出。
 	preempt_count_sub(HARDIRQ_OFFSET);
+	//  检查当前 CPU 是否有待处理的软中断（包括 tasklet）。
 	if (!in_interrupt() && local_softirq_pending())
 		invoke_softirq();
 
@@ -468,6 +470,7 @@ void irq_exit(void)
  */
 inline void raise_softirq_irqoff(unsigned int nr)
 {
+	// 设置标志位
 	__raise_softirq_irqoff(nr);
 
 	/*
@@ -478,16 +481,9 @@ inline void raise_softirq_irqoff(unsigned int nr)
 	 *
 	 * Otherwise we wake up ksoftirqd to make sure we
 	 * schedule the softirq soon. 如果在中断上下文中，包括上下半部分，则返回非 0；
-	 * 如果再进程上下文中，则返回 0
-	 *
-	 * 为什么要在中断上下文中不唤醒 ksoftirqd？
-	 * 因为如果在中断上下文中，软中断会在 irq_exit() 函数中被自动处理。irq_exit() 会检查是否有 pending
-	 * 的软中断，并调用 invoke_softirq() 来执行它们。如果在中断上下文中唤醒 ksoftirqd，
-	 * 可能会导致不必要的上下文切换和调度开销。
 	 */
 	if (!in_interrupt())
-		// 如果不在中断上下文中，唤醒中断处理线程 ksoftirqd，执行 do_softirq,
-		// 如果在中断上下文中，看 do_softirq 怎么处理 pending 的软中断
+		// 如果该函数在 y 硬中断 isr 中调用，in_interrupt 是会返回 true 的。
 		wakeup_softirqd();
 }
 
