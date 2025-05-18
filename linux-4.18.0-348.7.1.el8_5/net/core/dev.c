@@ -4545,9 +4545,18 @@ static inline void ____napi_schedule(struct softnet_data *sd,
 			return;
 		}
 	}
-
+	/*
+	 将指定的 NAPI 结构体（通过 napi 指针）添加到当前 CPU 的 softnet_data（由 sd 指针表示）的
+	 轮询列表末尾。这个操作将网卡的 NAPI 处理器排队，使其在软中断处理时被调用。
+	 这是 Linux 网络栈中实现"批量处理"网络数据包的重要机制，
+	 它允许系统在高负载情况下从中断驱动模式转换为轮询模式
+	*/
 	list_add_tail(&napi->poll_list, &sd->poll_list);
 	// 这里还是触发的 RX 软中断
+	/*
+	当这个软中断最终被执行时，它会轮询前面添加到列表中的所有 NAPI 结构体，
+	调用它们各自的 poll 函数来处理接收到的网络数据包。
+	*/
 	__raise_softirq_irqoff(NET_RX_SOFTIRQ);
 }
 
