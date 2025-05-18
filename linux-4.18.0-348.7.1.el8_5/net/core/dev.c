@@ -606,7 +606,7 @@ static inline struct list_head *ptype_head(const struct packet_type *pt)
 		return pt->dev ? &pt->dev->ptype_all : &ptype_all;
 	else
 		return pt->dev ? &pt->dev->ptype_specific :
-				 &ptype_base[ntohs(pt->type) & PTYPE_HASH_MASK];
+				       &ptype_base[ntohs(pt->type) & PTYPE_HASH_MASK];
 }
 
 /**
@@ -2780,7 +2780,7 @@ int __netif_set_xps_queue(struct net_device *dev, const unsigned long *mask,
 
 		tci = j * num_tc + tc;
 		map = dev_maps ? xmap_dereference(dev_maps->attr_map[tci]) :
-				 NULL;
+				       NULL;
 
 		map = expand_xps_map(map, j, index, is_rxqs_map);
 		if (!map)
@@ -2910,7 +2910,7 @@ error:
 			new_map = xmap_dereference(new_dev_maps->attr_map[tci]);
 			map = dev_maps ? xmap_dereference(
 						 dev_maps->attr_map[tci]) :
-					 NULL;
+					       NULL;
 			if (new_map && new_map != map)
 				kfree(new_map);
 		}
@@ -3139,7 +3139,7 @@ EXPORT_SYMBOL(netif_set_real_num_rx_queues);
 int netif_get_num_default_rss_queues(void)
 {
 	return is_kdump_kernel() ? 1 :
-				   min_t(int, DEFAULT_MAX_NUM_RSS_QUEUES,
+					 min_t(int, DEFAULT_MAX_NUM_RSS_QUEUES,
 					 num_online_cpus());
 }
 EXPORT_SYMBOL(netif_get_num_default_rss_queues);
@@ -3775,7 +3775,7 @@ int skb_csum_hwoffload_help(struct sk_buff *skb,
 	if (unlikely(skb_csum_is_sctp(skb)))
 		return !!(features & NETIF_F_SCTP_CRC) ?
 			       0 :
-			       skb_crc32c_csum_help(skb);
+				     skb_crc32c_csum_help(skb);
 
 	return !!(features & NETIF_F_CSUM_MASK) ? 0 : skb_checksum_help(skb);
 }
@@ -4520,7 +4520,9 @@ static inline void ____napi_schedule(struct softnet_data *sd,
 				     struct napi_struct *napi)
 {
 	struct task_struct *thread;
-
+	/*
+	NAPI Thread 模式	NET_RX_SOFTIRQ 模式
+	*/
 	if (test_bit(NAPI_STATE_THREADED, &napi->state)) {
 		// 判断 napi 的状态
 		/* Paired with smp_mb__before_atomic() in
@@ -6480,9 +6482,16 @@ static int process_backlog(struct napi_struct *napi, int quota)
 void __napi_schedule(struct napi_struct *n)
 {
 	unsigned long flags;
-
+	/*
+	** 这里会关闭中断
+	调用 local_irq_save(flags) 关闭本地 CPU 的中断，并将当前的中断状态保存在 flags 变量中。
+	这确保了接下来的操作不会被其他中断打断，形成一个原子操作区域。
+	*/
 	local_irq_save(flags);
 	____napi_schedule(this_cpu_ptr(&softnet_data), n);
+	/*
+	通过 local_irq_restore(flags) 恢复之前保存的中断状态，允许中断再次发生。
+	*/
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(__napi_schedule);

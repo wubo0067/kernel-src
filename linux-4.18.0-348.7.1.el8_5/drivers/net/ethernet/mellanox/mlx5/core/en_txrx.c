@@ -53,7 +53,8 @@ static void mlx5e_handle_tx_dim(struct mlx5e_txqsq *sq)
 	if (unlikely(!test_bit(MLX5E_SQ_STATE_AM, &sq->state)))
 		return;
 
-	dim_update_sample(sq->cq.event_ctr, stats->packets, stats->bytes, &dim_sample);
+	dim_update_sample(sq->cq.event_ctr, stats->packets, stats->bytes,
+			  &dim_sample);
 	net_dim(&sq->dim, dim_sample);
 }
 
@@ -65,7 +66,8 @@ static void mlx5e_handle_rx_dim(struct mlx5e_rq *rq)
 	if (unlikely(!test_bit(MLX5E_RQ_STATE_AM, &rq->state)))
 		return;
 
-	dim_update_sample(rq->cq.event_ctr, stats->packets, stats->bytes, &dim_sample);
+	dim_update_sample(rq->cq.event_ctr, stats->packets, stats->bytes,
+			  &dim_sample);
 	net_dim(&rq->dim, dim_sample);
 }
 
@@ -75,8 +77,8 @@ void mlx5e_trigger_irq(struct mlx5e_icosq *sq)
 	struct mlx5e_tx_wqe *nopwqe;
 	u16 pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
 
-	sq->db.wqe_info[pi] = (struct mlx5e_icosq_wqe_info) {
-		.wqe_type   = MLX5E_ICOSQ_WQE_NOP,
+	sq->db.wqe_info[pi] = (struct mlx5e_icosq_wqe_info){
+		.wqe_type = MLX5E_ICOSQ_WQE_NOP,
 		.num_wqebbs = 1,
 	};
 
@@ -84,7 +86,8 @@ void mlx5e_trigger_irq(struct mlx5e_icosq *sq)
 	mlx5e_notify_hw(wq, sq->pc, sq->uar_map, &nopwqe->ctrl);
 }
 
-static bool mlx5e_napi_xsk_post(struct mlx5e_xdpsq *xsksq, struct mlx5e_rq *xskrq)
+static bool mlx5e_napi_xsk_post(struct mlx5e_xdpsq *xsksq,
+				struct mlx5e_rq *xskrq)
 {
 	bool busy_xsk = false, xsk_rx_alloc_err;
 
@@ -101,10 +104,9 @@ static bool mlx5e_napi_xsk_post(struct mlx5e_xdpsq *xsksq, struct mlx5e_rq *xskr
 	busy_xsk |= mlx5e_xsk_tx(xsksq, MLX5E_TX_XSK_POLL_BUDGET);
 	mlx5e_xsk_update_tx_wakeup(xsksq);
 
-	xsk_rx_alloc_err = INDIRECT_CALL_2(xskrq->post_wqes,
-					   mlx5e_post_rx_mpwqes,
-					   mlx5e_post_rx_wqes,
-					   xskrq);
+	xsk_rx_alloc_err =
+		INDIRECT_CALL_2(xskrq->post_wqes, mlx5e_post_rx_mpwqes,
+				mlx5e_post_rx_wqes, xskrq);
 	busy_xsk |= mlx5e_xsk_update_rx_wakeup(xskrq, xsk_rx_alloc_err);
 
 	return busy_xsk;
@@ -112,8 +114,8 @@ static bool mlx5e_napi_xsk_post(struct mlx5e_xdpsq *xsksq, struct mlx5e_rq *xskr
 
 int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 {
-	struct mlx5e_channel *c = container_of(napi, struct mlx5e_channel,
-					       napi);
+	struct mlx5e_channel *c =
+		container_of(napi, struct mlx5e_channel, napi);
 	struct mlx5e_ch_stats *ch_stats = c->stats;
 	struct mlx5e_xdpsq *xsksq = &c->xsksq;
 	struct mlx5e_txqsq __rcu **qos_sqs;
@@ -160,7 +162,8 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 			work_done = mlx5e_poll_rx_cq(&xskrq->cq, budget);
 
 		if (likely(budget - work_done))
-			work_done += mlx5e_poll_rx_cq(&rq->cq, budget - work_done);
+			work_done +=
+				mlx5e_poll_rx_cq(&rq->cq, budget - work_done);
 
 		busy |= work_done == budget;
 	}
@@ -176,10 +179,8 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	if (unlikely(mlx5e_ktls_rx_pending_resync_list(c, budget)))
 		busy |= mlx5e_ktls_rx_handle_resync_list(c, budget);
 
-	busy |= INDIRECT_CALL_2(rq->post_wqes,
-				mlx5e_post_rx_mpwqes,
-				mlx5e_post_rx_wqes,
-				rq);
+	busy |= INDIRECT_CALL_2(rq->post_wqes, mlx5e_post_rx_mpwqes,
+				mlx5e_post_rx_wqes, rq);
 	if (xsk_open) {
 		busy |= mlx5e_poll_xdpsq_cq(&xsksq->cq);
 		busy_xsk |= mlx5e_napi_xsk_post(xsksq, xskrq);
@@ -245,7 +246,12 @@ out:
 void mlx5e_completion_event(struct mlx5_core_cq *mcq, struct mlx5_eqe *eqe)
 {
 	struct mlx5e_cq *cq = container_of(mcq, struct mlx5e_cq, mcq);
-
+	// napi_schedule 是 Linux 内核网络子系统中的函数，
+	// 用于将一个 NAPI 实例安排到处理队列中（标记为"需要轮询"）
+	/*
+	触发阶段：当网卡收到数据包（生成中断）时，中断处理程序调用 mlx5e_completion_event 函数，
+	该函数进一步调用 napi_schedule
+	*/
 	napi_schedule(cq->napi);
 	cq->event_ctr++;
 	cq->ch_stats->events++;
@@ -256,6 +262,6 @@ void mlx5e_cq_error_event(struct mlx5_core_cq *mcq, enum mlx5_event event)
 	struct mlx5e_cq *cq = container_of(mcq, struct mlx5e_cq, mcq);
 	struct net_device *netdev = cq->netdev;
 
-	netdev_err(netdev, "%s: cqn=0x%.6x event=0x%.2x\n",
-		   __func__, mcq->cqn, event);
+	netdev_err(netdev, "%s: cqn=0x%.6x event=0x%.2x\n", __func__, mcq->cqn,
+		   event);
 }
