@@ -265,8 +265,7 @@ b) 在启用之前被禁用的软中断时（如 local_bh_enable 函数中）。
 
 asmlinkage __visible void __softirq_entry __do_softirq(void)
 {
-	// 當系統在做推遲的處理時，有可能會不斷有新的 softirqs 發生，此時如果為了處理新的 softirq，
-	// 可能會導致 userspace 的 thread 不能被排程，因此可以看到這裡會設定一個允許處理的時間。
+	// #define MAX_SOFTIRQ_TIME msecs_to_jiffies(2)
 	unsigned long end = jiffies + MAX_SOFTIRQ_TIME;
 	unsigned long old_flags = current->flags;
 	int max_restart = MAX_SOFTIRQ_RESTART;
@@ -293,7 +292,12 @@ asmlinkage __visible void __softirq_entry __do_softirq(void)
 restart:
 	/* Reset the pending bitmask before enabling irqs */
 	set_softirq_pending(0);
-
+	// 开启了中断，允许硬中断打断软中断处理
+	/*
+	** 硬中断优先级高于软中断。
+	** 软中断本质上是“延迟处理”，可以被硬中断抢占。
+	** 只有在软中断框架的关键控制流程（如 pending 标志位清零、状态切换等）才需要临时关闭硬中断，保证一致性。
+	*/
 	local_irq_enable();
 
 	h = softirq_vec;
