@@ -457,7 +457,7 @@ void irq_exit(void)
 	lockdep_assert_irqs_disabled();
 #endif
 	account_irq_exit_time(current);
-	// preempt_count_sub(HARDIRQ_OFFSET) 减少硬中断嵌套计数，表示硬中断上下文已退出。
+	// * preempt_count_sub(HARDIRQ_OFFSET) 减少硬中断嵌套计数，表示硬中断上下文已退出。
 	preempt_count_sub(HARDIRQ_OFFSET);
 	//  检查当前 CPU 是否有待处理的软中断（包括 tasklet）。
 	if (!in_interrupt() && local_softirq_pending())
