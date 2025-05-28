@@ -158,13 +158,16 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 		busy |= mlx5e_poll_xdpsq_cq(&c->rq_xdpsq.cq);
 
 	if (likely(budget)) { /* budget=0 means: don't poll rx rings */
+		// 判断 budget 是否为 0
 		if (xsk_open)
 			work_done = mlx5e_poll_rx_cq(&xskrq->cq, budget);
 
 		if (likely(budget - work_done))
+			// 处理常规接收队列
 			work_done +=
 				mlx5e_poll_rx_cq(&rq->cq, budget - work_done);
 
+		// 	判断本轮次是否使用完所有预算
 		busy |= work_done == budget;
 	}
 

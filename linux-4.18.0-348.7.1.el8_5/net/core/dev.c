@@ -4531,6 +4531,13 @@ static inline void ____napi_schedule(struct softnet_data *sd,
 		 * read on napi->thread. Only call
 		 * wake_up_process() when it's not NULL.
 		 * thread 在函数 dev_set_threaded 中启动。
+		 *
+		 * 这里为什么使用 READ_ONCE 来访问 napi->thread
+		 * READ_ONCE 通常与 WRITE_ONCE 搭配使用，在不需要完全原子操作但又希望防止编译器优化导致的问题时非常有用。
+		 * 1：READ_ONCE 明确告诉编译器这条指令前后的内存读写不有调到，也就是后面的指令不会被提前到前面来执行，前面的指令也不会被推迟到后面执行。
+		 * 2：READ_ONCE 使用 volatile 访问，每次都是从内存中读取数据
+		 * 3：对于小于或等于机器字长且对齐的变量，READ_ONCE 能确保读取操作是原子的，即不会被拆分成多个部分读取
+		 * 4：READ_ONCE 不能保证对变量的原子性操作
 		 */
 		thread = READ_ONCE(napi->thread);
 		if (thread) {
