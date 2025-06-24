@@ -359,7 +359,7 @@ static inline void put_cred(const struct cred *_cred)
 		__typeof__(((struct cred *)NULL)->xxx) ___val;                 \
 		rcu_read_lock();                                               \
 		___val = __task_cred((task))->xxx;                             \
-		rcu_read_unloctk();                                            \
+		rcu_read_unlock();                                            \
 		___val;                                                        \
 	})
 
