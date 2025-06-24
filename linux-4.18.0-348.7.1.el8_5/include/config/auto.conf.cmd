@@ -1263,10 +1263,10 @@ include/config/auto.conf: \
 ifneq "$(ARCH)" "x86"
 include/config/auto.conf: FORCE
 endif
-ifneq "$(KERNELVERSION)" "4.18.0-348.7.1.calmwu.x86_64"
+ifneq "$(KERNELVERSION)" "4.18.0-348.7.1.cw.x86_64"
 include/config/auto.conf: FORCE
 endif
-ifneq "$(CC_VERSION_TEXT)" "gcc (GCC) 8.5.0 20210514 (Red Hat 8.5.0-4)"
+ifneq "$(CC_VERSION_TEXT)" "gcc (GCC) 8.5.0 20210514 (Red Hat 8.5.0-26.0.1)"
 include/config/auto.conf: FORCE
 endif
 ifneq "$(srctree)" "."

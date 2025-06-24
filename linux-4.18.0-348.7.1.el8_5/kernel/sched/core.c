@@ -2887,7 +2887,7 @@ static inline void finish_task(struct task_struct *prev)
 
 static void do_balance_callbacks(struct rq *rq, struct callback_head *head)
 {
-	void (*func)(struct rq * rq);
+	void (*func)(struct rq *rq);
 	struct callback_head *next;
 
 	lockdep_assert_held(&rq->lock);

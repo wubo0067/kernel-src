@@ -46,13 +46,13 @@ static void cpudl_heapify_down(struct cpudl *cp, int idx)
 		largest = idx;
 		largest_dl = orig_dl;
 
-		if ((l < cp->size) && dl_time_before(orig_dl,
-						cp->elements[l].dl)) {
+		if ((l < cp->size) &&
+		    dl_time_before(orig_dl, cp->elements[l].dl)) {
 			largest = l;
 			largest_dl = cp->elements[l].dl;
 		}
-		if ((r < cp->size) && dl_time_before(largest_dl,
-						cp->elements[r].dl))
+		if ((r < cp->size) &&
+		    dl_time_before(largest_dl, cp->elements[r].dl))
 			largest = r;
 
 		if (largest == idx)
@@ -98,8 +98,8 @@ static void cpudl_heapify_up(struct cpudl *cp, int idx)
 
 static void cpudl_heapify(struct cpudl *cp, int idx)
 {
-	if (idx > 0 && dl_time_before(cp->elements[parent(idx)].dl,
-				cp->elements[idx].dl))
+	if (idx > 0 &&
+	    dl_time_before(cp->elements[parent(idx)].dl, cp->elements[idx].dl))
 		cpudl_heapify_up(cp, idx);
 	else
 		cpudl_heapify_down(cp, idx);
@@ -123,8 +123,7 @@ int cpudl_find(struct cpudl *cp, struct task_struct *p,
 {
 	const struct sched_dl_entity *dl_se = &p->dl;
 
-	if (later_mask &&
-	    cpumask_and(later_mask, cp->free_cpus, p->cpus_ptr)) {
+	if (later_mask && cpumask_and(later_mask, cp->free_cpus, p->cpus_ptr)) {
 		unsigned long cap, max_cap = 0;
 		int cpu, max_cpu = -1;
 
@@ -132,7 +131,7 @@ int cpudl_find(struct cpudl *cp, struct task_struct *p,
 			return 1;
 
 		/* Ensure the capacity of the CPUs fits the task. */
-		for_each_cpu(cpu, later_mask) {
+		for_each_cpu (cpu, later_mask) {
 			if (!dl_task_fits_capacity(p, cpu)) {
 				cpumask_clear_cpu(cpu, later_mask);
 
@@ -272,9 +271,8 @@ int cpudl_init(struct cpudl *cp)
 	raw_spin_lock_init(&cp->lock);
 	cp->size = 0;
 
-	cp->elements = kcalloc(nr_cpu_ids,
-			       sizeof(struct cpudl_item),
-			       GFP_KERNEL);
+	cp->elements =
+		kcalloc(nr_cpu_ids, sizeof(struct cpudl_item), GFP_KERNEL);
 	if (!cp->elements)
 		return -ENOMEM;
 
@@ -283,7 +281,7 @@ int cpudl_init(struct cpudl *cp)
 		return -ENOMEM;
 	}
 
-	for_each_possible_cpu(i)
+	for_each_possible_cpu (i)
 		cp->elements[i].idx = IDX_INVALID;
 
 	return 0;

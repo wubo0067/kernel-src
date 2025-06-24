@@ -85,7 +85,7 @@ static u64 irqtime_tick_accounted(u64 maxtime)
 
 #else /* CONFIG_IRQ_TIME_ACCOUNTING */
 
-#define sched_clock_irqtime	(0)
+#define sched_clock_irqtime (0)
 
 static u64 irqtime_tick_accounted(u64 dummy)
 {
@@ -160,8 +160,8 @@ void account_guest_time(struct task_struct *p, u64 cputime)
  * @cputime: the CPU time spent in kernel space since the last update
  * @index: pointer to cpustat field that has to be updated
  */
-void account_system_index_time(struct task_struct *p,
-			       u64 cputime, enum cpu_usage_stat index)
+void account_system_index_time(struct task_struct *p, u64 cputime,
+			       enum cpu_usage_stat index)
 {
 	/* Add system time to process. */
 	p->stime += cputime;
@@ -306,7 +306,7 @@ void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times)
 	 * other scheduler action.
 	 */
 	if (same_thread_group(current, tsk))
-		(void) task_sched_runtime(current);
+		(void)task_sched_runtime(current);
 
 	rcu_read_lock();
 	/* Attempt a lockless read on the first round. */
@@ -318,7 +318,7 @@ void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times)
 		times->stime = sig->stime;
 		times->sum_exec_runtime = sig->sum_sched_runtime;
 
-		for_each_thread(tsk, t) {
+		for_each_thread (tsk, t) {
 			task_cputime(t, &utime, &stime);
 			times->utime += utime;
 			times->stime += stime;
@@ -396,16 +396,21 @@ static void irqtime_account_idle_ticks(int ticks)
 	irqtime_account_process_tick(current, 0, rq, ticks);
 }
 #else /* CONFIG_IRQ_TIME_ACCOUNTING */
-static inline void irqtime_account_idle_ticks(int ticks) { }
-static inline void irqtime_account_process_tick(struct task_struct *p, int user_tick,
-						struct rq *rq, int nr_ticks) { }
+static inline void irqtime_account_idle_ticks(int ticks)
+{
+}
+static inline void irqtime_account_process_tick(struct task_struct *p,
+						int user_tick, struct rq *rq,
+						int nr_ticks)
+{
+}
 #endif /* CONFIG_IRQ_TIME_ACCOUNTING */
 
 /*
  * Use precise platform statistics if available:
  */
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
-# ifndef __ARCH_HAS_VTIME_TASK_SWITCH
+#ifndef __ARCH_HAS_VTIME_TASK_SWITCH
 void vtime_common_task_switch(struct task_struct *prev)
 {
 	if (is_idle_task(prev))
@@ -416,9 +421,8 @@ void vtime_common_task_switch(struct task_struct *prev)
 	vtime_flush(prev);
 	arch_vtime_task_switch(prev);
 }
-# endif
+#endif
 #endif /* CONFIG_VIRT_CPU_ACCOUNTING */
-
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 /*
@@ -666,8 +670,7 @@ static u64 get_vtime_delta(struct vtime *vtime)
 	return delta - other;
 }
 
-static void vtime_account_system(struct task_struct *tsk,
-				 struct vtime *vtime)
+static void vtime_account_system(struct task_struct *tsk, struct vtime *vtime)
 {
 	vtime->stime += get_vtime_delta(vtime);
 	if (vtime->stime >= TICK_NSEC) {
@@ -676,8 +679,7 @@ static void vtime_account_system(struct task_struct *tsk,
 	}
 }
 
-static void vtime_account_guest(struct task_struct *tsk,
-				struct vtime *vtime)
+static void vtime_account_guest(struct task_struct *tsk, struct vtime *vtime)
 {
 	vtime->gtime += get_vtime_delta(vtime);
 	if (vtime->gtime >= TICK_NSEC) {
@@ -852,7 +854,8 @@ void task_cputime(struct task_struct *t, u64 *utime, u64 *stime)
 	} while (read_seqcount_retry(&vtime->seqcount, seq));
 }
 
-static int vtime_state_fetch(struct vtime *vtime, int cpu, unsigned int vtime_cpu)
+static int vtime_state_fetch(struct vtime *vtime, int cpu,
+			     unsigned int vtime_cpu)
 {
 	int state = READ_ONCE(vtime->state);
 
@@ -878,10 +881,8 @@ static int vtime_state_fetch(struct vtime *vtime, int cpu, unsigned int vtime_cp
 	return state;
 }
 
-static int kcpustat_field_vtime(u64 *cpustat,
-				struct vtime *vtime,
-				enum cpu_usage_stat usage,
-				int cpu, u64 *val,
+static int kcpustat_field_vtime(u64 *cpustat, struct vtime *vtime,
+				enum cpu_usage_stat usage, int cpu, u64 *val,
 				unsigned int vtime_cpu)
 {
 	unsigned int seq;
@@ -905,8 +906,8 @@ static int kcpustat_field_vtime(u64 *cpustat,
 	return 0;
 }
 
-u64 kcpustat_field(struct kernel_cpustat *kcpustat,
-		   enum cpu_usage_stat usage, int cpu)
+u64 kcpustat_field(struct kernel_cpustat *kcpustat, enum cpu_usage_stat usage,
+		   int cpu)
 {
 	u64 *cpustat = kcpustat->cpustat;
 	struct rq *rq;
