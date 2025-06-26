@@ -420,22 +420,16 @@ static bool blk_mq_attempt_merge(struct request_queue *q,
 
 bool __blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio)
 {
-<<<<<<< HEAD
 	// 得到 io 调度算法
-	== == == =
->>>>>>> d415b875e94d0e8ae2831e166c7258a7f21fcfce
-			 struct elevator_queue *e = q->elevator;
+	struct elevator_queue *e = q->elevator;
 	struct blk_mq_ctx *ctx = blk_mq_get_ctx(q);
 	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, bio->bi_opf, ctx);
 	bool ret = false;
 	enum hctx_type type;
 
 	if (e && e->type->ops.bio_merge)
-<<<<<<< HEAD
 		// 使用 io 调度算法来进行 io 和并
-		== == == =
->>>>>>> d415b875e94d0e8ae2831e166c7258a7f21fcfce
-				 return e->type->ops.bio_merge(hctx, bio);
+		return e->type->ops.bio_merge(hctx, bio);
 
 	type = hctx->type;
 	if ((hctx->flags & BLK_MQ_F_SHOULD_MERGE) &&
