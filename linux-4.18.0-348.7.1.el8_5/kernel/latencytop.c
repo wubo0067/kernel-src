@@ -89,9 +89,8 @@ static void clear_global_latency_tracing(void)
 	raw_spin_unlock_irqrestore(&latency_lock, flags);
 }
 
-static void __sched
-account_global_scheduler_latency(struct task_struct *tsk,
-				 struct latency_record *lat)
+static void __sched account_global_scheduler_latency(struct task_struct *tsk,
+						     struct latency_record *lat)
 {
 	int firstnonnull = MAXLR + 1;
 	int i;
@@ -157,8 +156,8 @@ account_global_scheduler_latency(struct task_struct *tsk,
  * Negative latencies (caused by time going backwards) are also explicitly
  * skipped.
  */
-void __sched
-__account_scheduler_latency(struct task_struct *tsk, int usecs, int inter)
+void __sched __account_scheduler_latency(struct task_struct *tsk, int usecs,
+					 int inter)
 {
 	unsigned long flags;
 	int i, q;
@@ -235,8 +234,8 @@ static int lstats_show(struct seq_file *m, void *v)
 
 		if (lr->backtrace[0]) {
 			int q;
-			seq_printf(m, "%i %lu %lu",
-				   lr->count, lr->time, lr->max);
+			seq_printf(m, "%i %lu %lu", lr->count, lr->time,
+				   lr->max);
 			for (q = 0; q < LT_BACKTRACEDEPTH; q++) {
 				unsigned long bt = lr->backtrace[q];
 
@@ -251,9 +250,8 @@ static int lstats_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static ssize_t
-lstats_write(struct file *file, const char __user *buf, size_t count,
-	     loff_t *offs)
+static ssize_t lstats_write(struct file *file, const char __user *buf,
+			    size_t count, loff_t *offs)
 {
 	clear_global_latency_tracing();
 
@@ -266,11 +264,11 @@ static int lstats_open(struct inode *inode, struct file *filp)
 }
 
 static const struct file_operations lstats_fops = {
-	.open		= lstats_open,
-	.read		= seq_read,
-	.write		= lstats_write,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+	.open = lstats_open,
+	.read = seq_read,
+	.write = lstats_write,
+	.llseek = seq_lseek,
+	.release = single_release,
 };
 
 static int __init init_lstats_procfs(void)
@@ -279,13 +277,25 @@ static int __init init_lstats_procfs(void)
 	return 0;
 }
 
-int sysctl_latencytop(struct ctl_table *table, int write,
-			void __user *buffer, size_t *lenp, loff_t *ppos)
+int sysctl_latencytop(struct ctl_table *table, int write, void __user *buffer,
+		      size_t *lenp, loff_t *ppos)
 {
 	int err;
 
+	// proc_dointvec函数负责在用户空间和内核空间之间双向传输整数值。它既可以读取内核参数的当前值，也可以设置新的参数值。
+	/*
+	读取操作，write = 0:
+	- 从内核参数中读取整数值。
+	- 将整数转换为字符串格式，并将其复制到用户空间的缓冲区中。
+	写入操作，write != 0:
+	- 从用户空间缓冲区读取字符串
+	- 将字符串解析为整数值。
+	- 将解析后的整数存储到内核参数中
+	*/
 	err = proc_dointvec(table, write, buffer, lenp, ppos);
 	if (latencytop_enabled)
+		// 这是一个Linux内核中用于强制启用调度统计功能，
+		// 使用echo 1 > /proc/sys/kernel/sched_schedstats也可以开启
 		force_schedstat_enabled();
 
 	return err;

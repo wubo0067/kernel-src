@@ -2536,7 +2536,9 @@ int sysctl_numa_balancing(struct ctl_table *table, int write,
 
 #ifdef CONFIG_SCHEDSTATS
 
+// 这是一个静态分支键（static branch key），用于运行时控制调度统计功能的开启/关闭，默认为 false（关闭状态）
 DEFINE_STATIC_KEY_FALSE(sched_schedstats);
+// 这是一个初始化时的配置变量，只在内核启动时使用，用于存储启动参数 schedstats= 的值
 static bool __initdata __sched_schedstats = false;
 
 static void set_schedstats(bool enabled)

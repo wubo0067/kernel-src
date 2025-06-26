@@ -99,7 +99,7 @@ int __weak arch_asym_cpu_priority(int cpu)
  *
  * (default: ~20%)
  */
-#define fits_capacity(cap, max) ((cap)*1280 < (max)*1024)
+#define fits_capacity(cap, max) ((cap) * 1280 < (max) * 1024)
 
 #endif
 
@@ -169,7 +169,7 @@ static void update_sysctl(void)
 {
 	unsigned int factor = get_update_sysctl_factor();
 
-#define SET_SYSCTL(name) (sysctl_##name = (factor)*normalized_sysctl_##name)
+#define SET_SYSCTL(name) (sysctl_##name = (factor) * normalized_sysctl_##name)
 	SET_SYSCTL(sched_min_granularity);
 	SET_SYSCTL(sched_latency);
 	SET_SYSCTL(sched_wakeup_granularity);
@@ -872,6 +872,7 @@ static inline void update_stats_wait_start(struct cfs_rq *cfs_rq,
 	u64 wait_start, prev_wait_start;
 
 	if (!schedstat_enabled())
+		// 如果没有启用调度统计信息，则直接返回
 		return;
 
 	wait_start = rq_clock(rq_of(cfs_rq));
@@ -2891,6 +2892,7 @@ static void task_numa_work(struct callback_head *work)
 	pages = pages * 2^(20-PAGE_SHIFT) ---- 除以 4k，其实就是减去那么多 bit 位
 	pages = 256 * 2^(20-12) = 256 * 256 = 65536 页
 	*/
+	pages = sysctl_numa_balancing_scan_size;
 	pages <<= 20 - PAGE_SHIFT; /* MB in pages */
 	/*
 	将物理页面数量乘以 8，得到要扫描的虚拟地址空间范围
@@ -8832,7 +8834,7 @@ static int idle_cpu_without(int cpu, struct task_struct *p)
 	if (rq->curr != rq->idle && rq->curr != p)
 		return 0;
 
-		/*
+	/*
 	 * rq->nr_running can't be used but an updated version without the
 	 * impact of p on cpu must be used instead. The updated nr_running
 	 * be computed and tested before calling idle_cpu_without().
