@@ -296,17 +296,12 @@ struct ftrace_likely_data {
 #define __diag_push() __diag(push)
 #define __diag_pop() __diag(pop)
 
-// 这些宏的作用范围是针对编译单元，
-// 这个宏用于忽略特定的诊断信息。你可以指定编译器、版本、选项和注释。例如
-// __diag_ignore(gcc, 4.2, -Wunused-variable, "Unused variable warning suppressed")
 #define __diag_ignore(compiler, version, option, comment)                      \
 	__diag_##compiler(version, ignore, option)
 
-// __diag_warn(armcc, 5.0, -Wconversion, "Conversion warning enabled")
 #define __diag_warn(compiler, version, option, comment)                        \
 	__diag_##compiler(version, warn, option)
 
-// 将特定的诊断信息设置为错误级别 __diag_error(clang, 10.0, -Wuninitialized, "Uninitialized variable error")
 #define __diag_error(compiler, version, option, comment)                       \
 	__diag_##compiler(version, error, option)
 

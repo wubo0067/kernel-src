@@ -34,7 +34,6 @@
 *.o.*
 *.order
 *.patch
-*.s
 *.so
 *.so.dbg
 *.su
