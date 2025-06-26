@@ -39,7 +39,7 @@
 #include <linux/cleancache.h>
 #include <linux/shmem_fs.h>
 #include <linux/rmap.h>
-#include RH_KABI_HIDE_INCLUDE(<linux / delayacct.h>)
+#include <linux/delayacct.h>
 #include <linux/psi.h>
 #include <linux/page_idle.h>
 #include "internal.h"
