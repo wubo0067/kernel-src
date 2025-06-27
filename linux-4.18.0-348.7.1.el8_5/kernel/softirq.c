@@ -314,14 +314,38 @@ restart:
 
 		kstat_incr_softirqs_this_cpu(vec_nr);
 
+		// 可以跟踪软中断的入口和出口，来判断中断处理的延迟 perf record -g -e irq:softirq_entry
 		trace_softirq_entry(vec_nr);
 		// 调用例如 NET_RX_ACTION(net_rx_action), NET_TX_ACTION 函数
+		/*
+		- 这里会调用 tasklet_action 和 tasklet_hi_action等中断处理函数。
+		- Linux内核的设计哲学是：既然已经开始处理这一批软中断，就尽量一次性处理完，避免频繁的上下文切换开销。
+		  所以没有在这里判断jiffies是否超过end时间。
+		*/
 		h->action(h);
 		trace_softirq_exit(vec_nr);
+
+		/*
+		- preempt_count记录了
+          硬中断嵌套层数
+		  软中断嵌套层数
+		  禁用抢占的次数
+		  自旋锁持有计数
+
+		- 这是一个抢占计数一致性检查，用于确保软中断处理函数在执行前后的抢占状态保持一致。
+		  进入时：可能会增加 preempt_count（禁用抢占、获取锁等）
+          退出时：必须恢复到进入前的状态（释放锁、启用抢占等）
+
+		- 防止内核状态混乱，如果preempt_count不匹配
+		  可能导致调度器异常
+		  可能引起死锁
+		  可能造成抢占失效
+		*/
 		if (unlikely(prev_count != preempt_count())) {
 			pr_err("huh, entered softirq %u %s %p with preempt_count %08x, exited with %08x?\n",
 			       vec_nr, softirq_to_name[vec_nr], h->action,
 			       prev_count, preempt_count());
+			// 自动修复
 			preempt_count_set(prev_count);
 		}
 		h++;
@@ -542,6 +566,14 @@ static void __tasklet_schedule_common(struct tasklet_struct *t,
 	*head->tail = t;
 	// 更新队列的尾指针，使其指向新添加的 tasklet 的 next 指针
 	head->tail = &(t->next);
+	// 这是一个Linux内核中用于触发软中断的函数调用，专门设计在中断已被禁用的上下文中使用
+	// _irqoff后缀明确表示假设调用这个函数时中断已经被禁用。这是一个重要前提，
+	// *意味调用者必须在禁用中断的上下文中调用这个函数，以确保软中断的处理不会被其他中断打断。
+	/*
+	于函数假设中断已被禁用，它可以安全地修改软中断的状态位而无需额外的同步机制。
+	这种设计在高频率的中断处理场景中特别重要，因为它减少了不必要的中断控制开销，
+	同时保证了操作的原子性和数据一致性。
+	*/
 	raise_softirq_irqoff(softirq_nr);
 	local_irq_restore(flags);
 }
@@ -586,7 +618,10 @@ static void tasklet_action_common(struct softirq_action *a,
 			}
 			tasklet_unlock(t);
 		}
-
+		/*
+		没有成功锁定，禁用中断，将该tasklet添加回队列末尾，并重新触发软中断。
+		这确保了该 tasklet 在下次软中断处理时会被再次处理。
+		*/
 		local_irq_disable();
 		t->next = NULL;
 		*tl_head->tail = t;
@@ -642,8 +677,9 @@ void __init softirq_init(void)
 		per_cpu(tasklet_hi_vec, cpu).tail =
 			&per_cpu(tasklet_hi_vec, cpu).head;
 	}
-
+	// 注册普通tasklet处理函数
 	open_softirq(TASKLET_SOFTIRQ, tasklet_action);
+	// 注册高优先级tasklet处理函数
 	open_softirq(HI_SOFTIRQ, tasklet_hi_action);
 }
 
