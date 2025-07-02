@@ -191,11 +191,18 @@ static inline void __add_wait_queue(struct wait_queue_head *wq_head,
 	struct list_head *head = &wq_head->head;
 	struct wait_queue_entry *wq;
 
+	// 实现优先级感知的队列插入
+	// 遍历等待队列中所有条目
 	list_for_each_entry (wq, &wq_head->head, entry) {
+		// 检查每个等待条目的标志位
 		if (!(wq->flags & WQ_FLAG_PRIORITY))
+			// 如果当前条目没有设置优先级标志，则跳出循环
 			break;
+		// 否则，更新插入位置为当前优先级条目的位置
+		// **这种策略确保普通优先级条目会被插入到所有高优先级条目之后，但在其它普通优先级条目之前
 		head = &wq->entry;
 	}
+	// 在head之后添加wq_entry
 	list_add(&wq_entry->entry, head);
 }
 
@@ -298,32 +305,32 @@ extern void init_wait_entry(struct wait_queue_entry *wq_entry, int flags);
  * otherwise.
  */
 
-#define ___wait_event(wq_head, condition, state, exclusive, ret, cmd)                   \
-	({                                                                              \
-		__label__ __out;                                                        \
-		struct wait_queue_entry __wq_entry; /*构造一个等待队列条目*/  \
-		long __ret = ret; /* explicit shadow */                                 \
-                                                                                        \
-		init_wait_entry(&__wq_entry,                                            \
-				exclusive ? WQ_FLAG_EXCLUSIVE : 0);                     \
-		for (;;) {                                                              \
-			long __int = prepare_to_wait_event(                             \
-				&wq_head, &__wq_entry,                                  \
+#define ___wait_event(wq_head, condition, state, exclusive, ret, cmd)          \
+	({                                                                     \
+		__label__ __out;                                               \
+		struct wait_queue_entry __wq_entry; /*构造一个等待队列条目*/   \
+		long __ret = ret; /* explicit shadow */                        \
+                                                                               \
+		init_wait_entry(&__wq_entry,                                   \
+				exclusive ? WQ_FLAG_EXCLUSIVE : 0);            \
+		for (;;) {                                                     \
+			long __int = prepare_to_wait_event(                    \
+				&wq_head, &__wq_entry,                         \
 				state); /*加入等待队列，调用__add_wait_queue*/ \
-                                                                                        \
-			if (condition)                                                  \
-				break;                                                  \
-                                                                                        \
-			if (___wait_is_interruptible(state) && __int) {                 \
-				__ret = __int;                                          \
-				goto __out;                                             \
-			}                                                               \
-                                                                                        \
-			cmd; /*这里调用schedule()*/                                 \
-		}                                                                       \
-		finish_wait(&wq_head, &__wq_entry); /*从等待队列中删除*/        \
-	__out:                                                                          \
-		__ret;                                                                  \
+                                                                               \
+			if (condition)                                         \
+				break;                                         \
+                                                                               \
+			if (___wait_is_interruptible(state) && __int) {        \
+				__ret = __int;                                 \
+				goto __out;                                    \
+			}                                                      \
+                                                                               \
+			cmd; /*这里调用schedule()*/                            \
+		}                                                              \
+		finish_wait(&wq_head, &__wq_entry); /*从等待队列中删除*/       \
+	__out:                                                                 \
+		__ret;                                                         \
 	})
 
 #define __wait_event(wq_head, condition)                                       \
@@ -507,7 +514,7 @@ extern void init_wait_entry(struct wait_queue_entry *wq_entry, int flags);
 	({                                                                     \
 		int __ret = 0;                                                 \
 		might_sleep();                                                 \
-		if (!(condition)) /*条件不成立，等待*/                 \
+		if (!(condition)) /*条件不成立，等待*/                         \
 			__ret = __wait_event_interruptible(wq_head,            \
 							   condition);         \
 		__ret;                                                         \

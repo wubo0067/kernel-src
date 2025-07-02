@@ -277,14 +277,21 @@ EXPORT_SYMBOL_GPL(__wake_up_sync); /* For internal use only */
  * one way (it only protects stuff inside the critical region and
  * stops them from bleeding out - it would still allow subsequent
  * loads to move into the critical region).
+ * wq_head: 等待队列头部
+ * wq_entry: 等待队列条目
+ * state: 线程的状态
  */
 void prepare_to_wait(struct wait_queue_head *wq_head,
 		     struct wait_queue_entry *wq_entry, int state)
 {
 	unsigned long flags;
-
+	// 通过 wq_entry->flags &= ~WQ_FLAG_EXCLUSIVE 清除独占标志，
+	// 明确表示这是一个非独占等待，意味着当事件发生时，多个等待者可以同时被唤醒
 	wq_entry->flags &= ~WQ_FLAG_EXCLUSIVE;
 	spin_lock_irqsave(&wq_head->lock, flags);
+
+	// 这种设计可以防止wq_entry在等待队列中已经存在的情况下被重复添加，
+	// 这在循环等待的场景中特别有用，例如在 while (!condition) 循环中反复检查条件。
 	if (list_empty(&wq_entry->entry))
 		__add_wait_queue(wq_head, wq_entry);
 	set_current_state(state);
