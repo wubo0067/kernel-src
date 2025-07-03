@@ -150,65 +150,65 @@ EXPORT_SYMBOL(jiffies_64);
  */
 
 /* Clock divisor for the next level */
-#define LVL_CLK_SHIFT	3
-#define LVL_CLK_DIV	(1UL << LVL_CLK_SHIFT)
-#define LVL_CLK_MASK	(LVL_CLK_DIV - 1)
-#define LVL_SHIFT(n)	((n) * LVL_CLK_SHIFT)
-#define LVL_GRAN(n)	(1UL << LVL_SHIFT(n))
+#define LVL_CLK_SHIFT 3
+#define LVL_CLK_DIV (1UL << LVL_CLK_SHIFT)
+#define LVL_CLK_MASK (LVL_CLK_DIV - 1)
+#define LVL_SHIFT(n) ((n) * LVL_CLK_SHIFT)
+#define LVL_GRAN(n) (1UL << LVL_SHIFT(n))
 
 /*
  * The time start value for each level to select the bucket at enqueue
  * time. We start from the last possible delta of the previous level
  * so that we can later add an extra LVL_GRAN(n) to n (see calc_index()).
  */
-#define LVL_START(n)	((LVL_SIZE - 1) << (((n) - 1) * LVL_CLK_SHIFT))
+#define LVL_START(n) ((LVL_SIZE - 1) << (((n) - 1) * LVL_CLK_SHIFT))
 
 /* Size of each clock level */
-#define LVL_BITS	6
-#define LVL_SIZE	(1UL << LVL_BITS)
-#define LVL_MASK	(LVL_SIZE - 1)
-#define LVL_OFFS(n)	((n) * LVL_SIZE)
+#define LVL_BITS 6
+#define LVL_SIZE (1UL << LVL_BITS)
+#define LVL_MASK (LVL_SIZE - 1)
+#define LVL_OFFS(n) ((n) * LVL_SIZE)
 
 /* Level depth */
 #if HZ > 100
-# define LVL_DEPTH	9
-# else
-# define LVL_DEPTH	8
+#define LVL_DEPTH 9
+#else
+#define LVL_DEPTH 8
 #endif
 
 /* The cutoff (max. capacity of the wheel) */
-#define WHEEL_TIMEOUT_CUTOFF	(LVL_START(LVL_DEPTH))
-#define WHEEL_TIMEOUT_MAX	(WHEEL_TIMEOUT_CUTOFF - LVL_GRAN(LVL_DEPTH - 1))
+#define WHEEL_TIMEOUT_CUTOFF (LVL_START(LVL_DEPTH))
+#define WHEEL_TIMEOUT_MAX (WHEEL_TIMEOUT_CUTOFF - LVL_GRAN(LVL_DEPTH - 1))
 
 /*
  * The resulting wheel size. If NOHZ is configured we allocate two
  * wheels so we have a separate storage for the deferrable timers.
  */
-#define WHEEL_SIZE	(LVL_SIZE * LVL_DEPTH)
+#define WHEEL_SIZE (LVL_SIZE * LVL_DEPTH)
 
 #ifdef CONFIG_NO_HZ_COMMON
-# define NR_BASES	2
-# define BASE_STD	0
-# define BASE_DEF	1
+#define NR_BASES 2
+#define BASE_STD 0
+#define BASE_DEF 1
 #else
-# define NR_BASES	1
-# define BASE_STD	0
-# define BASE_DEF	0
+#define NR_BASES 1
+#define BASE_STD 0
+#define BASE_DEF 0
 #endif
 
 struct timer_base {
-	raw_spinlock_t		lock;
-	struct timer_list	*running_timer;
+	raw_spinlock_t lock;
+	struct timer_list *running_timer;
 #ifdef CONFIG_PREEMPT_RT
-	spinlock_t		expiry_lock;
-	atomic_t		timer_waiters;
+	spinlock_t expiry_lock;
+	atomic_t timer_waiters;
 #endif
-	unsigned long		clk;
-	unsigned long		next_expiry;
-	unsigned int		cpu;
-	bool			is_idle;
+	unsigned long clk;
+	unsigned long next_expiry;
+	unsigned int cpu;
+	bool is_idle;
 	DECLARE_BITMAP(pending_map, WHEEL_SIZE);
-	struct hlist_head	vectors[WHEEL_SIZE];
+	struct hlist_head vectors[WHEEL_SIZE];
 } ____cacheline_aligned;
 
 static DEFINE_PER_CPU(struct timer_base, timer_bases[NR_BASES]);
@@ -234,7 +234,9 @@ static void timers_update_migration(void)
 		static_branch_disable(&timers_migration_enabled);
 }
 #else
-static inline void timers_update_migration(void) { }
+static inline void timers_update_migration(void)
+{
+}
 #endif /* !CONFIG_SMP */
 
 static void timer_update_keys(struct work_struct *work)
@@ -251,8 +253,7 @@ void timers_update_nohz(void)
 }
 
 int timer_migration_handler(struct ctl_table *table, int write,
-			    void __user *buffer, size_t *lenp,
-			    loff_t *ppos)
+			    void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;
 
@@ -269,11 +270,14 @@ static inline bool is_timers_nohz_active(void)
 	return static_branch_unlikely(&timers_nohz_active);
 }
 #else
-static inline bool is_timers_nohz_active(void) { return false; }
+static inline bool is_timers_nohz_active(void)
+{
+	return false;
+}
 #endif /* NO_HZ_COMMON */
 
 static unsigned long round_jiffies_common(unsigned long j, int cpu,
-		bool force_up)
+					  bool force_up)
 {
 	int rem;
 	unsigned long original = j;
@@ -297,7 +301,7 @@ static unsigned long round_jiffies_common(unsigned long j, int cpu,
 	 * as cutoff for this rounding as an extreme upper bound for this.
 	 * But never round down if @force_up is set.
 	 */
-	if (rem < HZ/4 && !force_up) /* round down */
+	if (rem < HZ / 4 && !force_up) /* round down */
 		j = j - rem;
 	else /* round up */
 		j = j - rem + HZ;
@@ -474,7 +478,6 @@ unsigned long round_jiffies_up_relative(unsigned long j)
 }
 EXPORT_SYMBOL_GPL(round_jiffies_up_relative);
 
-
 static inline unsigned int timer_get_idx(struct timer_list *timer)
 {
 	return (timer->flags & TIMER_ARRAYMASK) >> TIMER_ARRAYSHIFT;
@@ -482,8 +485,8 @@ static inline unsigned int timer_get_idx(struct timer_list *timer)
 
 static inline void timer_set_idx(struct timer_list *timer, unsigned int idx)
 {
-	timer->flags = (timer->flags & ~TIMER_ARRAYMASK) |
-			idx << TIMER_ARRAYSHIFT;
+	timer->flags =
+		(timer->flags & ~TIMER_ARRAYMASK) | idx << TIMER_ARRAYSHIFT;
 }
 
 /*
@@ -493,7 +496,6 @@ static inline void timer_set_idx(struct timer_list *timer, unsigned int idx)
 static inline unsigned calc_index(unsigned long expires, unsigned lvl,
 				  unsigned long *bucket_expiry)
 {
-
 	/*
 	 * The timer wheel has to guarantee that a timer does not fire
 	 * early. Early expiry can happen due to:
@@ -529,7 +531,7 @@ static int calc_wheel_index(unsigned long expires, unsigned long clk,
 		idx = calc_index(expires, 6, bucket_expiry);
 	} else if (LVL_DEPTH > 8 && delta < LVL_START(8)) {
 		idx = calc_index(expires, 7, bucket_expiry);
-	} else if ((long) delta < 0) {
+	} else if ((long)delta < 0) {
 		idx = clk & LVL_MASK;
 		*bucket_expiry = clk;
 	} else {
@@ -545,8 +547,8 @@ static int calc_wheel_index(unsigned long expires, unsigned long clk,
 	return idx;
 }
 
-static void
-trigger_dyntick_cpu(struct timer_base *base, struct timer_list *timer)
+static void trigger_dyntick_cpu(struct timer_base *base,
+				struct timer_list *timer)
 {
 	if (!is_timers_nohz_active())
 		return;
@@ -578,7 +580,6 @@ trigger_dyntick_cpu(struct timer_base *base, struct timer_list *timer)
 static void enqueue_timer(struct timer_base *base, struct timer_list *timer,
 			  unsigned int idx, unsigned long bucket_expiry)
 {
-
 	hlist_add_head(&timer->entry, base->vectors + idx);
 	__set_bit(idx, base->pending_map);
 	timer_set_idx(timer, idx);
@@ -600,7 +601,8 @@ static void enqueue_timer(struct timer_base *base, struct timer_list *timer,
 	}
 }
 
-static void internal_add_timer(struct timer_base *base, struct timer_list *timer)
+static void internal_add_timer(struct timer_base *base,
+			       struct timer_list *timer)
 {
 	unsigned long bucket_expiry;
 	unsigned int idx;
@@ -615,7 +617,7 @@ static struct debug_obj_descr timer_debug_descr;
 
 static void *timer_debug_hint(void *addr)
 {
-	return ((struct timer_list *) addr)->function;
+	return ((struct timer_list *)addr)->function;
 }
 
 static bool timer_is_static_object(void *addr)
@@ -708,13 +710,13 @@ static bool timer_fixup_assert_init(void *addr, enum debug_obj_state state)
 }
 
 static struct debug_obj_descr timer_debug_descr = {
-	.name			= "timer_list",
-	.debug_hint		= timer_debug_hint,
-	.is_static_object	= timer_is_static_object,
-	.fixup_init		= timer_fixup_init,
-	.fixup_activate		= timer_fixup_activate,
-	.fixup_free		= timer_fixup_free,
-	.fixup_assert_init	= timer_fixup_assert_init,
+	.name = "timer_list",
+	.debug_hint = timer_debug_hint,
+	.is_static_object = timer_is_static_object,
+	.fixup_init = timer_fixup_init,
+	.fixup_activate = timer_fixup_activate,
+	.fixup_free = timer_fixup_free,
+	.fixup_assert_init = timer_fixup_assert_init,
 };
 
 static inline void debug_timer_init(struct timer_list *timer)
@@ -743,14 +745,13 @@ static inline void debug_timer_assert_init(struct timer_list *timer)
 }
 
 static void do_init_timer(struct timer_list *timer,
-			  void (*func)(struct timer_list *),
-			  unsigned int flags,
+			  void (*func)(struct timer_list *), unsigned int flags,
 			  const char *name, struct lock_class_key *key);
 
 void init_timer_on_stack_key(struct timer_list *timer,
 			     void (*func)(struct timer_list *),
-			     unsigned int flags,
-			     const char *name, struct lock_class_key *key)
+			     unsigned int flags, const char *name,
+			     struct lock_class_key *key)
 {
 	debug_object_init_on_stack(timer, &timer_debug_descr);
 	do_init_timer(timer, func, flags, name, key);
@@ -764,10 +765,18 @@ void destroy_timer_on_stack(struct timer_list *timer)
 EXPORT_SYMBOL_GPL(destroy_timer_on_stack);
 
 #else
-static inline void debug_timer_init(struct timer_list *timer) { }
-static inline void debug_timer_activate(struct timer_list *timer) { }
-static inline void debug_timer_deactivate(struct timer_list *timer) { }
-static inline void debug_timer_assert_init(struct timer_list *timer) { }
+static inline void debug_timer_init(struct timer_list *timer)
+{
+}
+static inline void debug_timer_activate(struct timer_list *timer)
+{
+}
+static inline void debug_timer_deactivate(struct timer_list *timer)
+{
+}
+static inline void debug_timer_assert_init(struct timer_list *timer)
+{
+}
 #endif
 
 static inline void debug_init(struct timer_list *timer)
@@ -788,8 +797,7 @@ static inline void debug_assert_init(struct timer_list *timer)
 }
 
 static void do_init_timer(struct timer_list *timer,
-			  void (*func)(struct timer_list *),
-			  unsigned int flags,
+			  void (*func)(struct timer_list *), unsigned int flags,
 			  const char *name, struct lock_class_key *key)
 {
 	timer->entry.pprev = NULL;
@@ -810,9 +818,9 @@ static void do_init_timer(struct timer_list *timer,
  * init_timer_key() must be done to a timer prior calling *any* of the
  * other timer functions.
  */
-void init_timer_key(struct timer_list *timer,
-		    void (*func)(struct timer_list *), unsigned int flags,
-		    const char *name, struct lock_class_key *key)
+void init_timer_key(struct timer_list *timer, void (*func)(struct timer_list *),
+		    unsigned int flags, const char *name,
+		    struct lock_class_key *key)
 {
 	debug_init(timer);
 	do_init_timer(timer, func, flags, name, key);
@@ -877,8 +885,8 @@ static inline struct timer_base *get_timer_base(u32 tflags)
 	return get_timer_cpu_base(tflags, tflags & TIMER_CPUMASK);
 }
 
-static inline struct timer_base *
-get_target_base(struct timer_base *base, unsigned tflags)
+static inline struct timer_base *get_target_base(struct timer_base *base,
+						 unsigned tflags)
 {
 #if defined(CONFIG_SMP) && defined(CONFIG_NO_HZ_COMMON)
 	if (static_branch_likely(&timers_migration_enabled) &&
@@ -912,7 +920,6 @@ static inline void forward_timer_base(struct timer_base *base)
 		base->clk = base->next_expiry;
 	}
 }
-
 
 /*
  * We are using hashed locking: Holding per_cpu(timer_bases[x]).lock means
@@ -951,12 +958,12 @@ static struct timer_base *lock_timer_base(struct timer_list *timer,
 	}
 }
 
-#define MOD_TIMER_PENDING_ONLY		0x01
-#define MOD_TIMER_REDUCE		0x02
-#define MOD_TIMER_NOTPENDING		0x04
+#define MOD_TIMER_PENDING_ONLY 0x01
+#define MOD_TIMER_REDUCE 0x02
+#define MOD_TIMER_NOTPENDING 0x04
 
-static inline int
-__mod_timer(struct timer_list *timer, unsigned long expires, unsigned int options)
+static inline int __mod_timer(struct timer_list *timer, unsigned long expires,
+			      unsigned int options)
 {
 	unsigned long clk = 0, flags, bucket_expiry;
 	struct timer_base *base, *new_base;
@@ -1041,7 +1048,8 @@ __mod_timer(struct timer_list *timer, unsigned long expires, unsigned int option
 			base = new_base;
 			raw_spin_lock(&base->lock);
 			WRITE_ONCE(timer->flags,
-				   (timer->flags & ~TIMER_BASEMASK) | base->cpu);
+				   (timer->flags & ~TIMER_BASEMASK) |
+					   base->cpu);
 			forward_timer_base(base);
 		}
 	}
@@ -1302,11 +1310,21 @@ static void del_timer_wait_running(struct timer_list *timer)
 	}
 }
 #else
-static inline void timer_base_init_expiry_lock(struct timer_base *base) { }
-static inline void timer_base_lock_expiry(struct timer_base *base) { }
-static inline void timer_base_unlock_expiry(struct timer_base *base) { }
-static inline void timer_sync_wait_running(struct timer_base *base) { }
-static inline void del_timer_wait_running(struct timer_list *timer) { }
+static inline void timer_base_init_expiry_lock(struct timer_base *base)
+{
+}
+static inline void timer_base_lock_expiry(struct timer_base *base)
+{
+}
+static inline void timer_base_unlock_expiry(struct timer_base *base)
+{
+}
+static inline void timer_sync_wait_running(struct timer_base *base)
+{
+}
+static inline void del_timer_wait_running(struct timer_list *timer)
+{
+}
 #endif
 
 #if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT_RT)
@@ -1414,8 +1432,8 @@ static void call_timer_fn(struct timer_list *timer,
 	lock_map_release(&lockdep_map);
 
 	if (count != preempt_count()) {
-		WARN_ONCE(1, "timer: %pF preempt leak: %08x -> %08x\n",
-			  fn, count, preempt_count());
+		WARN_ONCE(1, "timer: %pF preempt leak: %08x -> %08x\n", fn,
+			  count, preempt_count());
 		/*
 		 * Restore the preempt count. That gives us a decent
 		 * chance to survive and extract information. If the
@@ -1521,7 +1539,7 @@ static unsigned long __next_timer_interrupt(struct timer_base *base)
 		unsigned long lvl_clk = clk & LVL_CLK_MASK;
 
 		if (pos >= 0) {
-			unsigned long tmp = clk + (unsigned long) pos;
+			unsigned long tmp = clk + (unsigned long)pos;
 
 			tmp <<= LVL_SHIFT(lvl);
 			if (time_before(tmp, next))
@@ -1827,8 +1845,7 @@ signed long __sched schedule_timeout(signed long timeout)
 	struct process_timer timer;
 	unsigned long expire;
 
-	switch (timeout)
-	{
+	switch (timeout) {
 	case MAX_SCHEDULE_TIMEOUT:
 		/*
 		 * These two special cases are useful to be comfortable
@@ -1849,7 +1866,8 @@ signed long __sched schedule_timeout(signed long timeout)
 		 */
 		if (timeout < 0) {
 			printk(KERN_ERR "schedule_timeout: wrong timeout "
-				"value %lx\n", timeout);
+					"value %lx\n",
+			       timeout);
 			dump_stack();
 			current->state = TASK_RUNNING;
 			goto out;
@@ -1857,11 +1875,14 @@ signed long __sched schedule_timeout(signed long timeout)
 	}
 
 	expire = timeout + jiffies;
-
+	// 设置为当前进程
 	timer.task = current;
+	// 在栈上设置定时器，回调函数是 process_timeout
 	timer_setup_on_stack(&timer.timer, process_timeout, 0);
+	// 启动定时器，到期时间为 expire
 	__mod_timer(&timer.timer, expire, MOD_TIMER_NOTPENDING);
 	schedule();
+	// 唤醒后，删除定时器
 	del_singleshot_timer_sync(&timer.timer);
 
 	/* Remove the timer from the object tracker */
@@ -1869,7 +1890,7 @@ signed long __sched schedule_timeout(signed long timeout)
 
 	timeout = expire - jiffies;
 
- out:
+out:
 	return timeout < 0 ? 0 : timeout;
 }
 EXPORT_SYMBOL(schedule_timeout);
@@ -1911,7 +1932,8 @@ signed long __sched schedule_timeout_idle(signed long timeout)
 EXPORT_SYMBOL(schedule_timeout_idle);
 
 #ifdef CONFIG_HOTPLUG_CPU
-static void migrate_timer_list(struct timer_base *new_base, struct hlist_head *head)
+static void migrate_timer_list(struct timer_base *new_base,
+			       struct hlist_head *head)
 {
 	struct timer_list *timer;
 	int cpu = new_base->cpu;
@@ -1995,7 +2017,7 @@ static void __init init_timer_cpus(void)
 {
 	int cpu;
 
-	for_each_possible_cpu(cpu)
+	for_each_possible_cpu (cpu)
 		init_timer_cpu(cpu);
 }
 
