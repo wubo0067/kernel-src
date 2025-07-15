@@ -46,8 +46,7 @@ struct nmi_desc {
 	struct list_head head;
 };
 
-static struct nmi_desc nmi_desc[NMI_MAX] = 
-{
+static struct nmi_desc nmi_desc[NMI_MAX] = {
 	{
 		.lock = __RAW_SPIN_LOCK_UNLOCKED(&nmi_desc[0].lock),
 		.head = LIST_HEAD_INIT(nmi_desc[0].head),
@@ -98,8 +97,8 @@ static u64 nmi_longest_ns = 1 * NSEC_PER_MSEC;
 
 static int __init nmi_warning_debugfs(void)
 {
-	debugfs_create_u64("nmi_longest_ns", 0644,
-			arch_debugfs_dir, &nmi_longest_ns);
+	debugfs_create_u64("nmi_longest_ns", 0644, arch_debugfs_dir,
+			   &nmi_longest_ns);
 	return 0;
 }
 fs_initcall(nmi_warning_debugfs);
@@ -113,7 +112,8 @@ static void nmi_max_handler(struct irq_work *w)
 	remainder_ns = do_div(whole_msecs, (1000 * 1000));
 	decimal_msecs = remainder_ns / 1000;
 
-	printk_ratelimited(KERN_INFO
+	printk_ratelimited(
+		KERN_INFO
 		"INFO: NMI handler (%ps) took too long to run: %lld.%03d msecs\n",
 		a->handler, whole_msecs, decimal_msecs);
 }
@@ -122,7 +122,7 @@ static int nmi_handle(unsigned int type, struct pt_regs *regs)
 {
 	struct nmi_desc *desc = nmi_to_desc(type);
 	struct nmiaction *a;
-	int handled=0;
+	int handled = 0;
 
 	rcu_read_lock();
 
@@ -132,7 +132,7 @@ static int nmi_handle(unsigned int type, struct pt_regs *regs)
 	 * can be latched at any given time.  Walk the whole list
 	 * to handle those situations.
 	 */
-	list_for_each_entry_rcu(a, &desc->head, list) {
+	list_for_each_entry_rcu (a, &desc->head, list) {
 		int thishandled;
 		u64 delta;
 
@@ -146,6 +146,7 @@ static int nmi_handle(unsigned int type, struct pt_regs *regs)
 			continue;
 
 		a->max_duration = delta;
+		// 将irq_work加入队列中，延迟到irq_exit时处理
 		irq_work_queue(&a->irq_work);
 	}
 
@@ -183,7 +184,7 @@ int __register_nmi_handler(unsigned int type, struct nmiaction *action)
 		list_add_rcu(&action->list, &desc->head);
 	else
 		list_add_tail_rcu(&action->list, &desc->head);
-	
+
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 	return 0;
 }
@@ -197,14 +198,15 @@ void unregister_nmi_handler(unsigned int type, const char *name)
 
 	raw_spin_lock_irqsave(&desc->lock, flags);
 
-	list_for_each_entry_rcu(n, &desc->head, list) {
+	list_for_each_entry_rcu (n, &desc->head, list) {
 		/*
 		 * the name passed in to describe the nmi handler
 		 * is used as the lookup key
 		 */
 		if (!strcmp(n->name, name)) {
 			WARN(in_nmi(),
-				"Trying to free NMI (%s) from NMI context!\n", n->name);
+			     "Trying to free NMI (%s) from NMI context!\n",
+			     n->name);
 			list_del_rcu(&n->list);
 			break;
 		}
@@ -215,8 +217,7 @@ void unregister_nmi_handler(unsigned int type, const char *name)
 }
 EXPORT_SYMBOL_GPL(unregister_nmi_handler);
 
-static void
-pci_serr_error(unsigned char reason, struct pt_regs *regs)
+static void pci_serr_error(unsigned char reason, struct pt_regs *regs)
 {
 	/* check to see if anyone registered against these types of errors */
 	if (nmi_handle(NMI_SERR, regs))
@@ -236,8 +237,7 @@ pci_serr_error(unsigned char reason, struct pt_regs *regs)
 }
 NOKPROBE_SYMBOL(pci_serr_error);
 
-static void
-io_check_error(unsigned char reason, struct pt_regs *regs)
+static void io_check_error(unsigned char reason, struct pt_regs *regs)
 {
 	unsigned long i;
 
@@ -246,8 +246,8 @@ io_check_error(unsigned char reason, struct pt_regs *regs)
 		return;
 
 	pr_emerg(
-	"NMI: IOCK error (debug interrupt?) for reason %02x on CPU %d.\n",
-		 reason, smp_processor_id());
+		"NMI: IOCK error (debug interrupt?) for reason %02x on CPU %d.\n",
+		reason, smp_processor_id());
 	show_regs(regs);
 
 	if (panic_on_io_nmi) {
@@ -276,8 +276,7 @@ io_check_error(unsigned char reason, struct pt_regs *regs)
 }
 NOKPROBE_SYMBOL(io_check_error);
 
-static void
-unknown_nmi_error(unsigned char reason, struct pt_regs *regs)
+static void unknown_nmi_error(unsigned char reason, struct pt_regs *regs)
 {
 	int handled;
 
@@ -479,8 +478,7 @@ static DEFINE_PER_CPU(enum nmi_states, nmi_state);
 static DEFINE_PER_CPU(unsigned long, nmi_cr2);
 static DEFINE_PER_CPU(unsigned long, nmi_dr7);
 
-dotraplinkage notrace void
-do_nmi(struct pt_regs *regs, long error_code)
+dotraplinkage notrace void do_nmi(struct pt_regs *regs, long error_code)
 {
 	/*
 	 * Re-enable NMIs right here when running as an SEV-ES guest. This might

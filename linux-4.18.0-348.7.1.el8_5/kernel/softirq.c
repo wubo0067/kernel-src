@@ -286,6 +286,7 @@ asmlinkage __visible void __softirq_entry __do_softirq(void)
 	// 这个调用会将 SOFTIRQ_OFFSET 加到 preempt_count 上，设置第 8 位，
 	// in_serving_softirq() 会判断是否在软中断处理程序中
 	// __preempt_count + 1 << 8
+	// __local_bh_disable_ip禁用本地软中断
 	__local_bh_disable_ip(_RET_IP_, SOFTIRQ_OFFSET);
 	in_hardirq = lockdep_softirq_start();
 
@@ -487,6 +488,9 @@ void irq_exit(void)
 	if (!in_interrupt() && local_softirq_pending())
 		invoke_softirq();
 
+	// 在中断退出的时候处理与时钟tick相关的操作
+	// 还是在非硬中断上下文，准确的说是硬中断退出的尾部处理阶段。
+	// 但此时 preempt_count 中的 HARDIRQ 位已经被清除了
 	tick_irq_exit();
 	rcu_irq_exit();
 	/* must be last! */

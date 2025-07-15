@@ -19,7 +19,6 @@
 #include <linux/smp.h>
 #include <asm/processor.h>
 
-
 static DEFINE_PER_CPU(struct llist_head, raised_list);
 static DEFINE_PER_CPU(struct llist_head, lazy_list);
 
@@ -66,6 +65,14 @@ static void __irq_work_queue_local(struct irq_work *work)
 bool irq_work_queue(struct irq_work *work)
 {
 	/* Only queue if not already pending */
+	/*
+	先调用 irq_work_claim() 判断此 work 此时是否可以使用，
+	若别人事先已经对其 flag 标注了 IRQ_WORK_PENDING，则表示此 work 已经被 enqueue 过了，
+	还没来得及处理，是不允许重复对其进行 enqueue 的，直接返回 false
+
+	在这个work被处理时，在执行其回调之前，在 irq_work_single() 中清理 IRQ_WORK_PENDING 标志，
+	在执行其回调之后，清理 IRQ_WORK_BUSY 标志。
+	*/
 	if (!irq_work_claim(work))
 		return false;
 
@@ -112,7 +119,6 @@ bool irq_work_queue_on(struct irq_work *work, int cpu)
 #endif /* CONFIG_SMP */
 }
 
-
 bool irq_work_needs_cpu(void)
 {
 	struct llist_head *raised, *lazy;
@@ -141,7 +147,7 @@ static void irq_work_run_list(struct llist_head *list)
 		return;
 
 	llnode = llist_del_all(list);
-	llist_for_each_entry_safe(work, tmp, llnode, llnode) {
+	llist_for_each_entry_safe (work, tmp, llnode, llnode) {
 		int flags;
 		/*
 		 * Clear the PENDING bit, after this point the @work
@@ -160,7 +166,8 @@ static void irq_work_run_list(struct llist_head *list)
 		 * no-one else claimed it meanwhile.
 		 */
 		flags &= ~IRQ_WORK_PENDING;
-		(void)atomic_cmpxchg(&work->flags, flags, flags & ~IRQ_WORK_BUSY);
+		(void)atomic_cmpxchg(&work->flags, flags,
+				     flags & ~IRQ_WORK_BUSY);
 	}
 }
 
