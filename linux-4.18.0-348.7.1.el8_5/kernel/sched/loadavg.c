@@ -222,6 +222,7 @@ static inline int calc_load_write_idx(void)
 	/*
 	 * See calc_global_nohz(), if we observe the new index, we also
 	 * need to observe the new update time.
+	 * 内存屏障，保证idex++一定是idx设置的calc_load_idx的值
 	 */
 	smp_rmb();
 
@@ -331,6 +332,7 @@ static void calc_global_nohz(void)
 		delta = jiffies - sample_window - 10;
 		n = 1 + (delta / LOAD_FREQ);
 
+		// 读取全局活动任务计数
 		active = atomic_long_read(&calc_load_tasks);
 		active = active > 0 ? active * FIXED_1 : 0;
 

@@ -1136,7 +1136,7 @@ void __init setup_arch(char **cmdline_p)
 		max_low_pfn = e820__end_of_low_ram_pfn();
 	else
 		max_low_pfn = max_pfn;
-
+	// 根据物理内存大小，计算出直接映射区域虚拟地址的高端边界
 	high_memory = (void *)__va(max_pfn * PAGE_SIZE - 1) + 1;
 #endif
 
