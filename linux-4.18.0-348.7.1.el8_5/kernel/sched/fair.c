@@ -10945,9 +10945,17 @@ static void rq_offline_fair(struct rq *rq)
  * and everything must be accessed through the @rq and @curr passed in
  * parameters.
  * 从 core.c 的 scheduler_tick 函数调过来
+ * 是CFS调度类的周期性调度函数，每当定时器中断发生时被调用，用于维护调度器的公平性和处理相关任务
+ * scheduler_tick() (kernel/sched/core.c)
+ *    └── curr->sched_class->task_tick()
+ *         └── task_tick_fair() (对于CFS任务)
  */
 static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
 {
+	// rq：当前cpu的运行队列
+	// curr：当前正在运行的任务
+	// queued：任务是否刚被加入队列的标志
+
 	struct cfs_rq *cfs_rq;
 	// 根据当前进程的 task_struct，找到对应的调度实体 sched_entity
 	struct sched_entity *se = &curr->se;
@@ -10956,9 +10964,15 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
 	{
 		// 根据调度实体获取 cfs_rq 队列，也就是这个调度器的运行队列，调用 entity_tick：
 		cfs_rq = cfs_rq_of(se);
+		/*
+		1：更新虚拟运行时间(vruntime)：调用update_curr更新当前进程的vruntime
+		2：更新负载平均值：调用update_load_avg更新CFS队列和调度实体的负载统计
+		3：抢占检查：如果CFS队列中有多个可运行任务，调用check_preempt_tick检查是否需要抢占当前任务
+		*/
 		entity_tick(cfs_rq, se, queued);
 	}
-
+	// 如果启用了 NUMA 负载均衡，则调用 task_tick_numa
+	// 这用于处理跨 NUMA 节点的内存访问优化
 	if (static_branch_unlikely(&sched_numa_balancing))
 		task_tick_numa(rq, curr);
 

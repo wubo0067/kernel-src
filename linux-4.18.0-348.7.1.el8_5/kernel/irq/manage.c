@@ -1322,12 +1322,30 @@ static void irq_nmi_teardown(struct irq_desc *desc)
 {
 }
 
+/*
+传统硬中断处理（hardirq top half）在关本地中断、不可抢占的紧张上下文执行，不能睡眠；
+驱动若在里面做慢操作会拉高系统中断关闭时间，增加调度与抢占延迟。
+Threaded IRQ 机制将“长/可阻塞”部分搬到一个内核线程里执行，保留一个最小的 primary（硬件确认 + 快速判定）路径。
+
+硬件产生中断
+ → 进入硬中断入口
+   → 调用 primary handler (action->handler)
+      - 若确认来自本设备并禁用设备中断线
+      - 返回 IRQ_WAKE_THREAD
+        → __irq_wake_thread() 置 IRQTF_RUNTHREAD，递增 threads_active，唤醒 kthread
+          → kthread (irq_thread) 被唤醒
+             → 调用 action->thread_fn()（可睡眠、可阻塞）
+             → 结束后调用 irq_finalize_oneshot() 视 ONESHOT 状态解mask
+             → atomic_dec_and_test(threads_active) 唤醒等待同步者
+
+!!线程化下半部执行体
+*/
 static int
 setup_irq_thread(struct irqaction *new, unsigned int irq, bool secondary)
 {
 	struct task_struct *t;
 	struct sched_param param = {
-		.sched_priority = MAX_USER_RT_PRIO/2,
+		.sched_priority = MAX_USER_RT_PRIO/2, //50
 	};
 
 	if (!secondary) {
@@ -1342,12 +1360,14 @@ setup_irq_thread(struct irqaction *new, unsigned int irq, bool secondary)
 	if (IS_ERR(t))
 		return PTR_ERR(t);
 
+	// 设置t为先进先出实时调度
 	sched_setscheduler_nocheck(t, SCHED_FIFO, &param);
 
 	/*
 	 * We keep the reference to the task struct even if
 	 * the thread dies to avoid that the interrupt code
 	 * references an already freed task_struct.
+	 * get_task_struct() 保存线程引用，防止线程退出后指针悬空。
 	 */
 	new->thread = get_task_struct(t);
 	/*
