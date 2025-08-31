@@ -20,8 +20,8 @@
 #include <linux/pageblock-flags.h>
 #include <linux/page-flags-layout.h>
 #include <linux/atomic.h>
-#include RH_KABI_HIDE_INCLUDE(<linux / mm_types.h>)
-#include RH_KABI_HIDE_INCLUDE(<linux / page - flags.h>)
+#include RH_KABI_HIDE_INCLUDE(<linux/mm_types.h>)
+#include RH_KABI_HIDE_INCLUDE(<linux/page-flags.h>)
 #include <asm/page.h>
 
 /* Free memory management - zoned buddy allocator.  */
