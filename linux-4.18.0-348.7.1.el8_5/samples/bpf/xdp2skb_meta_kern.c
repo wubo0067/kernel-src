@@ -37,6 +37,8 @@ int _xdp_mark(struct xdp_md *ctx)
 
 	/* Reserve space in-front of data pointer for our meta info.
 	 * (Notice drivers not supporting data_meta will fail here!)
+	 其作用是在 XDP 程序处理的数据包缓冲区中，调整 data_meta 指针的位置，
+	 以便在数据包头部（payload 前面）预留或释放一段用于存放元数据（metadata）的空间
 	 */
 	ret = bpf_xdp_adjust_meta(ctx, -(int)sizeof(*meta));
 	if (ret < 0)
@@ -54,6 +56,7 @@ int _xdp_mark(struct xdp_md *ctx)
 	if (meta + 1 > data)
 		return XDP_ABORTED;
 
+	// 设置元数据标记为 42
 	meta->mark = 42;
 
 	return XDP_PASS;
@@ -71,10 +74,12 @@ int _tc_mark(struct __sk_buff *ctx)
 	if (meta + 1 > data) {
 		ctx->mark = 41;
 		 /* Skip "accept" if no data_meta is avail */
+		 // 如果没有：ctx->mark = 41（设置默认标记 41
 		return TC_ACT_OK;
 	}
 
 	/* Hint: See func tc_cls_act_is_valid_access() for BPF_WRITE access */
+	// 如果有：ctx->mark = meta->mark（将 XDP 的标记 42 复制到 SKB）
 	ctx->mark = meta->mark; /* Transfer XDP-mark to SKB-mark */
 
 	return TC_ACT_OK;
