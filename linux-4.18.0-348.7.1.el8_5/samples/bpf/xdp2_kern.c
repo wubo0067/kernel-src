@@ -104,7 +104,13 @@ int xdp_prog1(struct xdp_md *ctx)
 		*value += 1;
 
 	if (ipproto == IPPROTO_UDP) {
+		/*
+		将数据包的源MAC和目的MAC地址互换。这样，数据包在被发回时，原本的接收方会变成发送方，原发送方会变成接收方。
+		*/
 		swap_src_dst_mac(data);
+		/*
+		将 rc 设为 XDP_TX，表示XDP程序要求驱动将该数据包直接从收到的网卡端口“发回去”（即本地回环发送），而不是继续上送协议栈。
+		*/
 		rc = XDP_TX;
 	}
 
